@@ -20,9 +20,10 @@ Este documento cubre únicamente el núcleo financiero. Es un producto vendible 
 
 **Incluye:** autenticación, hogares y membresías con permisos, suscripción por Stripe,
 configuración inicial del presupuesto (ingresos incluidos los variables, gastos fijos),
-presupuesto anual y mensual editable, registro manual de transacciones, Overview con
-gráficas, Balance con cierres mensuales, Goals, Settings y Profile, los tres temas visuales,
-y bilingüismo inglés/francés.
+presupuesto anual y mensual editable, **planificación mensual con reparto en cascada del
+sobrante y mesada personal**, registro manual de transacciones, Overview con gráficas,
+Balance con cierres mensuales, Goals, Settings y Profile, los tres temas visuales, y
+bilingüismo inglés/francés.
 
 **No incluye** (ver sección 12): OCR de recibos, reportes ad-hoc, machine learning,
 simulador de compras, gestión de deudas, módulo fiscal de la CRA, registro sin conexión.
@@ -104,7 +105,7 @@ de forma real, y hace que envolver en Capacitor más adelante sea trivial.
 
 **`Household`**
 Nombre visible ("Family Thompson"), moneda (`CAD`), zona horaria, mes de inicio del año
-presupuestario, `family_size` y marca de tiempo de creación.
+presupuestario, `family_size`, `allowance_rollover` (§4.5.4) y marca de tiempo de creación.
 
 `family_size` es cuántas personas viven en la casa, que **no** es lo mismo que cuántas
 usan la aplicación: un hogar de cinco puede tener dos cuentas. Se usa para métricas per
@@ -200,8 +201,38 @@ si se vincula a una línea concreta).
 tipo "¿cuánto gastamos en Walmart este año?" que llegan en la Fase 2.
 
 **`Goal`** y **`GoalContribution`**
-Meta con `name`, `target_amount`, `target_date`, `scope` (hogar o personal), `owner`,
-`status`. Las contribuciones registran aportes con fecha y miembro.
+Meta con `name`, `scope` (hogar o personal), `owner`, `status`, y **dos formas de
+expresarse** (`contribution_mode`):
+
+- `by_target_date` — "$7,200 para el 30 de junio de 2027". La aplicación calcula el aporte
+  mensual necesario.
+- `by_monthly_amount` — "$600 cada mes". La aplicación calcula la fecha de llegada.
+
+Son la misma cosa vista al revés: el usuario da dos datos y la aplicación deriva el tercero.
+Ambas formas deben existir, porque las familias piensan de las dos maneras. Las
+contribuciones registran aportes con fecha, miembro y origen (manual o automática desde la
+cascada).
+
+**`AllocationRule`** — las reglas de reparto del sobrante (§4.5)
+- `household`, `order` (entero, define la prioridad en la cascada)
+- `target_type`: `goal` | `allowance` | `category`
+- `target_goal` / `target_category` (según el tipo)
+- `method`: `fixed` | `percentage` | `remainder`
+- `amount` (para `fixed`) o `percentage` (para `percentage`)
+- `split`: para `allowance`, cómo se divide entre miembros — `equal` o pesos explícitos
+- `is_active`
+
+**`MonthlyAllocation`** — el reparto materializado de un mes
+`budget_month`, `rule`, `planned_amount`, `actual_amount`, `member` (solo para mesadas). Se
+escribe al confirmar la planificación y se ajusta al cerrar el mes.
+
+**`AllowanceLedger`** — el saldo de mesada de cada miembro
+`member`, `household`, `budget_month`, `granted` (lo asignado por la cascada), `spent` (lo
+gastado con ámbito `personal` contra la mesada), `adjustment` (correcciones arrastradas de
+un cierre anterior), `carried_in`, `carried_out`.
+
+Es un libro mayor, no un campo mutable: cada mes es una fila y el saldo se deriva sumando.
+Así "¿por qué tengo $145 este mes?" siempre tiene respuesta.
 
 **`MonthlyClose`** — la foto congelada
 `budget_month`, totales de ingresos y egresos presupuestados y reales, varianza por
@@ -267,6 +298,99 @@ FUTURO ──────────► ABIERTO ──────────�
 
 El balance de un mes es: saldo arrastrado del cierre anterior + ingresos reales − egresos
 reales. El superávit o déficit se arrastra al mes siguiente al cerrar.
+
+### 4.5 Reparto en cascada del sobrante
+
+La función que distingue a Wealthome. Nace de un ritual real: una pareja se sienta cada mes,
+estima el ingreso variable, agrega los gastos excepcionales de ese mes, y reparte lo que
+sobra entre el ahorro y una mesada personal para cada uno. Casi ninguna aplicación de
+presupuesto lo modela, porque todas asumen que el sobrante "se queda ahí".
+
+#### 4.5.1 Además, cierra el diseño
+
+Es el puente que faltaba entre Household y Personal. Un miembro que aporta todo su sueldo a
+la casa no tenía, hasta ahora, ninguna fuente de dinero propio en el módulo Personal.
+
+**La mesada es un gasto del hogar y un ingreso personal del miembro** — la misma cantidad,
+vista desde los dos lados. Con eso, Personal › Budget deja de ser una vista filtrada y pasa
+a tener presupuesto propio.
+
+#### 4.5.2 La cascada
+
+Al planificar el mes:
+
+```
+Ingresos estimados del mes
+− Gastos fijos (incluido el entretenimiento familiar)
+− Gastos excepcionales del mes
+──────────────────────────────
+  SOBRANTE PROYECTADO
+        │
+        ├─ Regla 1 (prioridad más alta)
+        ├─ Regla 2
+        └─ Regla N
+```
+
+Cada `AllocationRule` tiene un destino (una meta de ahorro, la mesada de los miembros, una
+categoría o fondo) y un método (monto fijo, porcentaje del sobrante, o todo el resto). Las
+reglas se ordenan por prioridad y el sobrante cae por ellas en cascada.
+
+Ejemplo canónico: (1) Ahorro familiar, monto fijo $600. (2) Mesada personal, el resto,
+repartido en partes iguales. Otra familia puede poner $50 a cada hijo, 10% al fondo de
+vacaciones, y el resto a reserva de emergencia. Es el mismo mecanismo.
+
+#### 4.5.3 Qué pasa cuando el sobrante real es menor al proyectado
+
+Pasa constantemente: un ingreso por horas cierra por debajo de lo estimado.
+
+**El faltante lo absorbe la última regla de la cascada**, y si no alcanza, la penúltima. Eso
+es lo que significa una cascada, y hace que el orden importe de verdad: con el ahorro arriba
+y las mesadas abajo, un mes flojo se come la diversión, no el ahorro. Una familia que
+prefiera lo contrario solo reordena las reglas.
+
+**Pero la mesada ya asignada nunca se retira.** Se fija al planificar y no se mueve durante
+el mes — de nada sirve enterarse el día 30 de que tenías $100 para gastar. Si el cierre real
+deja un faltante, se registra como `adjustment` negativo contra la mesada **del mes
+siguiente**.
+
+Ejemplo: sobrante proyectado $800 → $600 al ahorro, $100 a cada uno. Sobrante real $720. El
+ahorro recibe sus $600 íntegros; el faltante de $80 se descuenta de las mesadas de octubre,
+$40 a cada uno. Nadie pierde dinero que ya gastó.
+
+#### 4.5.4 Acumulación de la mesada
+
+`Household.allowance_rollover` (por defecto **activado**): la mesada no gastada se acumula al
+mes siguiente. Guardar $100 durante tres meses para comprar algo de $300 es exactamente lo
+que hace que se sienta dinero propio y no una asignación que caduca.
+
+Con la opción desactivada, el saldo no gastado vuelve al hogar al cerrar el mes.
+
+#### 4.5.5 Entretenimiento familiar ≠ mesada personal
+
+Son cosas distintas y la interfaz debe decirlo con claridad:
+
+| | Entretenimiento familiar | Mesada personal |
+|---|---|---|
+| Qué es | Salidas, comidas, ocio compartido | Dinero individual, sin justificación |
+| Dónde vive | `ExpenseRule`, gasto fijo del hogar | `AllocationRule` sobre el sobrante |
+| Quién decide | El hogar, al configurar | Cada miembro, al gastarlo |
+| Cuándo se fija | Antes del sobrante | Después del sobrante |
+
+Confundirlas es lo que hace que las parejas discutan por dinero.
+
+#### 4.5.6 El flujo "Planificar el mes"
+
+Un asistente de tres pasos, al abrir cada mes:
+
+1. **Ingresos** — los fijos vienen precargados; los variables piden confirmar o ajustar la
+   estimación del mes. Es el único dato que la familia teclea de verdad cada mes.
+2. **Salidas** — gastos fijos precargados y editables, más las partidas excepcionales de
+   ese mes (inscripciones, viajes, regalos).
+3. **Reparto** — muestra el sobrante proyectado, la cascada aplicada y la mesada resultante
+   por miembro (con el acumulado del mes anterior). Las reglas se reordenan arrastrando.
+
+Al confirmar, el mes pasa a `open` y se escriben las `MonthlyAllocation` y el
+`AllowanceLedger` del mes.
 
 ---
 
@@ -357,14 +481,17 @@ En escritorio, barra lateral con el árbol completo. El mismo HTML, distinta hoj
 ### 7.2 Pantallas de la Fase 1
 
 - **Onboarding** (asistente): crear hogar → miembros → ingresos por miembro → gastos fijos →
-  meta de ahorro
+  meta de ahorro → reglas de reparto
+- **Planificar el mes** (asistente de 3 pasos, §4.5.6): ingresos → salidas → reparto
 - **Household › Overview**: presupuesto del mes vs. gasto real, flujo de caja, movimientos
   recientes, gráficas, filtros, botón de registrar
 - **Household › Budget**: vista anual y mensual, edición de reglas y de líneas del mes
 - **Household › Balance**: balance actual y cierres de meses anteriores
 - **Household › Goals**: metas de ahorro con progreso y fecha objetivo
 - **Personal › Overview / Budget / Balance / Goals**: las mismas vistas, filtradas al miembro
-- **Settings**: miembros y permisos, suscripción, tema, idioma, categorías
+- **Personal › Budget**: incluye la mesada del mes, su acumulado y en qué se ha ido
+- **Settings**: miembros y permisos, suscripción, tema, idioma, categorías, reglas de
+  reparto y acumulación de mesada
 - **Profile**: avatar, nombre, tema, idioma
 
 ### 7.3 Estilo visual
@@ -444,6 +571,15 @@ Casos que deben quedar cubiertos explícitamente:
 - Cerrar una regla y crear su sucesora no altera ningún mes ya cerrado
 - El arrastre de saldo entre cierres consecutivos cuadra al centavo
 - Un mes cerrado rechaza toda escritura
+- La cascada reparte correctamente con cada combinación de métodos (`fixed`, `percentage`,
+  `remainder`) y con reglas reordenadas
+- Un sobrante real menor al proyectado se absorbe desde la última regla hacia arriba, sin
+  tocar las de prioridad alta
+- Una mesada ya asignada nunca se reduce dentro del mes; el ajuste aparece en el mes
+  siguiente
+- El acumulado de mesada cuadra al centavo a lo largo de varios meses, con la opción de
+  acumulación activada y desactivada
+- Un sobrante negativo (mes deficitario) no reparte nada y no genera mesada
 
 **Aislamiento entre hogares:** una batería de pruebas que verifica que ningún endpoint
 devuelve datos de otro hogar. Esta es la clase de bug que no se descubre en desarrollo.
@@ -517,9 +653,13 @@ los compara contra sus formularios reales.
    el saldo arrastrado correcto.
 4. Un ingreso variable en modo `range` presupuesta el mínimo, y el exceso aparece como
    superávit al cierre.
-5. Editar el alquiler en marzo no altera ningún cierre de enero ni febrero.
-6. La aplicación funciona completa en francés, con montos formateados `2 847,50 $`.
-7. Los tres temas se aplican sin ningún componente duplicado.
-8. Ninguna consulta devuelve datos de otro hogar, verificado por pruebas.
-9. El pago por Stripe activa el hogar de por vida vía webhook, y un webhook repetido no
+5. Una pareja planifica el mes en tres pasos, ve su sobrante repartido según sus reglas, y
+   cada uno sabe desde el día 1 cuánta mesada tiene.
+6. Un mes que cierra por debajo de lo estimado deja el ahorro intacto y ajusta la mesada del
+   mes siguiente, sin retirar nada ya gastado.
+7. Editar el alquiler en marzo no altera ningún cierre de enero ni febrero.
+8. La aplicación funciona completa en francés, con montos formateados `2 847,50 $`.
+9. Los tres temas se aplican sin ningún componente duplicado.
+10. Ninguna consulta devuelve datos de otro hogar, verificado por pruebas.
+11. El pago por Stripe activa el hogar de por vida vía webhook, y un webhook repetido no
    produce ningún efecto adicional.
