@@ -5,3 +5,4 @@ Babel==2.16.*
 pytest==8.3.*
 pytest-django==4.9.*
 factory-boy==3.3.*
+Pillow==12.3.*
