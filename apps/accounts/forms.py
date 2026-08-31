@@ -22,7 +22,11 @@ class RegistroForm(forms.Form):
 
     def clean_password1(self):
         password = self.cleaned_data["password1"]
-        validate_password(password)
+        usuario_sin_guardar = User(
+            email=self.cleaned_data.get("email", ""),
+            display_name=self.cleaned_data.get("display_name", ""),
+        )
+        validate_password(password, user=usuario_sin_guardar)
         return password
 
     def clean(self):

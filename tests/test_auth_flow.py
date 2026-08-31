@@ -83,3 +83,32 @@ def test_usuario_autenticado_no_ve_el_formulario_de_registro(client):
     respuesta = client.get(reverse("accounts:registro"))
     assert respuesta.status_code == 302
     assert respuesta.url == reverse("accounts:inicio")
+
+
+@pytest.mark.django_db
+def test_una_clave_derivada_del_email_no_registra(client):
+    # "ottonexample" no es ni corta (12 caracteres) ni numérica ni una clave
+    # común: solo UserAttributeSimilarityValidator puede rechazarla, por ser
+    # demasiado parecida al email "otton@example.com".
+    datos = DATOS | {"password1": "ottonexample", "password2": "ottonexample"}
+    respuesta = client.post(reverse("accounts:registro"), datos)
+    assert respuesta.status_code == 200
+    assert User.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_no_se_puede_registrar_el_mismo_email_con_distintas_mayusculas(client):
+    client.post(reverse("accounts:registro"), DATOS)
+    client.logout()
+    datos = DATOS | {"email": "Otton@Example.com"}
+    respuesta = client.post(reverse("accounts:registro"), datos)
+    assert respuesta.status_code == 200
+    assert User.objects.filter(email="otton@example.com").count() == 1
+
+
+@pytest.mark.django_db
+def test_family_size_por_debajo_del_minimo_no_registra(client):
+    datos = DATOS | {"family_size": 0}
+    respuesta = client.post(reverse("accounts:registro"), datos)
+    assert respuesta.status_code == 200
+    assert User.objects.count() == 0
