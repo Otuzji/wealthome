@@ -1,0 +1,341 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Wealthome 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-31 10:47+0000\n"
+"PO-Revision-Date: 2026-08-31 10:47+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: apps/accounts/forms.py
+msgid "Email address"
+msgstr "Adresse courriel"
+
+#: apps/accounts/forms.py
+msgid "Your name"
+msgstr "Votre nom"
+
+#: apps/accounts/forms.py
+msgid "Password"
+msgstr "Mot de passe"
+
+#: apps/accounts/forms.py
+msgid "Confirm password"
+msgstr "Confirmer le mot de passe"
+
+#: apps/accounts/forms.py
+msgid "Household name"
+msgstr "Nom du foyer"
+
+#: apps/accounts/forms.py
+msgid "How many live in your home?"
+msgstr "Combien de personnes vivent chez vous?"
+
+#: apps/accounts/forms.py
+msgid "An account with this email already exists."
+msgstr "Un compte utilise déjà cette adresse courriel."
+
+#: apps/accounts/forms.py
+msgid "The two passwords do not match."
+msgstr "Les deux mots de passe ne correspondent pas."
+
+#: apps/accounts/forms.py
+msgid "Theme"
+msgstr "Thème"
+
+#: apps/accounts/forms.py
+msgid "Language"
+msgstr "Langue"
+
+#: apps/accounts/models.py
+msgid "An email address is required."
+msgstr "Une adresse courriel est requise."
+
+#: apps/accounts/models.py
+msgid "Superuser must have is_staff=True."
+msgstr "Un superutilisateur doit avoir is_staff=True."
+
+#: apps/accounts/models.py
+msgid "Superuser must have is_superuser=True."
+msgstr "Un superutilisateur doit avoir is_superuser=True."
+
+#: apps/accounts/models.py
+msgid "email address"
+msgstr "adresse courriel"
+
+#: apps/accounts/models.py
+msgid "display name"
+msgstr "nom affiché"
+
+#: apps/accounts/models.py
+msgid "active"
+msgstr "actif"
+
+#: apps/accounts/models.py
+msgid "staff status"
+msgstr "statut du personnel"
+
+#: apps/accounts/models.py
+msgid "date joined"
+msgstr "date d'inscription"
+
+#: apps/accounts/models.py
+msgid "user"
+msgstr "utilisateur"
+
+#: apps/accounts/models.py
+msgid "users"
+msgstr "utilisateurs"
+
+#: apps/accounts/models.py
+msgid "Serene"
+msgstr "Sereine"
+
+#: apps/accounts/models.py
+msgid "Nocturne"
+msgstr "Nocturne"
+
+#: apps/accounts/models.py
+msgid "Accessible"
+msgstr "Accessible"
+
+#: apps/accounts/models.py
+msgid "English"
+msgstr "Anglais"
+
+#: apps/accounts/models.py
+msgid "Français"
+msgstr "Français"
+
+#: apps/accounts/models.py
+msgid "avatar"
+msgstr "avatar"
+
+#: apps/accounts/models.py
+msgid "theme"
+msgstr "thème"
+
+#: apps/accounts/models.py
+msgid "language"
+msgstr "langue"
+
+#: apps/accounts/models.py
+msgid "profile"
+msgstr "profil"
+
+#: apps/accounts/models.py
+msgid "profiles"
+msgstr "profils"
+
+#: apps/households/forms.py
+msgid "Email address of the person you are inviting"
+msgstr "Adresse courriel de la personne invitée"
+
+#: apps/households/forms.py
+msgid "Send the invitation in"
+msgstr "Envoyer l'invitation en"
+
+#: apps/households/models.py
+msgid "household name"
+msgstr "nom du foyer"
+
+#: apps/households/models.py
+msgid "currency"
+msgstr "devise"
+
+#: apps/households/models.py
+msgid "time zone"
+msgstr "fuseau horaire"
+
+#: apps/households/models.py
+msgid "budget start month"
+msgstr "mois de début du budget"
+
+#: apps/households/models.py
+msgid "family size"
+msgstr "taille de la famille"
+
+#: apps/households/models.py
+msgid "How many people live in the home. Not the same as how many use the app."
+msgstr "Combien de personnes vivent dans le foyer. Ce n'est pas le nombre d'utilisateurs de l'application."
+
+#: apps/households/models.py
+msgid "allowance rolls over"
+msgstr "report de l'argent de poche"
+
+#: apps/households/models.py
+msgid "Unspent personal allowance carries into the next month."
+msgstr "L'argent de poche non dépensé est reporté au mois suivant."
+
+#: apps/households/models.py
+msgid "household"
+msgstr "foyer"
+
+#: apps/households/models.py
+msgid "households"
+msgstr "foyers"
+
+#: apps/households/models.py
+msgid "Administrator"
+msgstr "Administrateur"
+
+#: apps/households/models.py
+msgid "Member"
+msgstr "Membre"
+
+#: apps/households/models.py
+msgid "role"
+msgstr "rôle"
+
+#: apps/households/models.py
+msgid "can view the budget"
+msgstr "peut consulter le budget"
+
+#: apps/households/models.py
+msgid "can edit the budget"
+msgstr "peut modifier le budget"
+
+#: apps/households/models.py
+msgid "can add transactions"
+msgstr "peut saisir des transactions"
+
+#: apps/households/models.py
+msgid "can view reports"
+msgstr "peut consulter les rapports"
+
+#: apps/households/models.py
+msgid "joined at"
+msgstr "date d'adhésion"
+
+#: apps/households/models.py
+msgid "membership"
+msgstr "adhésion"
+
+#: apps/households/models.py
+msgid "memberships"
+msgstr "adhésions"
+
+#: apps/households/models.py
+msgid "A household can have at most %(max)d members."
+msgstr "Un foyer peut compter au maximum %(max)d membres."
+
+#: apps/households/models.py
+msgid "invitation"
+msgstr "invitation"
+
+#: apps/households/models.py
+msgid "invitations"
+msgstr "invitations"
+
+#: apps/households/permissions.py
+msgid "You do not have permission to do that in this household."
+msgstr "Vous n'avez pas la permission de faire cela dans ce foyer."
+
+#: apps/households/services.py
+msgid "Only the administrator can invite members."
+msgstr "Seul l'administrateur peut inviter des membres."
+
+#: apps/households/services.py
+msgid "This household has no free seats left."
+msgstr "Ce foyer n'a plus de place disponible."
+
+#: apps/households/services.py
+msgid "This invitation link is not valid."
+msgstr "Ce lien d'invitation n'est pas valide."
+
+#: apps/households/services.py
+msgid "This invitation has expired or was already used."
+msgstr "Cette invitation a expiré ou a déjà été utilisée."
+
+#: apps/households/services.py
+msgid "You are already a member of this household."
+msgstr "Vous êtes déjà membre de ce foyer."
+
+#: apps/households/services.py
+msgid "This household is already full."
+msgstr "Ce foyer est déjà complet."
+
+#: templates/accounts/inicio.html
+msgid "Welcome"
+msgstr "Bienvenue"
+
+#: templates/accounts/inicio.html
+msgid "Household settings"
+msgstr "Paramètres du foyer"
+
+#: templates/accounts/login.html
+msgid "Sign in"
+msgstr "Se connecter"
+
+#: templates/accounts/login.html
+msgid "Create a household"
+msgstr "Créer un foyer"
+
+#: templates/accounts/preferencias.html
+msgid "My preferences"
+msgstr "Mes préférences"
+
+#: templates/accounts/preferencias.html
+msgid "Save"
+msgstr "Enregistrer"
+
+#: templates/accounts/preferencias.html
+msgid "Back to settings"
+msgstr "Retour aux paramètres"
+
+#: templates/accounts/registro.html
+msgid "Create your household"
+msgstr "Créer votre foyer"
+
+#: templates/accounts/registro.html
+msgid "Start my 14-day trial"
+msgstr "Commencer mon essai de 14 jours"
+
+#: templates/accounts/registro.html
+msgid "I already have an account"
+msgstr "J'ai déjà un compte"
+
+#: templates/households/aceptar.html
+msgid "Join this household"
+msgstr "Rejoindre ce foyer"
+
+#: templates/households/aceptar.html
+msgid "Accept invitation"
+msgstr "Accepter l'invitation"
+
+#: templates/households/ajustes.html
+msgid "Settings"
+msgstr "Paramètres"
+
+#: templates/households/ajustes.html
+msgid "Members"
+msgstr "Membres"
+
+#: templates/households/ajustes.html
+msgid "Permissions"
+msgstr "Permissions"
+
+#: templates/households/ajustes.html
+msgid "Invite a member"
+msgstr "Inviter un membre"
+
+#: templates/households/invitar.html
+msgid "Send invitation"
+msgstr "Envoyer l'invitation"
+
+#: templates/households/permisos.html
+msgid "Permissions for %(nombre)s"
+msgstr "Permissions de %(nombre)s"
+
+#: apps/accounts/admin.py
+msgid "Personal info"
+msgstr "Informations personnelles"
+
+#: apps/accounts/admin.py
+msgid "Important dates"
+msgstr "Dates importantes"

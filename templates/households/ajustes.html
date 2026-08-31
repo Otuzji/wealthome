@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate "Settings" %}{% endblock %}
+{% block content %}
+  <h1>{{ hogar.name }}</h1>
+
+  <section class="card">
+    <h2>{% translate "Members" %}</h2>
+    <ul>
+      {% for m in miembros %}
+        <li>
+          {{ m.user }} — {{ m.get_role_display }}
+          {% if es_admin and m.role != "admin" %}
+            <a href="{% url 'households:permisos' m.pk %}">{% translate "Permissions" %}</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% if es_admin %}
+      <a class="btn" href="{% url 'households:invitar' %}">{% translate "Invite a member" %}</a>
+    {% endif %}
+  </section>
+
+  <p><a href="{% url 'accounts:preferencias' %}">{% translate "My preferences" %}</a></p>
+{% endblock %}

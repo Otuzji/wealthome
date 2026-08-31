@@ -1,0 +1,69 @@
+/* Wealthome · sistema de temas.
+   Un solo juego de variables por tema; los componentes se escriben una vez. */
+
+/* ---------- Sereno (por defecto) ---------- */
+:root {
+  --bg:            #e9edf1;
+  --surface:       #e9edf1;
+  --text:          #33404f;
+  --text-muted:    #8a94a3;
+  --accent:        #3f8f6f;
+  --accent-strong: #2f7d5d;
+  --danger:        #b0603f;
+
+  --font-family:    'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-size-base: 15px;
+  --font-weight-strong: 600;
+
+  --radius:      17px;
+  --radius-sm:   13px;
+  --border-width: 0px;
+  --border-color: transparent;
+
+  --shadow-light: #ffffff;
+  --shadow-dark:  #c3c9d1;
+  --shadow-raised: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+  --shadow-inset:  inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+
+  --touch-target: 44px;
+}
+
+/* ---------- Nocturno ---------- */
+[data-theme="nocturno"] {
+  --bg:            #232830;
+  --surface:       #232830;
+  --text:          #eef2f6;
+  --text-muted:    #8993a1;
+  --accent:        #5cc196;
+  --accent-strong: #3f9d78;
+  --danger:        #d98b6a;
+
+  --shadow-light: #2c333c;
+  --shadow-dark:  #1a1e24;
+}
+
+/* ---------- Accesible ----------
+   El neomorfismo comunica profundidad con sombras suaves, y esa es la primera
+   señal que se pierde con la vista cansada. Aquí se sustituye por bordes. */
+[data-theme="accesible"] {
+  --bg:            #f2f4f6;
+  --surface:       #ffffff;
+  --text:          #14181d;
+  --text-muted:    #3a424c;
+  --accent:        #0a5c3a;
+  --accent-strong: #084a2e;
+  --danger:        #8c2f14;
+
+  --font-size-base: 20px;
+  --font-weight-strong: 800;
+
+  --radius:      14px;
+  --radius-sm:   11px;
+  --border-width: 3px;
+  --border-color: #14181d;
+
+  --shadow-raised: 0 4px 0 #14181d;
+  --shadow-inset:  none;
+
+  --touch-target: 56px;
+}

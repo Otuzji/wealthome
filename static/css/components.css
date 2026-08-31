@@ -1,0 +1,23 @@
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-raised);
+  padding: 20px;
+}
+
+.btn {
+  min-height: var(--touch-target);
+  padding: 0 18px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-strong);
+  box-shadow: var(--shadow-raised);
+  cursor: pointer;
+}
+
+.btn--primary { color: var(--accent-strong); }

@@ -1,0 +1,14 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+a { color: var(--accent); }
+
+.shell { max-width: 960px; margin: 0 auto; padding: 24px 18px 96px; }
