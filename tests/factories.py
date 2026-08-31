@@ -15,3 +15,23 @@ class UserFactory(factory.django.DjangoModelFactory):
         obj.set_password(extracted or "clave-larga-123")
         if create:
             obj.save()
+
+
+from apps.households.models import Household, Membership  # noqa: E402
+
+
+class HouseholdFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Household
+
+    name = factory.Sequence(lambda n: f"Hogar {n}")
+    family_size = 4
+
+
+class MembershipFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Membership
+
+    user = factory.SubFactory(UserFactory)
+    household = factory.SubFactory(HouseholdFactory)
+    role = Membership.MEMBER
