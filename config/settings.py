@@ -4,14 +4,37 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "inseguro-solo-para-tests")
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
+# Fuera de DEBUG, exigimos estas variables del entorno en vez de arrancar con
+# un valor por defecto: la clave de repuesto era literal en este repositorio
+# público y la URL de base de datos apuntaba a un localhost inexistente en
+# producción. Un despliegue que olvide DJANGO_SECRET_KEY arrancaba "bien" con
+# una clave conocida por cualquiera — sesiones y tokens de restablecimiento de
+# contraseña falsificables en silencio. En DEBUG (pruebas y desarrollo local)
+# se conservan los valores por defecto de siempre.
+if DEBUG:
+    SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "inseguro-solo-para-tests")
+    _database_url = os.environ.get(
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/wealthome"
+    )
+else:
+    SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+    if not SECRET_KEY:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY es obligatoria fuera de DEBUG."
+        )
+    _database_url = os.environ.get("DATABASE_URL")
+    if not _database_url:
+        raise ImproperlyConfigured("DATABASE_URL es obligatoria fuera de DEBUG.")
+
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -59,7 +82,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-_db = urlparse(os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/wealthome"))
+_db = urlparse(_database_url)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -87,6 +110,13 @@ DEFAULT_CURRENCY = "CAD"
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# Disco local solo para desarrollo: el destino de despliegue no tiene sistema
+# de archivos local durable. Una implementación real debe servir Profile.avatar
+# (y cualquier otro archivo subido) desde almacenamiento de objetos — Supabase
+# Storage — no desde MEDIA_ROOT.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

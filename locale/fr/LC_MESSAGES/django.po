@@ -57,6 +57,14 @@ msgid "An email address is required."
 msgstr "Une adresse courriel est requise."
 
 #: apps/accounts/models.py
+msgid "Superuser must have is_staff=True."
+msgstr "Un superutilisateur doit avoir is_staff=True."
+
+#: apps/accounts/models.py
+msgid "Superuser must have is_superuser=True."
+msgstr "Un superutilisateur doit avoir is_superuser=True."
+
+#: apps/accounts/models.py
 msgid "email address"
 msgstr "adresse courriel"
 
@@ -323,3 +331,11 @@ msgstr "Envoyer l'invitation"
 #: templates/households/permisos.html
 msgid "Permissions for %(nombre)s"
 msgstr "Permissions de %(nombre)s"
+
+#: apps/accounts/admin.py
+msgid "Personal info"
+msgstr "Informations personnelles"
+
+#: apps/accounts/admin.py
+msgid "Important dates"
+msgstr "Dates importantes"

@@ -105,9 +105,10 @@ def _infractores_de_manager_por_defecto(raiz=None, nombres=None):
     tener guardia:
 
     - **Accesores inversos por related_name.** HouseholdScoped da a cada
-      subclase `related_name="%(class)ss"`, así que `hogar.transaccions.all()`
-      nunca escribe `Modelo.objects.` — probablemente el patrón de acceso sin
-      ámbito más natural en Django, y del todo invisible para esta guardia.
+      subclase `related_name="%(app_label)s_%(class)s_set"`, así que
+      `hogar.households_transaccion_set.all()` nunca escribe `Modelo.objects.`
+      — probablemente el patrón de acceso sin ámbito más natural en Django, y
+      del todo invisible para esta guardia.
     - **`get_object_or_404` / `get_list_or_404`.** `get_object_or_404(Transaccion,
       pk=pk)` tampoco escribe `.objects.`. Es justo el estilo que usa la vista
       `permisos` de `apps/households/views.py`; quien copie ese patrón para un

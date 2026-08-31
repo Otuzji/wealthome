@@ -26,7 +26,9 @@ class HouseholdScopedManager(models.Manager.from_queryset(HouseholdScopedQuerySe
 class HouseholdScoped(models.Model):
     """Todo dato que pertenece a un hogar hereda de aquí."""
 
-    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="%(class)ss")
+    household = models.ForeignKey(
+        Household, on_delete=models.CASCADE, related_name="%(app_label)s_%(class)s_set"
+    )
 
     objects = HouseholdScopedManager()
 
