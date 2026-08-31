@@ -1,6 +1,10 @@
+import secrets
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -85,3 +89,37 @@ class Membership(models.Model):
                     _("A household can have at most %(max)d members.")
                     % {"max": self.MAX_PER_HOUSEHOLD}
                 )
+
+
+def _token_invitacion():
+    return secrets.token_urlsafe(32)
+
+
+class Invitation(models.Model):
+    VIGENCIA = timedelta(days=7)
+
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="invitations")
+    email = models.EmailField(_("email address"))
+    token = models.CharField(max_length=64, unique=True, default=_token_invitacion, editable=False)
+    language = models.CharField(_("language"), max_length=5, default="en")
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_invitations"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("invitation")
+        verbose_name_plural = _("invitations")
+
+    def __str__(self):
+        return f"{self.email} → {self.household}"
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + self.VIGENCIA
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return self.accepted_at is None and self.expires_at > timezone.now()
