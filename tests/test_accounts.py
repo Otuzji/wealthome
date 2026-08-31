@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 
 User = get_user_model()
 
@@ -16,8 +17,9 @@ def test_usuario_se_identifica_por_email():
 @pytest.mark.django_db
 def test_el_email_es_unico():
     User.objects.create_user(email="marie@example.com", password="clave-larga-123")
-    with pytest.raises(Exception):
-        User.objects.create_user(email="marie@example.com", password="otra-clave-123")
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            User.objects.create_user(email="marie@example.com", password="otra-clave-123")
 
 
 @pytest.mark.django_db
