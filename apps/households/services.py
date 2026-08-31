@@ -57,6 +57,15 @@ def aceptar_invitacion(user, token):
     # invitación distintas y no se serializan entre sí, así que el conteo tiene
     # que protegerse sobre lo que se cuenta.
     household = Household.objects.select_for_update().get(pk=invitacion.household_id)
+
+    # Hallazgo de la Tarea 5: si la invitación llega a alguien que ya es
+    # miembro de este hogar, insertar chocaría con la restricción única
+    # una_membresia_por_usuario_y_hogar y saldría una IntegrityError cruda.
+    # Se comprueba aquí, dentro del mismo candado de la fila del hogar, para
+    # que siga siendo seguro ante condiciones de carrera.
+    if Membership.objects.filter(user=user, household=household).exists():
+        raise InvitacionInvalida(_("You are already a member of this household."))
+
     if household.active_memberships().count() >= Membership.MAX_PER_HOUSEHOLD:
         raise HouseholdLleno(_("This household is already full."))
 

@@ -7,7 +7,7 @@ from django.urls import reverse_lazy
 
 from apps.households.services import crear_hogar
 
-from .forms import RegistroForm
+from .forms import PreferenciasForm, RegistroForm
 
 User = get_user_model()
 
@@ -45,3 +45,12 @@ class Logout(LogoutView):
 @login_required
 def inicio(request):
     return render(request, "accounts/inicio.html")
+
+
+@login_required
+def preferencias(request):
+    form = PreferenciasForm(request.POST or None, instance=request.user.profile)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("accounts:preferencias")
+    return render(request, "accounts/preferencias.html", {"form": form})

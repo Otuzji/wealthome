@@ -107,6 +107,24 @@ def test_un_token_inventado_no_se_acepta():
 
 
 @pytest.mark.django_db
+def test_aceptar_una_invitacion_siendo_ya_miembro_del_hogar_falla():
+    """Hallazgo heredado de la Tarea 5: si la invitación va a alguien que ya es
+    miembro del hogar y la acepta, debe fallar con InvitacionInvalida (mensaje
+    traducido), no con la IntegrityError cruda de la restricción única
+    una_membresia_por_usuario_y_hogar."""
+    admin = UserFactory()
+    hogar = crear_hogar(admin, "Family Thompson", family_size=4)
+    marie = UserFactory()
+
+    primera = invitar(admin, hogar, "marie@example.com", language="en")
+    aceptar_invitacion(marie, primera.token)
+
+    segunda = invitar(admin, hogar, "marie@example.com", language="en")
+    with pytest.raises(InvitacionInvalida):
+        aceptar_invitacion(marie, segunda.token)
+
+
+@pytest.mark.django_db
 def test_el_invitado_entra_con_permisos_de_miembro_no_de_admin():
     admin = UserFactory()
     hogar = crear_hogar(admin, "Family Thompson", family_size=4)

@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.utils.translation import gettext_lazy as _
 
+from apps.accounts.models import Profile
+
 User = get_user_model()
 
 
@@ -34,3 +36,13 @@ class RegistroForm(forms.Form):
         if datos.get("password1") and datos.get("password1") != datos.get("password2"):
             self.add_error("password2", _("The two passwords do not match."))
         return datos
+
+
+class PreferenciasForm(forms.ModelForm):
+    class Meta:
+        model = Profile
+        fields = ["theme", "language"]
+        labels = {
+            "theme": _("Theme"),
+            "language": _("Language"),
+        }
