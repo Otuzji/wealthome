@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -88,3 +89,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
+
+# La app "tests" solo existe para las pruebas (ver apps/households/scoping.py y
+# tests/models.py): trae modelos de andamiaje como Nota que no deben viajar a
+# producción, así que se registra únicamente cuando pytest está cargado.
+if "pytest" in sys.modules:
+    INSTALLED_APPS += ["tests"]
