@@ -90,6 +90,17 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
 
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "accounts:inicio"
+LOGOUT_REDIRECT_URL = "accounts:login"
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 # La app "tests" solo existe para las pruebas (ver apps/households/scoping.py y
 # tests/models.py): trae modelos de andamiaje como Nota que no deben viajar a
 # producción, así que se registra únicamente cuando pytest está cargado.
