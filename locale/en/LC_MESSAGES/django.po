@@ -1,0 +1,325 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Wealthome 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-31 10:47+0000\n"
+"PO-Revision-Date: 2026-08-31 10:47+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/accounts/forms.py
+msgid "Email address"
+msgstr "Email address"
+
+#: apps/accounts/forms.py
+msgid "Your name"
+msgstr "Your name"
+
+#: apps/accounts/forms.py
+msgid "Password"
+msgstr "Password"
+
+#: apps/accounts/forms.py
+msgid "Confirm password"
+msgstr "Confirm password"
+
+#: apps/accounts/forms.py
+msgid "Household name"
+msgstr "Household name"
+
+#: apps/accounts/forms.py
+msgid "How many live in your home?"
+msgstr "How many live in your home?"
+
+#: apps/accounts/forms.py
+msgid "An account with this email already exists."
+msgstr "An account with this email already exists."
+
+#: apps/accounts/forms.py
+msgid "The two passwords do not match."
+msgstr "The two passwords do not match."
+
+#: apps/accounts/forms.py
+msgid "Theme"
+msgstr "Theme"
+
+#: apps/accounts/forms.py
+msgid "Language"
+msgstr "Language"
+
+#: apps/accounts/models.py
+msgid "An email address is required."
+msgstr "An email address is required."
+
+#: apps/accounts/models.py
+msgid "email address"
+msgstr "email address"
+
+#: apps/accounts/models.py
+msgid "display name"
+msgstr "display name"
+
+#: apps/accounts/models.py
+msgid "active"
+msgstr "active"
+
+#: apps/accounts/models.py
+msgid "staff status"
+msgstr "staff status"
+
+#: apps/accounts/models.py
+msgid "date joined"
+msgstr "date joined"
+
+#: apps/accounts/models.py
+msgid "user"
+msgstr "user"
+
+#: apps/accounts/models.py
+msgid "users"
+msgstr "users"
+
+#: apps/accounts/models.py
+msgid "Serene"
+msgstr "Serene"
+
+#: apps/accounts/models.py
+msgid "Nocturne"
+msgstr "Nocturne"
+
+#: apps/accounts/models.py
+msgid "Accessible"
+msgstr "Accessible"
+
+#: apps/accounts/models.py
+msgid "English"
+msgstr "English"
+
+#: apps/accounts/models.py
+msgid "Français"
+msgstr "Français"
+
+#: apps/accounts/models.py
+msgid "avatar"
+msgstr "avatar"
+
+#: apps/accounts/models.py
+msgid "theme"
+msgstr "theme"
+
+#: apps/accounts/models.py
+msgid "language"
+msgstr "language"
+
+#: apps/accounts/models.py
+msgid "profile"
+msgstr "profile"
+
+#: apps/accounts/models.py
+msgid "profiles"
+msgstr "profiles"
+
+#: apps/households/forms.py
+msgid "Email address of the person you are inviting"
+msgstr "Email address of the person you are inviting"
+
+#: apps/households/forms.py
+msgid "Send the invitation in"
+msgstr "Send the invitation in"
+
+#: apps/households/models.py
+msgid "household name"
+msgstr "household name"
+
+#: apps/households/models.py
+msgid "currency"
+msgstr "currency"
+
+#: apps/households/models.py
+msgid "time zone"
+msgstr "time zone"
+
+#: apps/households/models.py
+msgid "budget start month"
+msgstr "budget start month"
+
+#: apps/households/models.py
+msgid "family size"
+msgstr "family size"
+
+#: apps/households/models.py
+msgid "How many people live in the home. Not the same as how many use the app."
+msgstr "How many people live in the home. Not the same as how many use the app."
+
+#: apps/households/models.py
+msgid "allowance rolls over"
+msgstr "allowance rolls over"
+
+#: apps/households/models.py
+msgid "Unspent personal allowance carries into the next month."
+msgstr "Unspent personal allowance carries into the next month."
+
+#: apps/households/models.py
+msgid "household"
+msgstr "household"
+
+#: apps/households/models.py
+msgid "households"
+msgstr "households"
+
+#: apps/households/models.py
+msgid "Administrator"
+msgstr "Administrator"
+
+#: apps/households/models.py
+msgid "Member"
+msgstr "Member"
+
+#: apps/households/models.py
+msgid "role"
+msgstr "role"
+
+#: apps/households/models.py
+msgid "can view the budget"
+msgstr "can view the budget"
+
+#: apps/households/models.py
+msgid "can edit the budget"
+msgstr "can edit the budget"
+
+#: apps/households/models.py
+msgid "can add transactions"
+msgstr "can add transactions"
+
+#: apps/households/models.py
+msgid "can view reports"
+msgstr "can view reports"
+
+#: apps/households/models.py
+msgid "joined at"
+msgstr "joined at"
+
+#: apps/households/models.py
+msgid "membership"
+msgstr "membership"
+
+#: apps/households/models.py
+msgid "memberships"
+msgstr "memberships"
+
+#: apps/households/models.py
+msgid "A household can have at most %(max)d members."
+msgstr "A household can have at most %(max)d members."
+
+#: apps/households/models.py
+msgid "invitation"
+msgstr "invitation"
+
+#: apps/households/models.py
+msgid "invitations"
+msgstr "invitations"
+
+#: apps/households/permissions.py
+msgid "You do not have permission to do that in this household."
+msgstr "You do not have permission to do that in this household."
+
+#: apps/households/services.py
+msgid "Only the administrator can invite members."
+msgstr "Only the administrator can invite members."
+
+#: apps/households/services.py
+msgid "This household has no free seats left."
+msgstr "This household has no free seats left."
+
+#: apps/households/services.py
+msgid "This invitation link is not valid."
+msgstr "This invitation link is not valid."
+
+#: apps/households/services.py
+msgid "This invitation has expired or was already used."
+msgstr "This invitation has expired or was already used."
+
+#: apps/households/services.py
+msgid "You are already a member of this household."
+msgstr "You are already a member of this household."
+
+#: apps/households/services.py
+msgid "This household is already full."
+msgstr "This household is already full."
+
+#: templates/accounts/inicio.html
+msgid "Welcome"
+msgstr "Welcome"
+
+#: templates/accounts/inicio.html
+msgid "Household settings"
+msgstr "Household settings"
+
+#: templates/accounts/login.html
+msgid "Sign in"
+msgstr "Sign in"
+
+#: templates/accounts/login.html
+msgid "Create a household"
+msgstr "Create a household"
+
+#: templates/accounts/preferencias.html
+msgid "My preferences"
+msgstr "My preferences"
+
+#: templates/accounts/preferencias.html
+msgid "Save"
+msgstr "Save"
+
+#: templates/accounts/preferencias.html
+msgid "Back to settings"
+msgstr "Back to settings"
+
+#: templates/accounts/registro.html
+msgid "Create your household"
+msgstr "Create your household"
+
+#: templates/accounts/registro.html
+msgid "Start my 14-day trial"
+msgstr "Start my 14-day trial"
+
+#: templates/accounts/registro.html
+msgid "I already have an account"
+msgstr "I already have an account"
+
+#: templates/households/aceptar.html
+msgid "Join this household"
+msgstr "Join this household"
+
+#: templates/households/aceptar.html
+msgid "Accept invitation"
+msgstr "Accept invitation"
+
+#: templates/households/ajustes.html
+msgid "Settings"
+msgstr "Settings"
+
+#: templates/households/ajustes.html
+msgid "Members"
+msgstr "Members"
+
+#: templates/households/ajustes.html
+msgid "Permissions"
+msgstr "Permissions"
+
+#: templates/households/ajustes.html
+msgid "Invite a member"
+msgstr "Invite a member"
+
+#: templates/households/invitar.html
+msgid "Send invitation"
+msgstr "Send invitation"
+
+#: templates/households/permisos.html
+msgid "Permissions for %(nombre)s"
+msgstr "Permissions for %(nombre)s"

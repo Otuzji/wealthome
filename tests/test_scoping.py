@@ -100,6 +100,30 @@ def _infractores_de_manager_por_defecto(raiz=None, nombres=None):
     `<ModeloConHogar>.objects.<algo>` donde <algo> no sea `for_user(` ni
     `for_household(`.
 
+    Puntos ciegos de esta guardia — documentados aquí y no en un documento
+    aparte, porque una guardia en la que se confía de más es peor que no
+    tener guardia:
+
+    - **Accesores inversos por related_name.** HouseholdScoped da a cada
+      subclase `related_name="%(class)ss"`, así que `hogar.transaccions.all()`
+      nunca escribe `Modelo.objects.` — probablemente el patrón de acceso sin
+      ámbito más natural en Django, y del todo invisible para esta guardia.
+    - **`get_object_or_404` / `get_list_or_404`.** `get_object_or_404(Transaccion,
+      pk=pk)` tampoco escribe `.objects.`. Es justo el estilo que usa la vista
+      `permisos` de `apps/households/views.py`; quien copie ese patrón para un
+      modelo con ámbito de hogar y olvide el filtro `household=` pasaría sin
+      que esta guardia lo note.
+    - **Cadenas en varias líneas.** La guardia exige `.objects.` y el método en
+      la misma línea física; una llamada partida en dos líneas se le escapa.
+    - **`glob` de un solo nivel.** `raiz.glob("*/views.py")` no ve una vista
+      organizada como paquete (`apps/<app>/views/list.py`) ni un
+      `apps/<app>/api/views.py`.
+    - **Y lo que más importa hoy:** ahora mismo esta guardia devuelve una lista
+      vacía porque ningún modelo de producción hereda de HouseholdScoped
+      todavía (solo `Nota`, en `tests/models.py`, para ejercitar las pruebas de
+      arriba). Su cobertura real en este plan es cero: empieza a vigilar de
+      verdad recién cuando el Plan 2 añada el primer modelo así.
+
     `raiz` y `nombres` son parametrizables para que
     test_la_guardia_de_manager_por_defecto_falla_ante_un_infractor pueda
     demostrar, contra un views.py de juguete en un directorio temporal, que
