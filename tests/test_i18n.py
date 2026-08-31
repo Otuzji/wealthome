@@ -31,6 +31,17 @@ def test_dinero_usa_dos_decimales_siempre():
     assert _normalizar(format_money(Decimal("100"), locale="en_CA")) == "$100.00"
 
 
+def test_dinero_desde_float_redondea_via_str_no_via_binario():
+    """Decimal(2.675) truncaria a $2.67 por el valor binario exacto del float;
+    pasar por str primero da el redondeo decimal correcto."""
+    assert _normalizar(format_money(2.675, locale="en_CA")) == "$2.68"
+    assert _normalizar(format_money(2.665, locale="en_CA")) == "$2.66"
+
+
+def test_dinero_desde_entero():
+    assert _normalizar(format_money(100, locale="en_CA")) == "$100.00"
+
+
 def test_el_filtro_sigue_el_idioma_activo():
     plantilla = Template("{% load money %}{{ importe|money }}")
     with translation.override("fr"):
