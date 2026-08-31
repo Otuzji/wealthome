@@ -55,8 +55,8 @@ class Membership(models.Model):
     can_add_transactions = models.BooleanField(_("can add transactions"), default=True)
     can_view_reports = models.BooleanField(_("can view reports"), default=True)
 
-    joined_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(_("joined at"), auto_now_add=True)
+    is_active = models.BooleanField(_("active"), default=True)
 
     class Meta:
         verbose_name = _("membership")

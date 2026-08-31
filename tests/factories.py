@@ -1,6 +1,8 @@
 import factory
 from django.contrib.auth import get_user_model
 
+from apps.households.models import Household, Membership
+
 
 class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -15,9 +17,6 @@ class UserFactory(factory.django.DjangoModelFactory):
         obj.set_password(extracted or "clave-larga-123")
         if create:
             obj.save()
-
-
-from apps.households.models import Household, Membership  # noqa: E402
 
 
 class HouseholdFactory(factory.django.DjangoModelFactory):
