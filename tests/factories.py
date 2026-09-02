@@ -4,6 +4,25 @@ from django.contrib.auth import get_user_model
 from apps.households.models import Household, Membership
 
 
+class HouseholdScopedFactory(factory.django.DjangoModelFactory):
+    """Base de las fábricas de modelos con ámbito de hogar.
+
+    factory_boy crea sus objetos con `model_class.objects.create(...)`, y en
+    un modelo con hogar ese manager lanza RuntimeError a propósito (ver
+    apps/households/scoping.py). Las fábricas son código de pruebas que ya
+    dice a qué hogar pertenece cada fila, así que entran por `unscoped`.
+
+    Toda fábrica del Plan 2 sobre un modelo con hogar debe heredar de aquí.
+    """
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def _get_manager(cls, model_class):
+        return model_class.unscoped
+
+
 class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = get_user_model()
@@ -34,3 +53,19 @@ class MembershipFactory(factory.django.DjangoModelFactory):
     user = factory.SubFactory(UserFactory)
     household = factory.SubFactory(HouseholdFactory)
     role = Membership.MEMBER
+
+
+class EtiquetaFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "tests.Etiqueta"
+
+    household = factory.SubFactory(HouseholdFactory)
+    nombre = factory.Sequence(lambda n: f"Etiqueta {n}")
+
+
+class NotaFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "tests.Nota"
+
+    household = factory.SubFactory(HouseholdFactory)
+    texto = factory.Sequence(lambda n: f"Nota {n}")

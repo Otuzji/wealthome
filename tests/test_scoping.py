@@ -1,47 +1,185 @@
-import pytest
-from django.core.exceptions import PermissionDenied
-from django.db import models
+"""La barrera de aislamiento entre hogares.
 
-from apps.households.models import Membership
-from apps.households.permissions import get_membership, require_permission
-from apps.households.scoping import HouseholdScoped
-from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
+Hasta el Plan 1 esto era una convención: `HouseholdScoped.objects` ofrecía
+`.for_user()` y `.for_household()`, pero `.all()` y `.filter()` seguían ahí y
+son lo primero que escribe cualquier desarrollador de Django. El spec §6.1
+pide un manager "que exige el hogar como parámetro"; estas pruebas son la
+definición ejecutable de esa exigencia.
+
+Lo que la barrera bloquea y lo que deja pasar está en las pruebas de abajo,
+una por escritura posible. Las tres escrituras que el traspaso llamaba
+puntos ciegos —`Modelo.objects.all()`, `get_object_or_404(Modelo, pk=pk)` y
+un `ModelForm` con clave foránea a un modelo con hogar— fallan hoy con un
+RuntimeError, no con una revisión de código.
+"""
+
+import pytest
+from django import forms
+from django.db import models
+from django.shortcuts import get_object_or_404
+
+from apps.households.scoping import HouseholdScoped, HouseholdScopedManager
+from tests.factories import EtiquetaFactory, HouseholdFactory, NotaFactory
+
+# --- Lo que la barrera bloquea ----------------------------------------------
 
 
 @pytest.mark.django_db
-def test_for_user_solo_devuelve_datos_del_hogar_del_usuario():
+def test_all_por_el_manager_por_defecto_lanza():
+    from tests.models import Nota
+
+    with pytest.raises(RuntimeError):
+        list(Nota.objects.all())
+
+
+@pytest.mark.django_db
+def test_filter_por_el_manager_por_defecto_lanza():
+    from tests.models import Nota
+
+    with pytest.raises(RuntimeError):
+        list(Nota.objects.filter(texto="lo que sea"))
+
+
+@pytest.mark.django_db
+def test_get_por_el_manager_por_defecto_lanza():
+    from tests.models import Nota
+
+    with pytest.raises(RuntimeError):
+        Nota.objects.get(pk=1)
+
+
+@pytest.mark.django_db
+def test_get_object_or_404_sin_hogar_lanza():
+    """El punto ciego que el traspaso llama el peor.
+
+    django.shortcuts._get_queryset usa Model._default_manager, así que
+    get_object_or_404(Transaccion, pk=pk) —el estilo que ya usaba la vista
+    `permisos`— nunca escribe `.objects.` y ninguna guardia de texto lo ve.
+    Con el manager estricto como _default_manager, revienta.
+    """
+    from tests.models import Nota
+
+    nota = NotaFactory(texto="hipoteca")
+    with pytest.raises(RuntimeError):
+        get_object_or_404(Nota, pk=nota.pk)
+
+
+@pytest.mark.django_db
+def test_el_mensaje_del_error_dice_qué_escribir_en_su_lugar():
+    from tests.models import Nota
+
+    with pytest.raises(RuntimeError, match=r"for_household"):
+        list(Nota.objects.all())
+
+
+def test_declarar_un_modelform_ingenuo_sobre_un_modelo_con_hogar_lanza():
+    """La fuga por <select> del traspaso, cerrada en tiempo de import.
+
+    ForeignKey.formfield() evalúa remote_field.model._default_manager de
+    forma ansiosa —antes de mezclar los kwargs, así que pasarle un queryset
+    no lo evita—, de modo que un ModelForm sobre un modelo con hogar no
+    llega siquiera a existir. Se rompe al declarar la clase, no al servir la
+    petición: imposible desplegarlo sin enterarse.
+    """
+    from tests.models import Nota
+
+    with pytest.raises(RuntimeError):
+
+        class NotaFormIngenuo(forms.ModelForm):
+            class Meta:
+                model = Nota
+                fields = ["etiqueta", "texto"]
+
+
+# --- Lo que la barrera deja pasar -------------------------------------------
+
+
+@pytest.mark.django_db
+def test_for_household_devuelve_solo_las_filas_de_ese_hogar():
     """La prueba que impide que los Thompson vean las finanzas de los García."""
-    from tests.models import Nota  # modelo de prueba, ver tests/models.py
+    from tests.models import Nota
 
     thompson, garcia = HouseholdFactory(), HouseholdFactory()
-    papa = UserFactory()
-    MembershipFactory(household=thompson, user=papa, role=Membership.ADMIN)
+    NotaFactory(household=thompson, texto="hipoteca de los Thompson")
+    NotaFactory(household=garcia, texto="hipoteca de los García")
 
-    Nota.objects.create(household=thompson, texto="hipoteca de los Thompson")
-    Nota.objects.create(household=garcia, texto="hipoteca de los García")
+    visibles = Nota.objects.for_household(thompson)
 
-    visibles = Nota.objects.for_user(papa)
     assert [n.texto for n in visibles] == ["hipoteca de los Thompson"]
 
 
 @pytest.mark.django_db
-def test_for_user_no_devuelve_nada_a_quien_no_tiene_membresia():
-    from tests.models import Nota
+def test_el_accesor_inverso_funciona_y_viene_acotado_por_su_dueño():
+    """`hogar.notas.all()` es seguro por construcción: la instancia dueña ya
+    ES el ámbito. Django construye ese manager subclasando el manager por
+    defecto del modelo relacionado, así que la barrera tiene que dejarlo
+    pasar explícitamente o el motor del Plan 2 —escrito en ese estilo—
+    no compilaría una línea."""
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    NotaFactory(household=thompson, texto="de los Thompson")
+    NotaFactory(household=garcia, texto="de los García")
 
-    hogar = HouseholdFactory()
-    Nota.objects.create(household=hogar, texto="secreto")
-    assert Nota.objects.for_user(UserFactory()).count() == 0
+    assert [n.texto for n in thompson.notas.all()] == ["de los Thompson"]
 
 
 @pytest.mark.django_db
-def test_una_membresia_inactiva_no_da_acceso():
+def test_unscoped_es_la_salida_de_emergencia_explícita():
+    """Migraciones de datos, el admin y los scripts de mantenimiento
+    necesitan ver todas las filas. Que tengan que escribir `unscoped` es
+    justo el punto: se ve en la revisión."""
+    from tests.models import Nota
+
+    NotaFactory(household=HouseholdFactory())
+    NotaFactory(household=HouseholdFactory())
+
+    assert Nota.unscoped.count() == 2
+
+
+@pytest.mark.django_db
+def test_borrar_un_hogar_arrastra_sus_filas_en_cascada():
+    """El recolector de borrados usa _base_manager. Si base_manager_name no
+    apuntara a `unscoped`, borrar un hogar reventaría con RuntimeError."""
     from tests.models import Nota
 
     hogar = HouseholdFactory()
-    user = UserFactory()
-    MembershipFactory(household=hogar, user=user, is_active=False)
-    Nota.objects.create(household=hogar, texto="secreto")
-    assert Nota.objects.for_user(user).count() == 0
+    NotaFactory(household=hogar)
+    hogar.delete()
+
+    assert Nota.unscoped.count() == 0
+
+
+# --- La barrera se mantiene sola --------------------------------------------
+
+
+def _modelos_household_scoped():
+    """Cada modelo concreto que hereda de HouseholdScoped, registrado ahora mismo."""
+    from django.apps import apps as django_apps
+
+    return [
+        modelo
+        for modelo in django_apps.get_models()
+        if issubclass(modelo, HouseholdScoped) and not modelo._meta.abstract
+    ]
+
+
+def test_todo_modelo_con_hogar_conserva_base_manager_name():
+    """`base_manager_name = "unscoped"` vive en la Meta abstracta de
+    HouseholdScoped. Una subclase del Plan 2 que declare su propia Meta sin
+    heredarla lo pierde en silencio: el manager estricto pasaría a ser
+    también el manager base, y el borrado en cascada, refresh_from_db y los
+    descriptores de clave foránea empezarían a lanzar RuntimeError desde
+    dentro del ORM, lejos de la causa. Esta prueba nombra al infractor.
+    """
+    infractores = [
+        modelo.__name__
+        for modelo in _modelos_household_scoped()
+        if modelo._meta.base_manager_name != "unscoped"
+    ]
+    assert infractores == [], (
+        "Modelos con hogar que perdieron base_manager_name — su Meta debe "
+        'heredar de HouseholdScoped.Meta o repetir base_manager_name = "unscoped": '
+        + ", ".join(infractores)
+    )
 
 
 @pytest.mark.django_db
@@ -74,15 +212,71 @@ def test_todo_modelo_con_hogar_hereda_de_household_scoped():
     assert infractores == [], f"Modelos con hogar sin HouseholdScoped: {infractores}"
 
 
-def _modelos_household_scoped():
-    """Cada modelo concreto que hereda de HouseholdScoped, registrado ahora mismo."""
-    from django.apps import apps as django_apps
+# --- La barrera de formularios ----------------------------------------------
 
-    return [
-        modelo
-        for modelo in django_apps.get_models()
-        if issubclass(modelo, HouseholdScoped) and not modelo._meta.abstract
-    ]
+
+def _nota_form():
+    """Construye el ModelForm seguro sobre Nota.
+
+    Se construye dentro de una función y no a nivel de módulo porque
+    tests.models solo se puede importar con las apps ya cargadas.
+    """
+    from apps.households.scoped_forms import HouseholdScopedModelForm
+    from tests.models import Nota
+
+    return type(
+        "NotaFormSeguro",
+        (HouseholdScopedModelForm,),
+        {"Meta": type("Meta", (), {"model": Nota, "fields": ["etiqueta", "texto"]})},
+    )
+
+
+@pytest.mark.django_db
+def test_el_formulario_seguro_solo_ofrece_las_filas_del_hogar_dado():
+    """El <select> renderizado no puede contener ni un nombre de otra familia."""
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    EtiquetaFactory(household=thompson, nombre="Hipoteca Thompson")
+    EtiquetaFactory(household=garcia, nombre="Hipoteca García")
+
+    html = _nota_form()(household=thompson).as_p()
+
+    assert "Hipoteca Thompson" in html
+    assert "Hipoteca García" not in html
+
+
+@pytest.mark.django_db
+def test_el_formulario_seguro_exige_el_hogar():
+    """Olvidarlo es un TypeError al instanciar, no un <select> con todo dentro."""
+    with pytest.raises(TypeError):
+        _nota_form()()
+
+
+@pytest.mark.django_db
+def test_el_formulario_seguro_rechaza_una_fila_de_otro_hogar():
+    """La defensa que importa: el <select> filtrado es cosmético — un POST
+    con el id de una etiqueta ajena no pasa por el navegador. Lo que impide
+    escribir a través de hogares es que el queryset del campo, no solo su
+    render, esté acotado."""
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    ajena = EtiquetaFactory(household=garcia, nombre="Hipoteca García")
+
+    form = _nota_form()(data={"etiqueta": ajena.pk, "texto": "intento"}, household=thompson)
+
+    assert not form.is_valid()
+    assert "etiqueta" in form.errors
+
+
+@pytest.mark.django_db
+def test_el_formulario_seguro_acepta_una_fila_del_hogar_propio():
+    thompson = HouseholdFactory()
+    propia = EtiquetaFactory(household=thompson, nombre="Hipoteca Thompson")
+
+    form = _nota_form()(data={"etiqueta": propia.pk, "texto": "alquiler"}, household=thompson)
+
+    assert form.is_valid(), form.errors
+
+
+# --- La guardia de texto (redundante hoy, más rápida de leer) ---------------
 
 
 def _lineas_de_vistas(raiz):
@@ -94,36 +288,31 @@ def _lineas_de_vistas(raiz):
 
 
 def _infractores_de_manager_por_defecto(raiz=None, nombres=None):
-    """Ruling R-7: HouseholdScoped.objects es opt-in — nada impide que una vista
-    escriba `Modelo.objects.filter(...)` en vez de `Modelo.objects.for_user(...)`
-    / `.for_household(...)`. Esta función vigila cada views.py bajo <raiz>: busca
-    `<ModeloConHogar>.objects.<algo>` donde <algo> no sea `for_user(` ni
-    `for_household(`.
+    """Busca `<ModeloConHogar>.objects.<algo>` en cada views.py bajo <raiz>,
+    donde <algo> no sea `for_household(`.
 
-    Puntos ciegos de esta guardia — documentados aquí y no en un documento
-    aparte, porque una guardia en la que se confía de más es peor que no
-    tener guardia:
+    Desde que el manager lanza RuntimeError esta guardia es redundante: la
+    escritura que busca ya no llega a ejecutarse. Se conserva porque falla
+    **antes** —nombrando archivo, línea y texto— aunque ninguna prueba
+    ejercite esa vista, y las vistas del Plan 2 llegarán antes que su
+    cobertura. Es un aviso temprano, no la barrera.
 
-    - **Accesores inversos por related_name.** HouseholdScoped da a cada
-      subclase `related_name="%(app_label)s_%(class)s_set"`, así que
-      `hogar.households_transaccion_set.all()` nunca escribe `Modelo.objects.`
-      — probablemente el patrón de acceso sin ámbito más natural en Django, y
-      del todo invisible para esta guardia.
-    - **`get_object_or_404` / `get_list_or_404`.** `get_object_or_404(Transaccion,
-      pk=pk)` tampoco escribe `.objects.`. Es justo el estilo que usa la vista
-      `permisos` de `apps/households/views.py`; quien copie ese patrón para un
-      modelo con ámbito de hogar y olvide el filtro `household=` pasaría sin
-      que esta guardia lo note.
-    - **Cadenas en varias líneas.** La guardia exige `.objects.` y el método en
-      la misma línea física; una llamada partida en dos líneas se le escapa.
-    - **`glob` de un solo nivel.** `raiz.glob("*/views.py")` no ve una vista
-      organizada como paquete (`apps/<app>/views/list.py`) ni un
+    Puntos ciegos, documentados aquí y no en un documento aparte porque una
+    guardia en la que se confía de más es peor que no tener guardia:
+
+    - **Accesores inversos por related_name.** `hogar.notas.all()` nunca
+      escribe `Modelo.objects.` — y desde este lote es además legítimo (ver
+      test_el_accesor_inverso_funciona_y_viene_acotado_por_su_dueño), así
+      que aquí no habría nada que reportar.
+    - **`get_object_or_404`.** Tampoco escribe `.objects.`. Ese hueco lo
+      cierra ahora el manager estricto, no esta guardia.
+    - **Cadenas en varias líneas.** Exige `.objects.` y el método en la
+      misma línea física.
+    - **`glob` de un solo nivel.** No ve `apps/<app>/views/list.py` ni
       `apps/<app>/api/views.py`.
-    - **Y lo que más importa hoy:** ahora mismo esta guardia devuelve una lista
-      vacía porque ningún modelo de producción hereda de HouseholdScoped
-      todavía (solo `Nota`, en `tests/models.py`, para ejercitar las pruebas de
-      arriba). Su cobertura real en este plan es cero: empieza a vigilar de
-      verdad recién cuando el Plan 2 añada el primer modelo así.
+    - **Cobertura real hoy: cero.** Ningún modelo de producción hereda de
+      HouseholdScoped todavía (solo Nota y Etiqueta, en tests/models.py).
+      Empieza a vigilar de verdad cuando el Plan 2 añada el primero.
 
     `raiz` y `nombres` son parametrizables para que
     test_la_guardia_de_manager_por_defecto_falla_ante_un_infractor pueda
@@ -141,7 +330,7 @@ def _infractores_de_manager_por_defecto(raiz=None, nombres=None):
 
     patron = re.compile(
         r"\b(?:" + "|".join(re.escape(n) for n in nombres) + r")\.objects\."
-        r"(?!for_user\(|for_household\()\w+"
+        r"(?!for_household\()\w+"
     )
 
     infractores = []
@@ -153,41 +342,21 @@ def _infractores_de_manager_por_defecto(raiz=None, nombres=None):
 
 @pytest.mark.django_db
 def test_ninguna_vista_consulta_un_modelo_con_hogar_por_el_manager_por_defecto():
-    """R-7: la propiedad HouseholdScoped.objects.for_user()/for_household() no
-    protege nada si una vista puede seguir escribiendo Modelo.objects.all() o
-    Modelo.objects.filter(...) a mano. Esta prueba recorre el texto de cada
-    apps/*/views.py y falla si aparece esa fuga, nombrando el archivo, la línea
-    y el texto exacto para que quien la dispare en el Plan 2 sepa qué corregir
-    sin tener que leer esta prueba.
-
-    Solo vigila modelos que heredan de HouseholdScoped (Nota, en las pruebas
-    de hoy; los modelos con datos reales del Plan 2 en adelante). Membership e
-    Invitation quedan fuera a propósito: relacionan usuarios con el hogar y no
-    heredan de HouseholdScoped (ver test_todo_modelo_con_hogar_hereda_de_household_scoped),
-    así que las vistas de esta tarea los consultan directamente, acotados a
-    mano al hogar activo del usuario autenticado.
-    """
     infractores = _infractores_de_manager_por_defecto()
     assert infractores == [], (
         "Vistas que consultan un modelo con ámbito de hogar por el manager "
-        "por defecto en vez de .for_user()/.for_household():\n"
-        + "\n".join(infractores)
+        "por defecto en vez de .for_household():\n" + "\n".join(infractores)
     )
 
 
 def test_la_guardia_de_manager_por_defecto_falla_ante_un_infractor(tmp_path):
     """Prueba de la prueba: si la guardia de arriba no puede fallar, no vigila
-    nada — es justo lo que este plan ya atrapó tres veces. Se escribe un
-    views.py de juguete, en un directorio temporal (no en apps/ real), que
-    consulta un modelo con ámbito de hogar por el manager por defecto, y se
-    verifica que la guardia lo detecta y que su mensaje nombra el archivo, la
-    línea y el texto exacto."""
+    nada — es justo lo que el Plan 1 ya atrapó tres veces."""
     app_falsa = tmp_path / "cuentas_falsas"
     app_falsa.mkdir()
     vista_infractora = app_falsa / "views.py"
     vista_infractora.write_text(
-        "def ver_todo(request):\n"
-        "    return Transaccion.objects.all()\n",
+        "def ver_todo(request):\n    return Transaccion.objects.all()\n",
         encoding="utf-8",
     )
 
@@ -198,47 +367,69 @@ def test_la_guardia_de_manager_por_defecto_falla_ante_un_infractor(tmp_path):
     assert ":2:" in infractores[0]
     assert "Transaccion.objects.all()" in infractores[0]
 
-    # Y una vista legítima, que sí pasa por for_user(), no debe dispararla.
+    # Y una vista legítima, que sí pasa por for_household(), no debe dispararla.
     vista_infractora.write_text(
-        "def ver_todo(request):\n"
-        "    return Transaccion.objects.for_user(request.user)\n",
+        "def ver_todo(request):\n    return Transaccion.objects.for_household(hogar)\n",
         encoding="utf-8",
     )
     assert _infractores_de_manager_por_defecto(raiz=tmp_path, nombres=["Transaccion"]) == []
 
 
-@pytest.mark.django_db
-def test_get_membership_devuelve_none_para_un_extrano():
-    assert get_membership(UserFactory(), HouseholdFactory()) is None
+# --- for_user ya no existe ---------------------------------------------------
+
+
+def test_for_user_no_existe():
+    """Puerta 2: `for_user` devolvía filas de TODOS los hogares activos del
+    usuario, mientras la vista resolvía "el hogar" como el primero. El día
+    que un usuario tuviera dos hogares, el Plan 2 habría sumado el dinero de
+    dos familias en un solo presupuesto sin lanzar nada — un número
+    equivocado y plausible, el peor modo de fallo en software financiero.
+
+    Se retiró en favor de for_household(hogar), con el hogar resuelto una
+    sola vez por petición (apps/households/permissions.py::hogar_actual).
+    """
+    from tests.models import Nota
+
+    assert not hasattr(Nota.objects, "for_user")
+    with pytest.raises(AttributeError):
+        Nota.objects.for_user(None)
 
 
 @pytest.mark.django_db
-def test_require_permission_deja_pasar_al_que_lo_tiene():
-    hogar = HouseholdFactory()
-    user = UserFactory()
-    MembershipFactory(household=hogar, user=user, can_edit_budget=True)
-    require_permission(user, hogar, "can_edit_budget")  # no debe lanzar
+def test_un_usuario_en_dos_hogares_nunca_ve_la_unión():
+    """La prueba que el Plan 1 dejó sin escribir a propósito: escribirla antes
+    de decidir la Puerta 2 solo habría fijado el comportamiento accidental."""
+    from tests.models import Nota
+
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    NotaFactory(household=thompson, texto="Thompson")
+    NotaFactory(household=garcia, texto="García")
+
+    assert Nota.objects.for_household(thompson).count() == 1
+    assert Nota.objects.for_household(garcia).count() == 1
 
 
-@pytest.mark.django_db
-def test_require_permission_bloquea_al_que_no_lo_tiene():
-    hogar = HouseholdFactory()
-    user = UserFactory()
-    MembershipFactory(household=hogar, user=user, can_edit_budget=False)
-    with pytest.raises(PermissionDenied):
-        require_permission(user, hogar, "can_edit_budget")
+def test_household_scoped_no_ofrece_ninguna_otra_puerta_de_entrada():
+    """Si alguien añade un método de conveniencia que devuelva filas sin
+    hogar, esta prueba lo nombra. La superficie de la barrera es
+    deliberadamente de un solo método."""
+    from apps.households.scoping import HouseholdScopedQuerySet
+
+    propios = {
+        nombre
+        for nombre in vars(HouseholdScopedQuerySet)
+        if not nombre.startswith("_")
+    }
+    assert propios == {"for_household"}
 
 
-@pytest.mark.django_db
-def test_require_permission_bloquea_a_quien_no_es_del_hogar():
-    with pytest.raises(PermissionDenied):
-        require_permission(UserFactory(), HouseholdFactory(), "can_view_budget")
+def test_scoped_no_puede_declararse_sin_el_manager_estricto():
+    """Un modelo que redefina `objects` con un Manager normal desarma la
+    barrera entera y nada más lo notaría."""
+    infractores = [
+        modelo.__name__
+        for modelo in _modelos_household_scoped()
+        if not isinstance(modelo.objects, HouseholdScopedManager)
+    ]
+    assert infractores == [], f"Modelos con hogar que redefinieron objects: {infractores}"
 
-
-@pytest.mark.django_db
-def test_require_permission_rechaza_un_permiso_inexistente():
-    hogar = HouseholdFactory()
-    user = UserFactory()
-    MembershipFactory(household=hogar, user=user)
-    with pytest.raises(ValueError):
-        require_permission(user, hogar, "can_do_anything")
