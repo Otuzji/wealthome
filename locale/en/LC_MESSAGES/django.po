@@ -323,3 +323,31 @@ msgstr "Send invitation"
 #: templates/households/permisos.html
 msgid "Permissions for %(nombre)s"
 msgstr "Permissions for %(nombre)s"
+
+#: apps/households/permissions.py
+msgid "You do not belong to a household."
+msgstr "You do not belong to a household."
+
+#: apps/households/permissions.py
+msgid "Only the administrator can do that."
+msgstr "Only the administrator can do that."
+
+#: templates/403.html
+msgid "Not allowed"
+msgstr "Not allowed"
+
+#: templates/403.html
+msgid "You do not have permission to see this page."
+msgstr "You do not have permission to see this page."
+
+#: templates/404.html
+msgid "Page not found"
+msgstr "Page not found"
+
+#: templates/404.html
+msgid "That page does not exist."
+msgstr "That page does not exist."
+
+#: templates/403.html templates/404.html
+msgid "Back to home"
+msgstr "Back to home"

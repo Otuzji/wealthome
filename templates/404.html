@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate "Page not found" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Page not found" %}</h1>
+  <p>{% translate "That page does not exist." %}</p>
+  <p><a class="btn btn--primary" href="{% url 'accounts:inicio' %}">{% translate "Back to home" %}</a></p>
+</section>
+{% endblock %}

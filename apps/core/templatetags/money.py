@@ -36,5 +36,13 @@ def format_money(amount, locale=None, currency=None):
 
 
 @register.filter(name="money")
-def money(amount):
-    return format_money(amount)
+def money(amount, currency=None):
+    """`{{ importe|money }}` usa la moneda del producto (CAD, spec §5.2);
+    `{{ importe|money:hogar.currency }}` usa la del hogar.
+
+    La columna Household.currency existe desde el Plan 1 y este filtro la
+    ignoraba. Un hogar sin moneda —o una pantalla sin hogar en contexto, que
+    hace llegar aquí una cadena vacía— cae en la moneda por defecto: en la
+    pantalla del dinero, un TemplateSyntaxError es peor que un CAD de más.
+    """
+    return format_money(amount, currency=currency or None)

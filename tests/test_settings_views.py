@@ -121,3 +121,64 @@ def test_aceptar_una_invitacion_siendo_ya_miembro_muestra_un_error(client, admin
     respuesta = client.post(reverse("households:aceptar", args=[inv2.token]))
     assert respuesta.status_code == 200
     assert "already a member" in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_un_403_devuelve_una_página_traducida_y_no_un_cuerpo_vacío(client, admin_con_hogar):
+    """Deuda §4 del traspaso: había cuatro dialectos para "no puedes hacer
+    eso", y uno era HttpResponseForbidden() sin cuerpo — el usuario veía una
+    página en blanco, sin una sola palabra traducida, en un producto cuyo
+    bilingüismo es un requisito legal."""
+    _, hogar = admin_con_hogar
+    miembro = MembershipFactory(household=hogar, role=Membership.MEMBER)
+    client.force_login(miembro.user)
+
+    respuesta = client.post(
+        reverse("households:invitar"), {"email": "x@example.com", "language": "en"}
+    )
+
+    assert respuesta.status_code == 403
+    assert "You do not have permission" in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_un_403_se_traduce_al_francés(client, admin_con_hogar):
+    _, hogar = admin_con_hogar
+    miembro = MembershipFactory(household=hogar, role=Membership.MEMBER)
+    miembro.user.profile.language = "fr"
+    miembro.user.profile.save()
+    client.force_login(miembro.user)
+
+    respuesta = client.post(
+        reverse("households:invitar"), {"email": "x@example.com", "language": "en"}
+    )
+
+    assert respuesta.status_code == 403
+    assert "autorisation" in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_un_404_devuelve_una_página_traducida(client, admin_con_hogar):
+    admin, _ = admin_con_hogar
+    client.force_login(admin)
+
+    respuesta = client.get("/household/settings/permissions/999999/")
+
+    assert respuesta.status_code == 404
+    assert "does not exist" in respuesta.content.decode()
+
+
+def test_las_rutas_visibles_están_en_inglés():
+    """Deuda §4 del traspaso: todo el texto de la aplicación está traducido a
+    inglés y francés, y luego la barra de direcciones decía /registro/ y
+    /hogar/ajustes/. Cambiarlo cuesta nada hoy y más con cada ruta que añada
+    el Plan 2. Los nombres internos siguen en español, como el resto del
+    código: ningún {% url %} ni reverse() cambia."""
+    assert reverse("accounts:registro") == "/signup/"
+    assert reverse("accounts:login") == "/login/"
+    assert reverse("accounts:logout") == "/logout/"
+    assert reverse("accounts:preferencias") == "/preferences/"
+    assert reverse("households:ajustes") == "/household/settings/"
+    assert reverse("households:invitar") == "/household/settings/invite/"
+    assert reverse("households:permisos", args=[7]) == "/household/settings/permissions/7/"
+    assert reverse("households:aceptar", args=["abc"]) == "/household/invitation/abc/"
