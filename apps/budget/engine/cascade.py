@@ -94,3 +94,72 @@ def repartir(sobrante, reglas):
         disponible -= importe
 
     return asignaciones
+
+
+@dataclass(frozen=True)
+class Ajuste:
+    """Lo que se descuenta de la mesada del MES SIGUIENTE. Siempre negativo."""
+
+    miembro_id: int
+    importe: Decimal
+
+
+def absorber_faltante(planeado, reglas, sobrante_real):
+    """Reparte el faltante cuando el sobrante real queda bajo el proyectado.
+
+    §4.5.3. Pasa constantemente: un ingreso por horas cierra por debajo de lo
+    estimado. El faltante lo absorbe la última regla de la cascada, y si no
+    alcanza, la penúltima — eso es lo que significa una cascada, y hace que el
+    orden importe de verdad: con el ahorro arriba y las mesadas abajo, un mes
+    flojo se come la diversión y no el ahorro.
+
+    PERO LA MESADA YA ASIGNADA NUNCA SE RETIRA. Se fija al planificar y no se
+    mueve durante el mes: de nada sirve enterarse el día 30 de que tenías $100
+    para gastar. Su parte del faltante vuelve como Ajuste negativo, que
+    services.py escribe en el AllowanceLedger del mes siguiente.
+
+    Devuelve (asignaciones finales, ajustes para el mes siguiente).
+    """
+    planeado = list(planeado)
+    faltante = sum(a.importe for a in planeado) - centavos(sobrante_real)
+    if faltante <= 0:
+        return planeado, []
+
+    por_orden = {regla.orden: regla for regla in reglas}
+    restante = faltante
+    ajustes = []
+    reducciones = {}
+
+    # De la última regla hacia arriba.
+    for orden in sorted({a.orden for a in planeado}, reverse=True):
+        if restante <= 0:
+            break
+        del_orden = [a for a in planeado if a.orden == orden]
+        disponible = sum(a.importe for a in del_orden)
+        quita = min(restante, disponible)
+        if quita <= 0:
+            continue
+
+        if por_orden[orden].destino == ALLOWANCE:
+            # No se retira: se convierte en ajuste del mes siguiente, repartido
+            # entre los miembros en la misma proporción en que cobraron.
+            partes = repartir_proporcional(-quita, [a.importe for a in del_orden])
+            ajustes.extend(
+                Ajuste(miembro_id=a.miembro_id, importe=parte)
+                for a, parte in zip(del_orden, partes)
+            )
+        else:
+            reducciones[orden] = quita
+        restante -= quita
+
+    finales = []
+    for asignacion in planeado:
+        quita = reducciones.get(asignacion.orden)
+        if quita is None:
+            finales.append(asignacion)
+            continue
+        nuevo = centavos(asignacion.importe - quita)
+        if nuevo > 0:
+            finales.append(Asignacion(asignacion.orden, nuevo, asignacion.miembro_id))
+
+    return finales, ajustes

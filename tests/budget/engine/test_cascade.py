@@ -16,8 +16,10 @@ from apps.budget.engine.cascade import (
     GOAL,
     PERCENTAGE,
     REMAINDER,
+    Ajuste,
     Asignacion,
     ReglaReparto,
+    absorber_faltante,
     repartir,
 )
 
@@ -211,3 +213,131 @@ def test_un_metodo_desconocido_revienta():
 
     with pytest.raises(ValueError, match="Método de reparto desconocido"):
         repartir(Decimal("800.00"), [regla])
+
+
+# --- el faltante (§4.5.3) -----------------------------------------------------
+
+
+def test_el_ejemplo_literal_del_spec_4_5_3():
+    """Sobrante proyectado $800 → $600 al ahorro, $100 a cada uno. Sobrante
+    real $720. El ahorro recibe sus $600 íntegros; el faltante de $80 se
+    descuenta de las mesadas de octubre, $40 a cada uno. Nadie pierde dinero
+    que ya gastó."""
+    reglas = [_ahorro(), _mesada(miembros=(10, 20))]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("720.00"))
+
+    assert final == planeado, "la mesada ya asignada NUNCA se retira"
+    assert ajustes == [
+        Ajuste(miembro_id=10, importe=Decimal("-40.00")),
+        Ajuste(miembro_id=20, importe=Decimal("-40.00")),
+    ]
+
+
+def test_sin_faltante_no_hay_ni_ajustes_ni_cambios():
+    reglas = [_ahorro(), _mesada()]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("800.00"))
+
+    assert final == planeado
+    assert ajustes == []
+
+
+def test_un_sobrante_real_mayor_al_proyectado_no_cambia_nada():
+    """El exceso es superávit y se arrastra; no se reparte retroactivamente."""
+    reglas = [_ahorro(), _mesada()]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("900.00"))
+
+    assert final == planeado
+    assert ajustes == []
+
+
+def test_el_faltante_se_absorbe_desde_la_ultima_regla_hacia_arriba():
+    """Con una categoría abajo (que sí se puede reducir), el ahorro de arriba
+    queda intacto."""
+    fondo = ReglaReparto(orden=2, destino=CATEGORY, metodo=REMAINDER, destino_id=5)
+    reglas = [_ahorro(importe="600"), fondo]
+    planeado = repartir(Decimal("800.00"), reglas)   # 600 + 200
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("700.00"))
+
+    assert final == [
+        Asignacion(1, Decimal("600.00"), None),
+        Asignacion(2, Decimal("100.00"), None),
+    ]
+    assert ajustes == []
+
+
+def test_si_la_ultima_no_alcanza_el_faltante_sube_a_la_penultima():
+    fondo = ReglaReparto(orden=2, destino=CATEGORY, metodo=REMAINDER, destino_id=5)
+    reglas = [_ahorro(importe="600"), fondo]
+    planeado = repartir(Decimal("800.00"), reglas)   # 600 + 200
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("500.00"))
+
+    # Faltan 300: la regla 2 aporta sus 200 y la regla 1 los 100 restantes.
+    assert final == [Asignacion(1, Decimal("500.00"), None)]
+    assert ajustes == []
+
+
+def test_una_regla_reducida_a_cero_desaparece_del_reparto():
+    fondo = ReglaReparto(orden=2, destino=CATEGORY, metodo=REMAINDER, destino_id=5)
+    reglas = [_ahorro(importe="600"), fondo]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, _ = absorber_faltante(planeado, reglas, Decimal("600.00"))
+
+    assert [a.orden for a in final] == [1]
+
+
+def test_la_mesada_nunca_se_reduce_aunque_el_faltante_la_supere():
+    """De nada sirve enterarse el día 30 de que tenías $100 para gastar."""
+    reglas = [_ahorro(importe="600"), _mesada(miembros=(10, 20))]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("400.00"))
+
+    mesadas = [a for a in final if a.miembro_id is not None]
+    assert [a.importe for a in mesadas] == [Decimal("100.00"), Decimal("100.00")]
+    # Faltan 400: la mesada aporta sus 200 como ajuste, el ahorro los otros 200.
+    assert sum(a.importe for a in ajustes) == Decimal("-200.00")
+    assert [a for a in final if a.miembro_id is None] == [
+        Asignacion(1, Decimal("400.00"), None)
+    ]
+
+
+def test_los_ajustes_se_reparten_en_la_misma_proporcion_que_la_mesada():
+    regla = _mesada(miembros=(10, 20), pesos=(Decimal("3"), Decimal("1")))
+    reglas = [_ahorro(importe="600"), regla]
+    planeado = repartir(Decimal("800.00"), reglas)   # mesada 150 / 50
+
+    _, ajustes = absorber_faltante(planeado, reglas, Decimal("720.00"))
+
+    assert ajustes == [
+        Ajuste(miembro_id=10, importe=Decimal("-60.00")),
+        Ajuste(miembro_id=20, importe=Decimal("-20.00")),
+    ]
+
+
+def test_los_ajustes_suman_exactamente_el_faltante_de_la_mesada():
+    regla = _mesada(miembros=(10, 20, 30))
+    reglas = [_ahorro(importe="600"), regla]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    _, ajustes = absorber_faltante(planeado, reglas, Decimal("799.99"))
+
+    assert sum(a.importe for a in ajustes) == Decimal("-0.01")
+
+
+def test_un_sobrante_real_negativo_deja_la_mesada_y_vacia_el_resto():
+    reglas = [_ahorro(importe="600"), _mesada(miembros=(10, 20))]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("-50.00"))
+
+    assert [a for a in final if a.miembro_id is None] == []
+    assert sum(a.importe for a in ajustes) == Decimal("-200.00")
