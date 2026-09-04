@@ -355,3 +355,271 @@ msgstr "That page does not exist."
 #: templates/403.html templates/404.html
 msgid "Back to home"
 msgstr "Back to home"
+
+#: apps/budget/models/catalog.py
+msgid "Income"
+msgstr "Income"
+
+#: apps/budget/models/catalog.py
+msgid "Expense"
+msgstr "Expense"
+
+#: apps/budget/models/catalog.py
+msgid "Household"
+msgstr "Household"
+
+#: apps/budget/models/catalog.py
+msgid "Personal"
+msgstr "Personal"
+
+#: apps/budget/models/catalog.py
+msgid "identifier"
+msgstr "identifier"
+
+#: apps/budget/models/catalog.py apps/budget/models/rules.py
+msgid "name"
+msgstr "name"
+
+#: apps/budget/models/catalog.py
+msgid "preloaded"
+msgstr "preloaded"
+
+#: apps/budget/models/catalog.py
+msgid "kind"
+msgstr "kind"
+
+#: apps/budget/models/catalog.py
+msgid "tax category"
+msgstr "tax category"
+
+#: apps/budget/models/catalog.py
+msgid "category"
+msgstr "category"
+
+#: apps/budget/models/catalog.py
+msgid "categories"
+msgstr "categories"
+
+#: apps/budget/models/catalog.py apps/budget/models/rules.py
+msgid "That category belongs to another household."
+msgstr "That category belongs to another household."
+
+#: apps/budget/models/catalog.py
+msgid "merchant"
+msgstr "merchant"
+
+#: apps/budget/models/catalog.py
+msgid "merchants"
+msgstr "merchants"
+
+#: apps/budget/models/rules.py
+msgid "Weekly"
+msgstr "Weekly"
+
+#: apps/budget/models/rules.py
+msgid "Every two weeks"
+msgstr "Every two weeks"
+
+#: apps/budget/models/rules.py
+msgid "Twice a month"
+msgstr "Twice a month"
+
+#: apps/budget/models/rules.py
+msgid "Monthly"
+msgstr "Monthly"
+
+#: apps/budget/models/rules.py
+msgid "Every two months"
+msgstr "Every two months"
+
+#: apps/budget/models/rules.py
+msgid "Quarterly"
+msgstr "Quarterly"
+
+#: apps/budget/models/rules.py
+msgid "Twice a year"
+msgstr "Twice a year"
+
+#: apps/budget/models/rules.py
+msgid "Yearly"
+msgstr "Yearly"
+
+#: apps/budget/models/rules.py
+msgid "A fixed amount"
+msgstr "A fixed amount"
+
+#: apps/budget/models/rules.py
+msgid "An amount I estimate each month"
+msgstr "An amount I estimate each month"
+
+#: apps/budget/models/rules.py
+msgid "A range — the budget uses the minimum"
+msgstr "A range — the budget uses the minimum"
+
+#: apps/budget/models/rules.py
+msgid "The average of my last months"
+msgstr "The average of my last months"
+
+#: apps/budget/models/rules.py
+msgid "Irregular — the budget counts zero"
+msgstr "Irregular — the budget counts zero"
+
+#: apps/budget/models/rules.py apps/budget/seeds.py
+msgid "Salary"
+msgstr "Salary"
+
+#: apps/budget/models/rules.py
+msgid "Freelance"
+msgstr "Freelance"
+
+#: apps/budget/models/rules.py
+msgid "Rental"
+msgstr "Rental"
+
+#: apps/budget/models/rules.py
+msgid "Pension"
+msgstr "Pension"
+
+#: apps/budget/models/rules.py
+msgid "Benefits"
+msgstr "Benefits"
+
+#: apps/budget/models/rules.py
+msgid "Other"
+msgstr "Other"
+
+#: apps/budget/models/rules.py
+msgid "how often"
+msgstr "how often"
+
+#: apps/budget/models/rules.py
+msgid "in effect from"
+msgstr "in effect from"
+
+#: apps/budget/models/rules.py
+msgid "in effect until"
+msgstr "in effect until"
+
+#: apps/budget/models/rules.py
+msgid "scope"
+msgstr "scope"
+
+#: apps/budget/models/rules.py
+msgid "A rule cannot end before it starts."
+msgstr "A rule cannot end before it starts."
+
+#: apps/budget/models/rules.py
+msgid "kind of income"
+msgstr "kind of income"
+
+#: apps/budget/models/rules.py
+msgid "how much"
+msgstr "how much"
+
+#: apps/budget/models/rules.py
+msgid "amount"
+msgstr "amount"
+
+#: apps/budget/models/rules.py
+msgid "at least"
+msgstr "at least"
+
+#: apps/budget/models/rules.py
+msgid "at most"
+msgstr "at most"
+
+#: apps/budget/models/rules.py
+msgid "That member belongs to another household."
+msgstr "That member belongs to another household."
+
+#: apps/budget/models/rules.py
+msgid "income source"
+msgstr "income source"
+
+#: apps/budget/models/rules.py
+msgid "income sources"
+msgstr "income sources"
+
+#: apps/budget/models/rules.py
+msgid "The maximum cannot be lower than the minimum."
+msgstr "The maximum cannot be lower than the minimum."
+
+#: apps/budget/models/rules.py
+msgid "essential"
+msgstr "essential"
+
+#: apps/budget/models/rules.py
+msgid "Essential expenses are the last ones a recommendation will touch."
+msgstr "Essential expenses are the last ones a recommendation will touch."
+
+#: apps/budget/models/rules.py
+msgid "fixed expense"
+msgstr "fixed expense"
+
+#: apps/budget/models/rules.py
+msgid "fixed expenses"
+msgstr "fixed expenses"
+
+#: apps/budget/seeds.py
+msgid "Housing"
+msgstr "Housing"
+
+#: apps/budget/seeds.py
+msgid "Rent"
+msgstr "Rent"
+
+#: apps/budget/seeds.py
+msgid "Mortgage"
+msgstr "Mortgage"
+
+#: apps/budget/seeds.py
+msgid "Utilities"
+msgstr "Utilities"
+
+#: apps/budget/seeds.py
+msgid "Water"
+msgstr "Water"
+
+#: apps/budget/seeds.py
+msgid "Gas"
+msgstr "Gas"
+
+#: apps/budget/seeds.py
+msgid "Electricity"
+msgstr "Electricity"
+
+#: apps/budget/seeds.py
+msgid "Internet"
+msgstr "Internet"
+
+#: apps/budget/seeds.py
+msgid "Subscriptions"
+msgstr "Subscriptions"
+
+#: apps/budget/seeds.py
+msgid "Groceries"
+msgstr "Groceries"
+
+#: apps/budget/seeds.py
+msgid "Transport"
+msgstr "Transport"
+
+#: apps/budget/seeds.py
+msgid "Fuel"
+msgstr "Fuel"
+
+#: apps/budget/seeds.py
+msgid "Entertainment"
+msgstr "Entertainment"
+
+#: apps/budget/seeds.py
+msgid "Financial obligations"
+msgstr "Financial obligations"
+
+#: apps/budget/seeds.py
+msgid "Bank loans"
+msgstr "Bank loans"
+
+#: apps/budget/seeds.py
+msgid "Other income"
+msgstr "Other income"

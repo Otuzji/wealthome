@@ -26,6 +26,14 @@ def _puestos_libres(household):
 def crear_hogar(user, nombre, family_size):
     household = Household.objects.create(name=nombre, family_size=family_size)
     Membership.objects.create(user=user, household=household, role=Membership.ADMIN)
+
+    # El árbol de categorías del §3.2 se copia por hogar (desviación 1 del
+    # diseño del Plan 2): HouseholdScoped.household no admite nulo, y sembrar
+    # por hogar hace además que renombrar una categoría del sistema no
+    # necesite una tabla de anulaciones.
+    from apps.budget.seeds import sembrar
+
+    sembrar(household)
     return household
 
 
