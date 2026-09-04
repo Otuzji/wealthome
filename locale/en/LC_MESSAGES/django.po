@@ -332,6 +332,10 @@ msgstr "You do not belong to a household."
 msgid "Only the administrator can do that."
 msgstr "Only the administrator can do that."
 
+#: apps/budget/apps.py
+msgid "Budget"
+msgstr "Budget"
+
 #: templates/403.html
 msgid "Not allowed"
 msgstr "Not allowed"

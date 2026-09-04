@@ -348,6 +348,10 @@ msgstr "Vous n'appartenez à aucun foyer."
 msgid "Only the administrator can do that."
 msgstr "Seul l'administrateur peut faire cela."
 
+#: apps/budget/apps.py
+msgid "Budget"
+msgstr "Budget"
+
 #: templates/403.html
 msgid "Not allowed"
 msgstr "Accès refusé"

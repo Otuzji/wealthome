@@ -13,8 +13,6 @@ seis módulos que no se pueden importar sin Django configurado.
 import ast
 import pathlib
 
-import pytest
-
 RAIZ_MOTOR = (
     pathlib.Path(__file__).resolve().parents[3] / "apps" / "budget" / "engine"
 )
