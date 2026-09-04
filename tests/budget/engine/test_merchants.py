@@ -51,3 +51,21 @@ def test_no_funde_nombres_distintos():
 def test_un_nombre_vacio_da_cadena_vacia():
     assert normalizar("") == ""
     assert normalizar("   ") == ""
+
+
+def test_quita_ligaduras_francesas():
+    """fr-CA: 'œuf' (huevo) y 'bœuf' (carne) contienen ligaduras que NFKD
+    no descompone. Deben convertirse a 'OE' para que la identificación
+    funcione."""
+    assert normalizar("Boulangerie Œuf") == "BOULANGERIE OEUF"
+    assert normalizar("Boucherie Bœuf") == "BOUCHERIE BOEUF"
+
+
+def test_nombres_degenerados_no_colisionan():
+    """Evita que nombres como '#123' y '!!!' colapsen al mismo string vacío."""
+    normalizado_hash = normalizar("#123")
+    normalizado_bang = normalizar("!!!")
+    # Ambos deben ser no-vacíos y distintos
+    assert normalizado_hash != ""
+    assert normalizado_bang != ""
+    assert normalizado_hash != normalizado_bang

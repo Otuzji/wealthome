@@ -17,8 +17,15 @@ MODOS_DE_META = (BY_TARGET_DATE, BY_MONTHLY_AMOUNT)
 
 
 def _meses_hasta(desde, hasta):
-    """Cuántos aportes caben entre las dos fechas, contando ambos meses."""
-    meses = (hasta.year - desde.year) * 12 + (hasta.month - desde.month) + 1
+    """Cuántos aportes llegan EN o ANTES de la fecha target.
+
+    Itera a través de las contribuciones clampeando el día: Feb 31 se vuelve
+    Feb 28. Solo cuenta las contribuciones que llegan en o antes del target.
+    """
+    meses = 0
+    while _sumar_meses(desde, meses) <= hasta:
+        meses += 1
+    # Garantiza al menos una contribución, incluso si el target es muy corto
     return max(meses, 1)
 
 
@@ -35,6 +42,9 @@ def derivar(modo, objetivo, acumulado, desde, fecha_objetivo=None, aporte_mensua
     El tercer dato nunca se guarda: se deriva al mostrarlo, o quedaría
     obsoleto en cuanto cambie el acumulado.
     """
+    if modo not in MODOS_DE_META:
+        raise ValueError(f"Modo de meta desconocido: {modo!r}")
+
     falta = centavos(objetivo) - centavos(acumulado)
     if falta <= 0:
         return Decimal("0.00"), desde
@@ -58,5 +68,3 @@ def derivar(modo, objetivo, acumulado, desde, fecha_objetivo=None, aporte_mensua
         aporte = centavos(aporte_mensual)
         meses = int((falta / aporte).to_integral_value(rounding=ROUND_CEILING))
         return aporte, _sumar_meses(desde, meses - 1)
-
-    raise ValueError(f"Modo de meta desconocido: {modo!r}")

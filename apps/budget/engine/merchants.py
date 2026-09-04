@@ -17,13 +17,28 @@ import unicodedata
 
 _SUCURSAL = re.compile(r"#\s*\d+")
 _NO_ALFANUMERICO = re.compile(r"[^A-Z0-9]+")
+# Ligaduras francesas que NFKD no descompone
+_LIGADURAS = {"Œ": "OE", "œ": "OE", "Æ": "AE", "æ": "AE"}
 
 
 def normalizar(nombre):
-    if not nombre:
+    if not nombre or not nombre.strip():
         return ""
+    # Sustituye ligaduras antes de NFKD
+    sin_ligaduras = nombre
+    for ligadura, reemplazo in _LIGADURAS.items():
+        sin_ligaduras = sin_ligaduras.replace(ligadura, reemplazo)
+    # Quita acentos
     sin_acentos = "".join(
-        c for c in unicodedata.normalize("NFKD", nombre) if not unicodedata.combining(c)
+        c for c in unicodedata.normalize("NFKD", sin_ligaduras) if not unicodedata.combining(c)
     )
+    # Quita sucursales
     sin_sucursal = _SUCURSAL.sub(" ", sin_acentos.upper())
-    return _NO_ALFANUMERICO.sub(" ", sin_sucursal).strip()
+    # Quita no-alfanuméricos y colapsa espacios
+    resultado = _NO_ALFANUMERICO.sub(" ", sin_sucursal).strip()
+    # Si la normalización lo deja vacío, cae atrás a mayúsculas con espacios
+    # colapsados, pero solo si no era originalmente vacío
+    if resultado:
+        return resultado
+    # Cae atrás al nombre original en mayúsculas con espacios colapsados
+    return " ".join(nombre.upper().split())

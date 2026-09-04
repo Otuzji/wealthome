@@ -126,3 +126,39 @@ def test_un_modo_desconocido_revienta():
     with pytest.raises(ValueError, match="Modo de meta desconocido"):
         derivar("algun_dia", objetivo=Decimal("1"), acumulado=Decimal("0"),
                 desde=date(2026, 1, 1))
+
+
+def test_reconciliacion_fecha_con_monto():
+    """Cuando el día clampa (e.g., Feb 31→28), la fecha derivada con
+    aporte_mensual debe ser en o ANTES del target."""
+    # Desde Jan 31, target Feb 15: solo cabe 1 aporte (Jan 31 ≤ Feb 15)
+    aporte, _ = derivar(
+        BY_TARGET_DATE,
+        objetivo=Decimal("1000.00"),
+        acumulado=Decimal("0.00"),
+        desde=date(2026, 1, 31),
+        fecha_objetivo=date(2026, 2, 15),
+    )
+    # Aporte debe ser $1000 para 1 mes
+    assert aporte == Decimal("1000.00")
+    # Alimentar ese aporte por el modo monthly_amount debe dar llegada
+    # ≤ target
+    _, fecha_llegada = derivar(
+        BY_MONTHLY_AMOUNT,
+        objetivo=Decimal("1000.00"),
+        acumulado=Decimal("0.00"),
+        desde=date(2026, 1, 31),
+        aporte_mensual=aporte,
+    )
+    assert fecha_llegada <= date(2026, 2, 15)
+
+
+def test_un_modo_desconocido_en_meta_alcanzada_revienta():
+    """Validar modo antes de la salida anticipada por meta alcanzada."""
+    with pytest.raises(ValueError, match="Modo de meta desconocido"):
+        derivar(
+            "modo_invalido",
+            objetivo=Decimal("1000.00"),
+            acumulado=Decimal("1000.00"),
+            desde=date(2026, 1, 1),
+        )
