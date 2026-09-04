@@ -23,7 +23,7 @@ class Cierre:
     ingresos_reales: Decimal
     egresos_presupuestados: Decimal
     egresos_reales: Decimal
-    varianza_por_categoria: dict
+    varianza_por_categoria: dict[int, Decimal]
     balance: Decimal
     arrastre: Decimal
 
@@ -40,6 +40,21 @@ def cerrar(renglones, saldo_arrastrado):
     el superávit: ocultarlo haría que un mes malo desapareciera del historial.
     """
     renglones = list(renglones)
+
+    # Validar en una sola pasada: tipo válido y consistencia de categoría
+    categoria_kinds = {}
+    for renglon in renglones:
+        if renglon.kind not in (INGRESO, GASTO):
+            raise ValueError(f"Tipo de renglón desconocido: {renglon.kind!r}")
+
+        if renglon.categoria_id in categoria_kinds:
+            if categoria_kinds[renglon.categoria_id] != renglon.kind:
+                raise ValueError(
+                    f"Categoría {renglon.categoria_id} aparece con tipos distintos: "
+                    f"{categoria_kinds[renglon.categoria_id]!r} y {renglon.kind!r}"
+                )
+        else:
+            categoria_kinds[renglon.categoria_id] = renglon.kind
 
     ingresos_reales = _total(renglones, INGRESO, "real")
     egresos_reales = _total(renglones, GASTO, "real")

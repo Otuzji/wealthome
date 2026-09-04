@@ -7,6 +7,8 @@ al cerrar.
 
 from decimal import Decimal
 
+import pytest
+
 from apps.budget.engine.closing import Cierre, Renglon, cerrar
 
 INGRESO, GASTO = "income", "expense"
@@ -109,3 +111,27 @@ def test_el_ingreso_en_modo_range_deja_su_exceso_como_superavit():
 
     assert cierre.balance == Decimal("2400.00")
     assert cierre.varianza_por_categoria[1] == Decimal("1600.00")
+
+
+def test_rechaza_tipo_de_renglon_desconocido():
+    """Un renglón con kind inválido es rechazado: el dinero no puede
+    desaparecer silenciosamente."""
+    renglones = [Renglon(5, "Income", Decimal("100.00"), Decimal("150.00"))]
+
+    with pytest.raises(ValueError, match="Tipo de renglón desconocido: 'Income'"):
+        cerrar(renglones, Decimal("0.00"))
+
+
+def test_rechaza_categoria_con_tipos_distintos():
+    """Una categoría no puede aparecer con tipos distintos: una deuda no
+    se puede atribuir si no se sabe si es ingreso o gasto."""
+    renglones = [
+        Renglon(7, INGRESO, Decimal("100.00"), Decimal("150.00")),
+        Renglon(7, GASTO, Decimal("50.00"), Decimal("75.00")),
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match="Categoría 7 aparece con tipos distintos: 'income' y 'expense'",
+    ):
+        cerrar(renglones, Decimal("0.00"))
