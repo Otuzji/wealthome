@@ -128,11 +128,23 @@ valida en `save()` y tiene su prueba: un `CheckConstraint` no cruza tablas.
 ### 2.7 Redondeo en un solo punto, y el residuo cae donde el faltante
 
 §3.4 exige que el redondeo sea explícito, a dos decimales, y siempre en el mismo punto del
-cálculo. En la cascada eso significa: cada asignación se redondea con `ROUND_HALF_UP`, y
-**el residuo se aplica a la última regla que recibió dinero** — el mismo mecanismo del
-§4.5.3, usado dos veces: una para el residuo del redondeo, otra para el faltante real.
+cálculo. Una sola función, `engine/money.py::centavos()`, redondea con `ROUND_HALF_UP`, y
+ninguna otra parte del motor redondea.
 
-La suma de las asignaciones es siempre **exactamente** el sobrante. Nunca "casi".
+Tres invariantes, que son lo que las pruebas comprueban:
+
+- La suma de las asignaciones **nunca excede** el sobrante.
+- **Dentro** de una regla, la suma de las partes es **exactamente** el importe de la regla:
+  una mesada de $100 entre tres miembros da 33,34 / 33,33 / 33,33 y no 33,33 tres veces.
+  Lo garantiza `repartir_proporcional()`, que reparte los centavos sobrantes de uno en uno
+  por orden de miembro.
+- Si el juego de reglas incluye una de método `remainder`, la suma es **exactamente** el
+  sobrante.
+
+Lo que **no** se hace: forzar que la suma iguale el sobrante cuando las reglas no lo
+agotan. Una familia cuyas reglas reparten $600 de un sobrante de $800 deja $200 sin
+asignar a propósito, y esos $200 se quedan en el balance y se arrastran. Empujarlos a la
+última regla sería inventarle a la familia una decisión que no tomó.
 
 ---
 
@@ -274,9 +286,9 @@ def absorber_faltante(planeado: Sequence[Asignacion], reglas: Sequence[ReglaRepa
   familia.
 - `remainder` → todo lo disponible
 
-**El redondeo.** Cada asignación se redondea a dos decimales con `ROUND_HALF_UP`. Al
-final, el residuo (`sobrante − suma`) se aplica a la última regla que recibió dinero, de
-modo que la suma sea **exactamente** el sobrante.
+**El redondeo.** Un solo punto: `engine/money.py::centavos()`. Cada asignación se limita
+además por lo que quede disponible, así que la suma nunca excede el sobrante. Lo que las
+reglas no agoten se queda sin asignar y se arrastra en el balance — ver §2.7.
 
 **El reparto de la mesada cuadra al centavo.** `equal` entre tres miembros y $100 da
 33,34 / 33,33 / 33,33: los centavos sobrantes se reparten de uno en uno por orden de `pk`
