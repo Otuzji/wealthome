@@ -49,6 +49,19 @@ def test_money_field_acepta_las_opciones_normales_de_un_campo():
     assert campo.max_digits == 12
 
 
+def test_money_field_acepta_el_verbose_name_como_posicional():
+    """Como cualquier campo de Django (`CharField(_("name"), max_length=80)`):
+    la Tarea 9 necesitó `MoneyField(_("amount"), null=True, blank=True)` y,
+    antes de este cambio, esa forma lanzaba `TypeError` porque la firma solo
+    aceptaba `**kwargs`. Ahora el primer posicional es el nombre visible."""
+    campo = MoneyField("alquiler", null=True)
+
+    assert campo.verbose_name == "alquiler"
+    assert campo.null is True
+    assert campo.max_digits == 12
+    assert campo.decimal_places == 2
+
+
 def test_money_field_deja_forzar_la_precisión_pero_hay_que_escribirlo():
     """No se prohíbe: se hace visible. Un importe con otra precisión aparece
     en el diff."""
