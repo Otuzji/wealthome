@@ -42,6 +42,26 @@ class Asignacion:
     miembro_id: int | None = None
 
 
+def _exigir_ordenes_unicos(reglas):
+    """El `orden` identifica a la regla dentro de la cascada.
+
+    `Asignacion` solo lleva el orden, no la regla, así que dos reglas con
+    el mismo orden son indistinguibles al absorber el faltante: el dinero
+    se descuenta dos veces y desaparece sin dejar rastro. La restricción
+    UniqueConstraint(household, order) de AllocationRule ya lo impide en
+    la base de datos; esto lo hace explícito aquí, para que una relajación
+    futura falle ruidosa en vez de perder dinero.
+    """
+    ordenes = [r.orden for r in reglas]
+    repetidos = sorted({o for o in ordenes if ordenes.count(o) > 1})
+    if repetidos:
+        raise ValueError(
+            f"Dos reglas de reparto comparten el mismo orden: {repetidos}. "
+            "El orden identifica a la regla dentro de la cascada y tiene "
+            "que ser único."
+        )
+
+
 def _bruto(regla, sobrante, disponible):
     if regla.metodo == FIXED:
         return regla.importe or Decimal("0")
@@ -73,6 +93,7 @@ def repartir(sobrante, reglas):
     La suma nunca excede el sobrante. Lo que las reglas no agoten se queda sin
     asignar a propósito y se arrastra en el balance (§2.7).
     """
+    _exigir_ordenes_unicos(reglas)
     sobrante = centavos(sobrante)
     if sobrante <= 0:
         return []
@@ -120,6 +141,7 @@ def absorber_faltante(planeado, reglas, sobrante_real):
 
     Devuelve (asignaciones finales, ajustes para el mes siguiente).
     """
+    _exigir_ordenes_unicos(reglas)
     planeado = list(planeado)
     faltante = sum(a.importe for a in planeado) - centavos(sobrante_real)
     if faltante <= 0:
@@ -139,6 +161,12 @@ def absorber_faltante(planeado, reglas, sobrante_real):
         quita = min(restante, disponible)
         if quita <= 0:
             continue
+
+        if orden not in por_orden:
+            raise ValueError(
+                f"La asignación de orden {orden} no corresponde a ninguna regla. "
+                "`planeado` y `reglas` deben venir del mismo conjunto de reglas."
+            )
 
         if por_orden[orden].destino == ALLOWANCE:
             # No se retira: se convierte en ajuste del mes siguiente, repartido
@@ -161,5 +189,8 @@ def absorber_faltante(planeado, reglas, sobrante_real):
         nuevo = centavos(asignacion.importe - quita)
         if nuevo > 0:
             finales.append(Asignacion(asignacion.orden, nuevo, asignacion.miembro_id))
+
+    # Descartar ajustes de cero (miembro con peso 0 en la mesada).
+    ajustes = [a for a in ajustes if a.importe != 0]
 
     return finales, ajustes

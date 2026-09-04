@@ -215,6 +215,14 @@ def test_un_metodo_desconocido_revienta():
         repartir(Decimal("800.00"), [regla])
 
 
+def test_dos_reglas_con_el_mismo_orden_revienta():
+    """El orden identifica a la regla, así que debe ser único."""
+    reglas = [_ahorro(orden=1), _mesada(orden=1)]
+
+    with pytest.raises(ValueError, match="mismo orden"):
+        repartir(Decimal("800.00"), reglas)
+
+
 # --- el faltante (§4.5.3) -----------------------------------------------------
 
 
@@ -341,3 +349,31 @@ def test_un_sobrante_real_negativo_deja_la_mesada_y_vacia_el_resto():
 
     assert [a for a in final if a.miembro_id is None] == []
     assert sum(a.importe for a in ajustes) == Decimal("-200.00")
+
+
+def test_dos_reglas_con_el_mismo_orden_en_absorber_faltante_revienta():
+    """El orden identifica a la regla en la cascada, así que debe ser único."""
+    # Construir planeado manualmente sin llamar a repartir (que también valida).
+    planeado = [
+        Asignacion(orden=1, importe=Decimal("600.00"), miembro_id=None),
+        Asignacion(orden=1, importe=Decimal("100.00"), miembro_id=10),
+        Asignacion(orden=1, importe=Decimal("100.00"), miembro_id=20),
+    ]
+    reglas = [_ahorro(orden=1, importe="600"), _mesada(orden=1)]
+
+    with pytest.raises(ValueError, match="mismo orden"):
+        absorber_faltante(planeado, reglas, Decimal("700.00"))
+
+
+def test_miembro_con_peso_cero_no_produce_ajuste():
+    """Un miembro excluido de la mesada (peso 0) no recibe Ajuste."""
+    regla = _mesada(miembros=(10, 20), pesos=(Decimal("1"), Decimal("0")))
+    reglas = [_ahorro(importe="600"), regla]
+    planeado = repartir(Decimal("800.00"), reglas)
+
+    final, ajustes = absorber_faltante(planeado, reglas, Decimal("700.00"))
+
+    # Solo el miembro 10 tiene peso, así que solo uno recibe ajuste.
+    assert ajustes == [Ajuste(miembro_id=10, importe=Decimal("-100.00"))]
+    # El ajuste suma exactamente el faltante de la mesada.
+    assert sum(a.importe for a in ajustes) == Decimal("-100.00")
