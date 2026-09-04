@@ -17,7 +17,7 @@
 - **Python 3.11**, **Django 5.1**. En Django 5.x `USE_L10N` fue eliminado — no lo escribas en settings.
 - **Todo importe monetario usa `apps.core.fields.MoneyField`.** Nunca `float`, nunca `DecimalField` a mano. (Spec Fase 1 §3.4)
 - **Un solo punto de redondeo:** `apps.budget.engine.money.centavos()`, con `ROUND_HALF_UP` a dos decimales. Ninguna otra función del proyecto redondea dinero.
-- **`apps/budget/engine/` no importa el ORM.** Ni `django.db`, ni `django.conf`, ni `apps.*.models`. `tests/budget/test_pureza.py` lo vigila.
+- **`apps/budget/engine/` no importa el ORM.** Ni `django.db`, ni `django.conf`, ni `apps.*.models`. `tests/budget/engine/test_pureza.py` lo vigila.
 - **Todo texto visible al usuario pasa por `gettext`** (`{% translate %}` en plantillas, `gettext_lazy as _` en Python), y **cada cadena nueva se escribe a mano en `locale/en/LC_MESSAGES/django.po` y `locale/fr/LC_MESSAGES/django.po`** y se compila. No hay cadena GNU gettext en esta máquina.
 - **Todo modelo con datos del hogar hereda de `apps.households.scoping.HouseholdScoped`.** Sin excepciones. Si declara su propia `Meta`, debe heredarla: `class Meta(HouseholdScoped.Meta):`.
 - **Toda fábrica de pruebas de un modelo con hogar hereda de `tests.factories.HouseholdScopedFactory`**, o `factory_boy` reventará contra el manager estricto.
@@ -29,9 +29,10 @@
 ## Cómo correr las pruebas en esta máquina
 
 ```bash
-.venv/Scripts/python.exe -m pytest tests/budget -q            # el motor: rápido
-.venv/Scripts/python.exe -m pytest -q                          # todo: ~4 min
-.venv/Scripts/python.exe -m pytest -q --create-db              # OBLIGATORIO tras una migración nueva
+.venv/Scripts/python.exe -m pytest tests/budget/engine -q     # el motor: bajo un segundo
+.venv/Scripts/python.exe -m pytest tests/budget -q            # el motor + su persistencia
+.venv/Scripts/python.exe -m pytest -q                         # todo: ~4 min
+.venv/Scripts/python.exe -m pytest -q --create-db             # OBLIGATORIO tras una migración nueva
 ```
 
 **Trampas del entorno, heredadas del Plan 1 — leer antes de la primera tarea:**
@@ -79,11 +80,14 @@ apps/budget/
 templates/budget/
 tests/budget/
   __init__.py
-  test_pureza.py       test_money.py       test_periodicity.py
-  test_income.py       test_cascade.py     test_closing.py
-  test_allowance.py    test_goals_engine.py  test_merchants.py
-  test_models.py       test_services.py    test_month_cycle.py
-  test_views.py        test_aislamiento.py
+  engine/                          # PURAS: ni una lleva django_db
+    __init__.py
+    test_pureza.py     test_money.py      test_periodicity.py
+    test_income.py     test_cascade.py    test_closing.py
+    test_allowance.py  test_goals_engine.py  test_merchants.py
+  test_models.py    test_mes_cerrado.py  test_services.py
+  test_month_cycle.py  test_views.py     test_aislamiento.py
+  test_aceptacion.py
 tests/factories_budget.py
 ```
 
@@ -98,7 +102,7 @@ tests/factories_budget.py
 **Files:**
 - Create: `apps/budget/__init__.py`, `apps/budget/apps.py`, `apps/budget/models/__init__.py`, `apps/budget/engine/__init__.py`, `apps/budget/migrations/__init__.py`
 - Modify: `config/settings.py` (añadir la app), `pytest.ini` (marcador `db`)
-- Test: `tests/budget/__init__.py`, `tests/budget/test_pureza.py`
+- Test: `tests/budget/__init__.py`, `tests/budget/engine/test_pureza.py`
 
 **Interfaces:**
 - Consumes: nada (primera tarea)
@@ -106,7 +110,7 @@ tests/factories_budget.py
 
 - [ ] **Step 1: Escribir la prueba de pureza que falla**
 
-`tests/budget/test_pureza.py`:
+`tests/budget/engine/test_pureza.py`:
 
 ```python
 """El motor no toca el ORM.
@@ -126,7 +130,9 @@ import pathlib
 
 import pytest
 
-RAIZ_MOTOR = pathlib.Path(__file__).resolve().parent.parent.parent / "apps" / "budget" / "engine"
+RAIZ_MOTOR = (
+    pathlib.Path(__file__).resolve().parents[3] / "apps" / "budget" / "engine"
+)
 
 PROHIBIDOS = ("django.db", "django.conf", "django.contrib")
 
@@ -197,17 +203,18 @@ def test_el_paquete_del_motor_existe_y_esta_vacio_de_orm():
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_pureza.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_pureza.py -q`
 Expected: FAIL — `test_el_paquete_del_motor_existe_y_esta_vacio_de_orm` falla porque `apps/budget/engine/` no existe. (Los otros tres pasan: la guardia funciona sobre árboles de juguete desde el principio.)
 
 - [ ] **Step 3: Crear el andamiaje**
 
 ```bash
 mkdir -p apps/budget/models apps/budget/engine apps/budget/migrations \
-         apps/budget/management/commands tests/budget templates/budget
+         apps/budget/management/commands tests/budget/engine templates/budget
 touch apps/budget/models/__init__.py apps/budget/engine/__init__.py \
       apps/budget/migrations/__init__.py apps/budget/management/__init__.py \
-      apps/budget/management/commands/__init__.py tests/budget/__init__.py
+      apps/budget/management/commands/__init__.py \
+      tests/budget/__init__.py tests/budget/engine/__init__.py
 ```
 
 `apps/budget/__init__.py`: vacío.
@@ -232,13 +239,10 @@ En `config/settings.py`, dentro de `INSTALLED_APPS`, después de `"apps.househol
     "apps.budget",
 ```
 
-En `pytest.ini`, añadir al final:
-
-```ini
-markers =
-    db: prueba que necesita Postgres. El motor (tests/budget/test_*.py puros)
-        no la lleva y corre en menos de un segundo.
-```
+`pytest.ini` no necesita ningún cambio. "Correr solo el motor" es una **ruta**,
+no una convención: las pruebas puras viven en `tests/budget/engine/` y las que
+necesitan Postgres en `tests/budget/`. Un marcador que hubiera que acordarse de
+poner se olvida a la tercera tarea; un directorio no se olvida.
 
 - [ ] **Step 5: Verificar que pasa**
 
@@ -267,7 +271,7 @@ de django.db, django.conf o de los modelos propios."
 
 **Files:**
 - Create: `apps/budget/engine/money.py`
-- Test: `tests/budget/test_money.py`
+- Test: `tests/budget/engine/test_money.py`
 
 **Interfaces:**
 - Consumes: nada del proyecto.
@@ -278,7 +282,7 @@ de django.db, django.conf o de los modelos propios."
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
-`tests/budget/test_money.py`:
+`tests/budget/engine/test_money.py`:
 
 ```python
 """El redondeo del dinero, en un solo sitio.
@@ -396,7 +400,7 @@ def test_repartir_un_importe_negativo_reparte_el_signo():
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_money.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_money.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'apps.budget.engine.money'`
 
 - [ ] **Step 3: Implementar**
@@ -458,13 +462,13 @@ def repartir_proporcional(total, pesos):
 
 - [ ] **Step 4: Ejecutar y verificar que pasa**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_money.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_money.py -q`
 Expected: PASS — 13 pruebas, en menos de un segundo.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/budget/engine/money.py tests/budget/test_money.py
+git add apps/budget/engine/money.py tests/budget/engine/test_money.py
 git commit -m "Añade el único punto de redondeo del dinero
 
 §3.4 exige que el redondeo sea explícito, a dos decimales y siempre en el
@@ -483,7 +487,7 @@ balance que no cuadra cuesta la confianza en la aplicación entera."
 
 **Files:**
 - Create: `apps/budget/engine/periodicity.py`
-- Test: `tests/budget/test_periodicity.py`
+- Test: `tests/budget/engine/test_periodicity.py`
 
 **Interfaces:**
 - Consumes: `apps.budget.engine.money.centavos`
@@ -496,7 +500,7 @@ balance que no cuadra cuesta la confianza en la aplicación entera."
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
-`tests/budget/test_periodicity.py`:
+`tests/budget/engine/test_periodicity.py`:
 
 ```python
 """Cuándo dispara una regla dentro de un mes concreto.
@@ -687,7 +691,7 @@ def test_una_periodicidad_desconocida_revienta():
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_periodicity.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_periodicity.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'apps.budget.engine.periodicity'`
 
 - [ ] **Step 3: Implementar**
@@ -804,7 +808,7 @@ def importe_del_mes(importe, periodicidad, ancla, anio, mes, hasta=None):
 
 - [ ] **Step 4: Ejecutar y verificar que pasa**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_periodicity.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_periodicity.py -q`
 Expected: PASS — 21 pruebas.
 
 Run: `.venv/Scripts/python.exe -m pytest tests/budget -q`
@@ -813,7 +817,7 @@ Expected: PASS — la guardia de pureza sigue verde con el módulo nuevo.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/budget/engine/periodicity.py tests/budget/test_periodicity.py
+git add apps/budget/engine/periodicity.py tests/budget/engine/test_periodicity.py
 git commit -m "Añade las ocho periodicidades por calendario real
 
 Decisión §2.2: se cuentan las ocurrencias reales ancladas en effective_from,
@@ -833,7 +837,7 @@ recorta igual su segunda fecha."
 
 **Files:**
 - Create: `apps/budget/engine/income.py`
-- Test: `tests/budget/test_income.py`
+- Test: `tests/budget/engine/test_income.py`
 
 **Interfaces:**
 - Consumes: `apps.budget.engine.money.centavos`
@@ -844,7 +848,7 @@ recorta igual su segunda fecha."
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
-`tests/budget/test_income.py`:
+`tests/budget/engine/test_income.py`:
 
 ```python
 """Los cinco modos de ingreso variable del §4.1.
@@ -962,7 +966,7 @@ def test_range_sin_minimo_revienta():
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_income.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_income.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'apps.budget.engine.income'`
 
 - [ ] **Step 3: Implementar**
@@ -1027,13 +1031,13 @@ def cifra_conservadora(amount_type, *, amount=None, amount_min=None,
 
 - [ ] **Step 4: Ejecutar y verificar que pasa**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_income.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_income.py -q`
 Expected: PASS — 14 pruebas.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/budget/engine/income.py tests/budget/test_income.py
+git add apps/budget/engine/income.py tests/budget/engine/test_income.py
 git commit -m "Anade los cinco modos de ingreso variable"
 ```
 
@@ -1047,7 +1051,7 @@ Esta tarea y la siguiente construyen la función que distingue al producto (§4.
 
 **Files:**
 - Create: `apps/budget/engine/cascade.py`
-- Test: `tests/budget/test_cascade.py`
+- Test: `tests/budget/engine/test_cascade.py`
 
 **Interfaces:**
 - Consumes: `apps.budget.engine.money.centavos`, `repartir_proporcional`
@@ -1060,7 +1064,7 @@ Esta tarea y la siguiente construyen la función que distingue al producto (§4.
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
-`tests/budget/test_cascade.py`:
+`tests/budget/engine/test_cascade.py`:
 
 ```python
 """El reparto en cascada del sobrante (§4.5).
@@ -1280,7 +1284,7 @@ def test_un_metodo_desconocido_revienta():
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_cascade.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_cascade.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'apps.budget.engine.cascade'`
 
 - [ ] **Step 3: Implementar**
@@ -1388,13 +1392,13 @@ def repartir(sobrante, reglas):
 
 - [ ] **Step 4: Ejecutar y verificar que pasa**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_cascade.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_cascade.py -q`
 Expected: PASS — 21 pruebas.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/budget/engine/cascade.py tests/budget/test_cascade.py
+git add apps/budget/engine/cascade.py tests/budget/engine/test_cascade.py
 git commit -m "Anade el reparto en cascada del sobrante"
 ```
 
@@ -1406,7 +1410,7 @@ Cuerpo del mensaje: la función que distingue al producto (§4.5). Tres invarian
 
 **Files:**
 - Modify: `apps/budget/engine/cascade.py`
-- Test: `tests/budget/test_cascade.py` (añadir al final)
+- Test: `tests/budget/engine/test_cascade.py` (añadir al final)
 
 **Interfaces:**
 - Consumes: `ReglaReparto`, `Asignacion`, `centavos`, `repartir_proporcional`
@@ -1417,7 +1421,7 @@ Cuerpo del mensaje: la función que distingue al producto (§4.5). Tres invarian
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
-Añadir al final de `tests/budget/test_cascade.py` (el import va arriba, junto a los demás):
+Añadir al final de `tests/budget/engine/test_cascade.py` (el import va arriba, junto a los demás):
 
 ```python
 # --- el faltante (§4.5.3) -----------------------------------------------------
@@ -1552,7 +1556,7 @@ Y añadir `Ajuste` y `absorber_faltante` al bloque de imports del principio del 
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_cascade.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_cascade.py -q`
 Expected: FAIL — `ImportError: cannot import name 'Ajuste' from 'apps.budget.engine.cascade'`
 
 - [ ] **Step 3: Implementar**
@@ -1631,13 +1635,13 @@ def absorber_faltante(planeado, reglas, sobrante_real):
 
 - [ ] **Step 4: Ejecutar y verificar que pasa**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_cascade.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_cascade.py -q`
 Expected: PASS — 31 pruebas.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/budget/engine/cascade.py tests/budget/test_cascade.py
+git add apps/budget/engine/cascade.py tests/budget/engine/test_cascade.py
 git commit -m "Absorbe el faltante desde la ultima regla, sin tocar la mesada"
 ```
 
@@ -1649,7 +1653,7 @@ Cuerpo: §4.5.3, la parte delicada del §4.5. El ejemplo literal del spec es una
 
 **Files:**
 - Create: `apps/budget/engine/closing.py`, `apps/budget/engine/allowance.py`
-- Test: `tests/budget/test_closing.py`, `tests/budget/test_allowance.py`
+- Test: `tests/budget/engine/test_closing.py`, `tests/budget/engine/test_allowance.py`
 
 **Interfaces:**
 - Consumes: `apps.budget.engine.money.centavos`
@@ -1663,7 +1667,7 @@ Cuerpo: §4.5.3, la parte delicada del §4.5. El ejemplo literal del spec es una
 
 - [ ] **Step 1: Escribir las pruebas del cierre**
 
-`tests/budget/test_closing.py`:
+`tests/budget/engine/test_closing.py`:
 
 ```python
 """El cierre del mes y el arrastre del saldo (§4.4).
@@ -1781,7 +1785,7 @@ def test_el_ingreso_en_modo_range_deja_su_exceso_como_superavit():
 
 - [ ] **Step 2: Escribir las pruebas del libro mayor**
 
-`tests/budget/test_allowance.py`:
+`tests/budget/engine/test_allowance.py`:
 
 ```python
 """El libro mayor de la mesada (§3.3, §4.5.4).
@@ -1865,7 +1869,7 @@ def test_el_acumulado_sin_acumulacion_no_pasa_de_la_mesada_del_mes():
 
 - [ ] **Step 3: Ejecutar y verificar que fallan**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_closing.py tests/budget/test_allowance.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_closing.py tests/budget/engine/test_allowance.py -q`
 Expected: FAIL — `ModuleNotFoundError` para los dos módulos.
 
 - [ ] **Step 4: Implementar el cierre**
@@ -1988,7 +1992,7 @@ Expected: PASS — todo el motor, en menos de dos segundos.
 
 ```bash
 git add apps/budget/engine/closing.py apps/budget/engine/allowance.py \
-        tests/budget/test_closing.py tests/budget/test_allowance.py
+        tests/budget/engine/test_closing.py tests/budget/engine/test_allowance.py
 git commit -m "Anade el cierre del mes y el libro mayor de la mesada"
 ```
 
@@ -2000,7 +2004,7 @@ Cuerpo: §4.4 y §4.5.4. Dos pruebas que el §9 exige por su nombre: el arrastre
 
 **Files:**
 - Create: `apps/budget/engine/goals.py`, `apps/budget/engine/merchants.py`
-- Test: `tests/budget/test_goals_engine.py`, `tests/budget/test_merchants.py`
+- Test: `tests/budget/engine/test_goals_engine.py`, `tests/budget/engine/test_merchants.py`
 
 **Interfaces:**
 - Consumes: `apps.budget.engine.money.centavos`
@@ -2012,7 +2016,7 @@ Cuerpo: §4.4 y §4.5.4. Dos pruebas que el §9 exige por su nombre: el arrastre
 
 - [ ] **Step 1: Escribir las pruebas de las metas**
 
-`tests/budget/test_goals_engine.py`:
+`tests/budget/engine/test_goals_engine.py`:
 
 ```python
 """Las dos formas de expresar una meta (§3.3).
@@ -2147,7 +2151,7 @@ def test_un_modo_desconocido_revienta():
 
 - [ ] **Step 2: Escribir las pruebas de la normalización**
 
-`tests/budget/test_merchants.py`:
+`tests/budget/engine/test_merchants.py`:
 
 ```python
 """Normalización de nombres de comercio (§3.3).
@@ -2207,7 +2211,7 @@ def test_un_nombre_vacio_da_cadena_vacia():
 
 - [ ] **Step 3: Ejecutar y verificar que fallan**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_goals_engine.py tests/budget/test_merchants.py -q`
+Run: `.venv/Scripts/python.exe -m pytest tests/budget/engine/test_goals_engine.py tests/budget/engine/test_merchants.py -q`
 Expected: FAIL — `ModuleNotFoundError` para los dos módulos.
 
 - [ ] **Step 4: Implementar las metas**
@@ -2327,7 +2331,7 @@ Expected: PASS — la suite entera.
 
 ```bash
 git add apps/budget/engine/goals.py apps/budget/engine/merchants.py \
-        tests/budget/test_goals_engine.py tests/budget/test_merchants.py
+        tests/budget/engine/test_goals_engine.py tests/budget/engine/test_merchants.py
 git commit -m "Anade la derivacion de metas y la normalizacion de comercios"
 ```
 
@@ -4211,9 +4215,23 @@ def materializar(hogar, anio, mes):
 
 
 def _categoria_de_ingreso(hogar):
+    """La categoría donde caen las líneas de ingreso.
+
+    Falla aquí y con su motivo si el hogar no tiene ninguna: un hogar sin
+    árbol sembrado es un hogar mal creado (`crear_hogar` lo siembra), y
+    devolver None haría reventar la proyección con un AttributeError lejos
+    de la causa.
+    """
     from apps.budget.models import Category
 
-    return Category.objects.for_household(hogar).filter(kind=INCOME).first()
+    categoria = Category.objects.for_household(hogar).filter(kind=INCOME).first()
+    if categoria is None:
+        raise LookupError(
+            f"El hogar {hogar.pk} no tiene ninguna categoría de ingreso. "
+            "¿Se creó sin pasar por households.services.crear_hogar, que "
+            "siembra el árbol de apps/budget/seeds.py?"
+        )
+    return categoria
 
 
 @transaction.atomic
@@ -6011,7 +6029,7 @@ Expected: PASS. Una corrida con `--create-db` es la única que demuestra que las
 
 - [ ] **Step 4: Actualizar el README**
 
-Añade al `README.md` una sección "El motor financiero" con: cómo correr solo el motor (`pytest tests/budget -q`), la nota de que `apps/budget/engine/` no importa el ORM y por qué, el comando `cerrar_meses_vencidos` y para qué existe, y las cinco desviaciones del spec de la Fase 1 con un enlace al diseño del Plan 2.
+Añade al `README.md` una sección "El motor financiero" con: cómo correr solo el motor (`pytest tests/budget/engine -q`), la nota de que `apps/budget/engine/` no importa el ORM y por qué, el comando `cerrar_meses_vencidos` y para qué existe, y las cinco desviaciones del spec de la Fase 1 con un enlace al diseño del Plan 2.
 
 - [ ] **Step 5: Commit**
 
