@@ -25,18 +25,35 @@ def centavos(valor):
 def repartir_proporcional(total, pesos):
     """Reparte `total` según `pesos`. La suma es EXACTAMENTE `total`.
 
+    El `total` debe llegar ya redondeado a centavos. Si no, se lanza ValueError:
+    el redondeo es explícito y en un solo sitio (§3.4), así que una cantidad con
+    más de dos decimales es un error del llamador, no algo que este módulo deba
+    ocultar silenciosamente.
+
     Se reparte en centavos enteros y los que sobran se dan de uno en uno por
     orden de índice —quien llama ordena la lista, normalmente por `pk` de la
     membresía—, de modo que dos ejecuciones del mismo reparto coincidan al
     centavo. Sin eso, replanificar un mes movería la mesada de sitio sin que
     nadie hubiera tocado nada.
     """
+    # Coerce total to Decimal using the same path as centavos()
+    if not isinstance(total, Decimal):
+        total = Decimal(str(total))
+
+    # Validate that total is already quantized to centavos
+    if centavos(total) != total:
+        raise ValueError(
+            f"repartir_proporcional exige un total ya redondeado a centavos; "
+            f"recibió {total}. Llama a centavos() primero — el redondeo es "
+            f"explícito y en un solo sitio (§3.4)."
+        )
+
     pesos = [Decimal(str(p)) for p in pesos]
     total_pesos = sum(pesos)
     if not pesos or total_pesos == 0:
         return []
 
-    total_centavos = int(centavos(total) * 100)
+    total_centavos = int(total * 100)
     signo = -1 if total_centavos < 0 else 1
     restantes = abs(total_centavos)
 
@@ -47,4 +64,4 @@ def repartir_proporcional(total, pesos):
     for i in range(sobrantes):
         partes[i % len(partes)] += 1
 
-    return [Decimal(signo * p) / 100 for p in partes]
+    return [centavos(Decimal(signo * p) / 100) for p in partes]

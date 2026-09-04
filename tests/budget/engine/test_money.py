@@ -109,3 +109,20 @@ def test_repartir_un_importe_negativo_reparte_el_signo():
 
     assert partes == [Decimal("-40.00"), Decimal("-40.00")]
     assert sum(partes) == Decimal("-80.00")
+
+
+def test_repartir_rechaza_total_no_redondeado():
+    """El redondeo es explícito y en un solo sitio. Si el total no está ya
+    redondeado a centavos, es un error del llamador, no algo que ocultemos."""
+    with pytest.raises(ValueError) as exc_info:
+        repartir_proporcional(Decimal("10.005"), [1, 1])
+
+    assert "exige un total ya redondeado a centavos" in str(exc_info.value)
+
+
+def test_repartir_acepta_int_como_total():
+    """Los totales enteros (int) deben coercerse y funcionar normalmente."""
+    partes = repartir_proporcional(90, [1, 1, 1])
+
+    assert partes == [Decimal("30.00"), Decimal("30.00"), Decimal("30.00")]
+    assert sum(partes) == Decimal("90.00")
