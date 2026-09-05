@@ -923,3 +923,19 @@ msgstr "allowance"
 #: apps/budget/models/allocation.py
 msgid "allowances"
 msgstr "allowances"
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "Closes the overdue months of every household."
+msgstr "Closes the overdue months of every household."
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "Date in YYYY-MM-DD format, for testing."
+msgstr "Date in YYYY-MM-DD format, for testing."
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "%(hogar)s: closed %(mes)s"
+msgstr "%(hogar)s: closed %(mes)s"
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "%(total)s months closed."
+msgstr "%(total)s months closed."

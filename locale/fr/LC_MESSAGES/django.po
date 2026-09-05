@@ -939,3 +939,19 @@ msgstr "argent de poche"
 #: apps/budget/models/allocation.py
 msgid "allowances"
 msgstr "argents de poche"
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "Closes the overdue months of every household."
+msgstr "Clôture les mois en retard de chaque foyer."
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "Date in YYYY-MM-DD format, for testing."
+msgstr "Date au format AAAA-MM-JJ, pour les tests."
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "%(hogar)s: closed %(mes)s"
+msgstr "%(hogar)s : %(mes)s clôturé"
+
+#: apps/budget/management/commands/cerrar_meses_vencidos.py
+msgid "%(total)s months closed."
+msgstr "%(total)s mois clôturés."
