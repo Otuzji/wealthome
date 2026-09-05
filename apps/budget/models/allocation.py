@@ -76,6 +76,15 @@ class AllocationRule(HouseholdScoped):
             raise ValidationError({"target_goal": _("Pick the goal this goes to.")})
         if self.target_type == motor_cascade.CATEGORY and not self.target_category_id:
             raise ValidationError({"target_category": _("Pick the category this goes to.")})
+        if self.target_goal_id and self.target_category_id:
+            # a_regla_de_reparto resuelve destino_id = target_goal_id or
+            # target_category_id, que preferiría el objetivo en silencio.
+            # Como BudgetLine.kind frente a Category.kind, o amount_min
+            # frente a amount_max en IncomeSource: un dato contradictorio se
+            # rechaza aquí, no se resuelve por orden de campo.
+            raise ValidationError(
+                {"target_category": _("A rule cannot go to both a goal and a category at once.")}
+            )
 
     def a_regla_de_reparto(self, miembros=()):
         """La traduce al tipo del motor. Es el único puente ORM → engine."""

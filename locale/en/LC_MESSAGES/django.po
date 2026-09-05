@@ -881,6 +881,10 @@ msgid "Pick the category this goes to."
 msgstr "Pick the category this goes to."
 
 #: apps/budget/models/allocation.py
+msgid "A rule cannot go to both a goal and a category at once."
+msgstr "A rule cannot go to both a goal and a category at once."
+
+#: apps/budget/models/allocation.py
 msgid "monthly split"
 msgstr "monthly split"
 

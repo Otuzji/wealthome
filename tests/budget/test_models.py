@@ -387,6 +387,35 @@ def test_el_orden_de_reparto_es_unico_dentro_del_hogar():
         AllocationRuleFactory(household=regla.household, order=1)
 
 
+def test_una_regla_no_puede_apuntar_a_una_meta_y_a_una_categoria_a_la_vez():
+    """Hallazgo de la revisión (ronda 1): a_regla_de_reparto resuelve
+    destino_id = target_goal_id or target_category_id, que preferiría la
+    meta en silencio si las dos FK llegaran puestas. Como BudgetLine.kind
+    frente a Category.kind o amount_min frente a amount_max en IncomeSource,
+    el dato contradictorio se rechaza en vez de resolverse por orden de
+    campo."""
+    from django.core.exceptions import ValidationError
+
+    from apps.budget.engine.cascade import CATEGORY
+    from tests.factories_budget import AllocationRuleFactory, GoalFactory
+
+    hogar = HouseholdFactory()
+    meta = GoalFactory(household=hogar)
+    categoria = CategoryFactory(household=hogar)
+    regla = AllocationRuleFactory.build(
+        household=hogar, target_type=CATEGORY, target_goal=meta, target_category=categoria,
+    )
+
+    # validate_constraints=False: UniqueConstraint.validate() consulta
+    # `model._default_manager` incondicionalmente, incluso para un campo que
+    # no está en juego aquí, y ese manager es el estricto — lanzaría
+    # RuntimeError antes de llegar al clean() que esta prueba ejercita. La
+    # unicidad de `order` ya la cubre test_el_orden_de_reparto_es_unico_dentro_del_hogar
+    # a través del IntegrityError real de la base de datos.
+    with pytest.raises(ValidationError):
+        regla.full_clean(validate_constraints=False)
+
+
 def test_el_libro_mayor_deriva_su_saldo():
     from tests.factories_budget import AllowanceLedgerFactory
 
@@ -441,14 +470,26 @@ def test_borrar_un_hogar_con_metas_reparto_y_mesada_no_falla():
     RESTRICT: Goal.owner, GoalContribution.member, AllocationRule.target_category,
     MonthlyAllocation.rule, MonthlyAllocation.member y AllowanceLedger.member.
     Con PROTECT, borrar el hogar entero sería imposible en cuanto existiera
-    una sola meta o una sola regla de reparto."""
+    una sola meta o una sola regla de reparto.
+
+    Hallazgo de la revisión (ronda 1): la primera versión de esta prueba no
+    creaba ninguna GoalContribution, así que revertir GoalContribution.member
+    a PROTECT la habría dejado pasar igual — la prueba nunca tocaba ese
+    modelo. Con la fila añadida, las seis FK quedan demostradas."""
     from apps.budget.engine.cascade import CATEGORY, FIXED
     from apps.budget.engine.goals import BY_TARGET_DATE
-    from apps.budget.models import AllocationRule, AllowanceLedger, Goal, MonthlyAllocation
+    from apps.budget.models import (
+        AllocationRule,
+        AllowanceLedger,
+        Goal,
+        GoalContribution,
+        MonthlyAllocation,
+    )
     from apps.households.models import Membership
     from tests.factories_budget import (
         AllocationRuleFactory,
         AllowanceLedgerFactory,
+        GoalContributionFactory,
         GoalFactory,
         MonthlyAllocationFactory,
     )
@@ -457,9 +498,12 @@ def test_borrar_un_hogar_con_metas_reparto_y_mesada_no_falla():
     membresia = Membership.objects.get(household=hogar)
     categoria = Category.objects.for_household(hogar).get(slug="rent")
 
-    GoalFactory(
+    meta = GoalFactory(
         household=hogar, owner=membresia, contribution_mode=BY_TARGET_DATE,
         target_amount=Decimal("1000.00"), target_date=date(2027, 1, 1),
+    )
+    GoalContributionFactory(
+        household=hogar, goal=meta, member=membresia, amount=Decimal("50.00"),
     )
     regla = AllocationRuleFactory(
         household=hogar, order=1, target_type=CATEGORY, target_category=categoria,
@@ -476,6 +520,7 @@ def test_borrar_un_hogar_con_metas_reparto_y_mesada_no_falla():
     hogar.delete()
 
     assert Goal.unscoped.filter(household_id=hogar_id).count() == 0
+    assert GoalContribution.unscoped.filter(household_id=hogar_id).count() == 0
     assert AllocationRule.unscoped.filter(household_id=hogar_id).count() == 0
     assert MonthlyAllocation.unscoped.filter(household_id=hogar_id).count() == 0
     assert AllowanceLedger.unscoped.filter(household_id=hogar_id).count() == 0
