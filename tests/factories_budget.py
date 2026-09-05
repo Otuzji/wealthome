@@ -3,6 +3,8 @@ from decimal import Decimal
 
 import factory
 
+from apps.budget.engine import cascade as motor_cascade
+from apps.budget.engine.goals import BY_TARGET_DATE
 from apps.budget.engine.income import FIXED
 from apps.budget.engine.periodicity import MONTHLY
 from tests.factories import HouseholdFactory, HouseholdScopedFactory, MembershipFactory
@@ -98,3 +100,60 @@ class MonthlyCloseFactory(HouseholdScopedFactory):
     egresos_reales = Decimal("0.00")
     balance = Decimal("0.00")
     arrastre = Decimal("0.00")
+
+
+class GoalFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.Goal"
+
+    household = factory.SubFactory(HouseholdFactory)
+    name = factory.Sequence(lambda n: f"Meta {n}")
+    contribution_mode = BY_TARGET_DATE
+    target_amount = Decimal("1000.00")
+    target_date = date(2027, 1, 1)
+
+
+class GoalContributionFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.GoalContribution"
+
+    household = factory.SubFactory(HouseholdFactory)
+    goal = factory.LazyAttribute(lambda o: GoalFactory(household=o.household))
+    member = factory.LazyAttribute(lambda o: MembershipFactory(household=o.household))
+    amount = Decimal("50.00")
+    date = date(2026, 1, 15)
+
+
+class AllocationRuleFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.AllocationRule"
+
+    household = factory.SubFactory(HouseholdFactory)
+    order = factory.Sequence(lambda n: n + 1)
+    target_type = motor_cascade.ALLOWANCE
+    method = motor_cascade.FIXED
+    amount = Decimal("50.00")
+
+
+class MonthlyAllocationFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.MonthlyAllocation"
+
+    household = factory.SubFactory(HouseholdFactory)
+    budget_month = factory.LazyAttribute(lambda o: BudgetMonthFactory(household=o.household))
+    rule = factory.LazyAttribute(lambda o: AllocationRuleFactory(household=o.household))
+    planned_amount = Decimal("50.00")
+
+
+class AllowanceLedgerFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.AllowanceLedger"
+
+    household = factory.SubFactory(HouseholdFactory)
+    member = factory.LazyAttribute(lambda o: MembershipFactory(household=o.household))
+    budget_month = factory.LazyAttribute(lambda o: BudgetMonthFactory(household=o.household))
+    granted = Decimal("0.00")
+    spent = Decimal("0.00")
+    adjustment = Decimal("0.00")
+    carried_in = Decimal("0.00")
+    carried_out = Decimal("0.00")

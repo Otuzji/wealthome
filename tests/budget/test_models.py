@@ -314,3 +314,168 @@ def test_borrar_un_mes_con_transacciones_sigue_prohibido():
 
     with pytest.raises(RestrictedError):
         mes.delete()
+
+
+# --- Goal ---------------------------------------------------------------------
+
+
+def test_la_meta_deriva_su_aporte_mensual_desde_la_fecha():
+    from apps.budget.engine.goals import BY_TARGET_DATE
+    from tests.factories_budget import GoalFactory
+
+    meta = GoalFactory(
+        contribution_mode=BY_TARGET_DATE,
+        target_amount=Decimal("7200.00"),
+        target_date=date(2027, 6, 30),
+    )
+
+    aporte, fecha = meta.derivar(desde=date(2026, 9, 3))
+
+    assert aporte == Decimal("720.00")
+    assert fecha == date(2027, 6, 30)
+
+
+def test_la_meta_descuenta_sus_contribuciones():
+    from apps.budget.engine.goals import BY_TARGET_DATE
+    from tests.factories_budget import GoalContributionFactory, GoalFactory
+
+    meta = GoalFactory(
+        contribution_mode=BY_TARGET_DATE,
+        target_amount=Decimal("7200.00"),
+        target_date=date(2027, 6, 30),
+    )
+    GoalContributionFactory(goal=meta, household=meta.household, amount=Decimal("2200.00"))
+
+    assert meta.acumulado() == Decimal("2200.00")
+    assert meta.derivar(desde=date(2026, 9, 3))[0] == Decimal("500.00")
+
+
+def test_la_meta_no_guarda_el_dato_derivado():
+    """§3.3: el tercer dato se deriva al mostrarlo, o quedaría obsoleto en
+    cuanto cambie el acumulado."""
+    from apps.budget.models import Goal
+
+    campos = {c.name for c in Goal._meta.get_fields()}
+    assert "aporte_derivado" not in campos
+    assert "fecha_derivada" not in campos
+
+
+# --- AllocationRule y el libro mayor -----------------------------------------
+
+
+def test_la_regla_de_reparto_se_traduce_al_tipo_del_motor():
+    from apps.budget.engine.cascade import ALLOWANCE, REMAINDER
+    from tests.factories_budget import AllocationRuleFactory
+
+    regla = AllocationRuleFactory(target_type=ALLOWANCE, method=REMAINDER, order=2)
+
+    del_motor = regla.a_regla_de_reparto(miembros=(10, 20))
+
+    assert del_motor.orden == 2
+    assert del_motor.destino == ALLOWANCE
+    assert del_motor.miembros == (10, 20)
+
+
+def test_el_orden_de_reparto_es_unico_dentro_del_hogar():
+    from django.db.utils import IntegrityError
+
+    from tests.factories_budget import AllocationRuleFactory
+
+    regla = AllocationRuleFactory(order=1)
+
+    with pytest.raises(IntegrityError):
+        AllocationRuleFactory(household=regla.household, order=1)
+
+
+def test_el_libro_mayor_deriva_su_saldo():
+    from tests.factories_budget import AllowanceLedgerFactory
+
+    fila = AllowanceLedgerFactory(
+        carried_in=Decimal("45.00"), granted=Decimal("100.00"),
+        adjustment=Decimal("0.00"), spent=Decimal("30.00"),
+    )
+
+    assert fila.saldo() == Decimal("115.00")
+
+
+def test_hay_una_sola_fila_de_mesada_por_miembro_y_mes():
+    from django.db.utils import IntegrityError
+
+    from tests.factories_budget import AllowanceLedgerFactory
+
+    fila = AllowanceLedgerFactory()
+
+    with pytest.raises(IntegrityError):
+        AllowanceLedgerFactory(
+            household=fila.household, member=fila.member, budget_month=fila.budget_month
+        )
+
+
+# --- correcciones de la revisión del brief (Tarea 11) ------------------------
+
+
+def test_a_regla_de_reparto_no_trunca_si_pesos_no_trae_a_todos_los_miembros():
+    """Hallazgo de la Tarea 5: el motor hace zip(miembros, partes), que
+    trunca en silencio si las dos tuplas no miden igual — un miembro de la
+    mesada desaparece sin error ni rastro. a_regla_de_reparto construye
+    `pesos` iterando `miembros`, así que las longitudes coinciden por
+    construcción incluso si el JSON guardado no trae entrada para todos: al
+    miembro que falta se le asigna peso 1."""
+    from apps.budget.engine.cascade import ALLOWANCE, REMAINDER
+    from tests.factories_budget import AllocationRuleFactory
+
+    regla = AllocationRuleFactory(
+        target_type=ALLOWANCE, method=REMAINDER, split="weighted",
+        pesos={"10": "2"},
+    )
+
+    del_motor = regla.a_regla_de_reparto(miembros=(10, 20, 30))
+
+    assert len(del_motor.pesos) == len(del_motor.miembros) == 3
+    assert del_motor.pesos == (Decimal("2"), Decimal("1"), Decimal("1"))
+
+
+def test_borrar_un_hogar_con_metas_reparto_y_mesada_no_falla():
+    """La misma garantía que test_borrar_un_hogar_con_transacciones_reales_no_falla
+    (ronda 1), para las seis FK que la Tarea 11 convierte de PROTECT a
+    RESTRICT: Goal.owner, GoalContribution.member, AllocationRule.target_category,
+    MonthlyAllocation.rule, MonthlyAllocation.member y AllowanceLedger.member.
+    Con PROTECT, borrar el hogar entero sería imposible en cuanto existiera
+    una sola meta o una sola regla de reparto."""
+    from apps.budget.engine.cascade import CATEGORY, FIXED
+    from apps.budget.engine.goals import BY_TARGET_DATE
+    from apps.budget.models import AllocationRule, AllowanceLedger, Goal, MonthlyAllocation
+    from apps.households.models import Membership
+    from tests.factories_budget import (
+        AllocationRuleFactory,
+        AllowanceLedgerFactory,
+        GoalFactory,
+        MonthlyAllocationFactory,
+    )
+
+    hogar = crear_hogar(UserFactory(), "Familia Reparto", family_size=2)
+    membresia = Membership.objects.get(household=hogar)
+    categoria = Category.objects.for_household(hogar).get(slug="rent")
+
+    GoalFactory(
+        household=hogar, owner=membresia, contribution_mode=BY_TARGET_DATE,
+        target_amount=Decimal("1000.00"), target_date=date(2027, 1, 1),
+    )
+    regla = AllocationRuleFactory(
+        household=hogar, order=1, target_type=CATEGORY, target_category=categoria,
+        method=FIXED, amount=Decimal("50.00"),
+    )
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=1)
+    MonthlyAllocationFactory(
+        household=hogar, budget_month=mes, rule=regla,
+        planned_amount=Decimal("50.00"), member=membresia,
+    )
+    AllowanceLedgerFactory(household=hogar, member=membresia, budget_month=mes)
+
+    hogar_id = hogar.pk
+    hogar.delete()
+
+    assert Goal.unscoped.filter(household_id=hogar_id).count() == 0
+    assert AllocationRule.unscoped.filter(household_id=hogar_id).count() == 0
+    assert MonthlyAllocation.unscoped.filter(household_id=hogar_id).count() == 0
+    assert AllowanceLedger.unscoped.filter(household_id=hogar_id).count() == 0

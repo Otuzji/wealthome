@@ -751,3 +751,187 @@ msgstr "reçu"
 #: apps/budget/models/ledger.py
 msgid "That belongs to another household."
 msgstr "Cela appartient à un autre foyer."
+
+#: apps/budget/models/goals.py
+msgid "By a target date"
+msgstr "Selon une date cible"
+
+#: apps/budget/models/goals.py
+msgid "By a monthly amount"
+msgstr "Selon un montant mensuel"
+
+#: apps/budget/models/goals.py
+msgid "Added by hand"
+msgstr "Ajouté manuellement"
+
+#: apps/budget/models/goals.py
+msgid "From the monthly split"
+msgstr "Issu de la répartition mensuelle"
+
+#: apps/budget/models/goals.py
+msgid "goal"
+msgstr "objectif"
+
+#: apps/budget/models/goals.py
+msgid "Active"
+msgstr "Actif"
+
+#: apps/budget/models/goals.py
+msgid "Reached"
+msgstr "Atteint"
+
+#: apps/budget/models/goals.py
+msgid "Abandoned"
+msgstr "Abandonné"
+
+#: apps/budget/models/goals.py
+msgid "how to reach it"
+msgstr "comment l'atteindre"
+
+#: apps/budget/models/goals.py
+msgid "target amount"
+msgstr "montant cible"
+
+#: apps/budget/models/goals.py
+msgid "target date"
+msgstr "date cible"
+
+#: apps/budget/models/goals.py
+msgid "monthly amount"
+msgstr "montant mensuel"
+
+#: apps/budget/models/goals.py
+msgid "goals"
+msgstr "objectifs"
+
+#: apps/budget/models/goals.py
+msgid "Pick the date you want to reach it by."
+msgstr "Choisissez la date à laquelle vous voulez l'atteindre."
+
+#: apps/budget/models/goals.py
+msgid "Say how much you will put in each month."
+msgstr "Indiquez combien vous verserez chaque mois."
+
+#: apps/budget/models/goals.py
+msgid "contribution"
+msgstr "contribution"
+
+#: apps/budget/models/goals.py
+msgid "contributions"
+msgstr "contributions"
+
+#: apps/budget/models/allocation.py
+msgid "A savings goal"
+msgstr "Un objectif d'épargne"
+
+#: apps/budget/models/allocation.py
+msgid "Personal allowance"
+msgstr "Argent de poche personnel"
+
+#: apps/budget/models/allocation.py
+msgid "A category or fund"
+msgstr "Une catégorie ou un fonds"
+
+#: apps/budget/models/allocation.py
+msgid "A percentage of what is left over"
+msgstr "Un pourcentage du reliquat"
+
+#: apps/budget/models/allocation.py
+msgid "Everything that is left"
+msgstr "Tout ce qui reste"
+
+#: apps/budget/models/allocation.py
+msgid "Equally"
+msgstr "À parts égales"
+
+#: apps/budget/models/allocation.py
+msgid "By weights"
+msgstr "Selon des poids"
+
+#: apps/budget/models/allocation.py
+msgid "priority"
+msgstr "priorité"
+
+#: apps/budget/models/allocation.py
+msgid "goes to"
+msgstr "va vers"
+
+#: apps/budget/models/allocation.py
+msgid "percentage"
+msgstr "pourcentage"
+
+#: apps/budget/models/allocation.py
+msgid "0.10 means ten percent of what is left over."
+msgstr "0,10 signifie dix pour cent du reliquat."
+
+#: apps/budget/models/allocation.py
+msgid "split"
+msgstr "répartition"
+
+#: apps/budget/models/allocation.py
+msgid "Membership id to weight."
+msgstr "Identifiant du membre vers son poids."
+
+#: apps/budget/models/allocation.py
+msgid "split rule"
+msgstr "règle de répartition"
+
+#: apps/budget/models/allocation.py
+msgid "split rules"
+msgstr "règles de répartition"
+
+#: apps/budget/models/allocation.py
+msgid "A fixed rule needs an amount."
+msgstr "Une règle fixe a besoin d'un montant."
+
+#: apps/budget/models/allocation.py
+msgid "A percentage rule needs a percentage."
+msgstr "Une règle en pourcentage a besoin d'un pourcentage."
+
+#: apps/budget/models/allocation.py
+msgid "Pick the goal this goes to."
+msgstr "Choisissez l'objectif visé."
+
+#: apps/budget/models/allocation.py
+msgid "Pick the category this goes to."
+msgstr "Choisissez la catégorie visée."
+
+#: apps/budget/models/allocation.py
+msgid "monthly split"
+msgstr "répartition mensuelle"
+
+#: apps/budget/models/allocation.py
+msgid "monthly splits"
+msgstr "répartitions mensuelles"
+
+#: apps/budget/models/allocation.py
+msgid "actual"
+msgstr "réel"
+
+#: apps/budget/models/allocation.py
+msgid "granted"
+msgstr "accordé"
+
+#: apps/budget/models/allocation.py
+msgid "spent"
+msgstr "dépensé"
+
+#: apps/budget/models/allocation.py
+msgid "adjustment"
+msgstr "ajustement"
+
+#: apps/budget/models/allocation.py
+msgid "carried in"
+msgstr "report entrant"
+
+#: apps/budget/models/allocation.py
+msgid "carried out"
+msgstr "report sortant"
+
+#: apps/budget/models/allocation.py
+msgid "allowance"
+msgstr "argent de poche"
+
+#: apps/budget/models/allocation.py
+msgid "allowances"
+msgstr "argents de poche"

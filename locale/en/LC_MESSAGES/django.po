@@ -735,3 +735,187 @@ msgstr "receipt"
 #: apps/budget/models/ledger.py
 msgid "That belongs to another household."
 msgstr "That belongs to another household."
+
+#: apps/budget/models/goals.py
+msgid "By a target date"
+msgstr "By a target date"
+
+#: apps/budget/models/goals.py
+msgid "By a monthly amount"
+msgstr "By a monthly amount"
+
+#: apps/budget/models/goals.py
+msgid "Added by hand"
+msgstr "Added by hand"
+
+#: apps/budget/models/goals.py
+msgid "From the monthly split"
+msgstr "From the monthly split"
+
+#: apps/budget/models/goals.py
+msgid "goal"
+msgstr "goal"
+
+#: apps/budget/models/goals.py
+msgid "Active"
+msgstr "Active"
+
+#: apps/budget/models/goals.py
+msgid "Reached"
+msgstr "Reached"
+
+#: apps/budget/models/goals.py
+msgid "Abandoned"
+msgstr "Abandoned"
+
+#: apps/budget/models/goals.py
+msgid "how to reach it"
+msgstr "how to reach it"
+
+#: apps/budget/models/goals.py
+msgid "target amount"
+msgstr "target amount"
+
+#: apps/budget/models/goals.py
+msgid "target date"
+msgstr "target date"
+
+#: apps/budget/models/goals.py
+msgid "monthly amount"
+msgstr "monthly amount"
+
+#: apps/budget/models/goals.py
+msgid "goals"
+msgstr "goals"
+
+#: apps/budget/models/goals.py
+msgid "Pick the date you want to reach it by."
+msgstr "Pick the date you want to reach it by."
+
+#: apps/budget/models/goals.py
+msgid "Say how much you will put in each month."
+msgstr "Say how much you will put in each month."
+
+#: apps/budget/models/goals.py
+msgid "contribution"
+msgstr "contribution"
+
+#: apps/budget/models/goals.py
+msgid "contributions"
+msgstr "contributions"
+
+#: apps/budget/models/allocation.py
+msgid "A savings goal"
+msgstr "A savings goal"
+
+#: apps/budget/models/allocation.py
+msgid "Personal allowance"
+msgstr "Personal allowance"
+
+#: apps/budget/models/allocation.py
+msgid "A category or fund"
+msgstr "A category or fund"
+
+#: apps/budget/models/allocation.py
+msgid "A percentage of what is left over"
+msgstr "A percentage of what is left over"
+
+#: apps/budget/models/allocation.py
+msgid "Everything that is left"
+msgstr "Everything that is left"
+
+#: apps/budget/models/allocation.py
+msgid "Equally"
+msgstr "Equally"
+
+#: apps/budget/models/allocation.py
+msgid "By weights"
+msgstr "By weights"
+
+#: apps/budget/models/allocation.py
+msgid "priority"
+msgstr "priority"
+
+#: apps/budget/models/allocation.py
+msgid "goes to"
+msgstr "goes to"
+
+#: apps/budget/models/allocation.py
+msgid "percentage"
+msgstr "percentage"
+
+#: apps/budget/models/allocation.py
+msgid "0.10 means ten percent of what is left over."
+msgstr "0.10 means ten percent of what is left over."
+
+#: apps/budget/models/allocation.py
+msgid "split"
+msgstr "split"
+
+#: apps/budget/models/allocation.py
+msgid "Membership id to weight."
+msgstr "Membership id to weight."
+
+#: apps/budget/models/allocation.py
+msgid "split rule"
+msgstr "split rule"
+
+#: apps/budget/models/allocation.py
+msgid "split rules"
+msgstr "split rules"
+
+#: apps/budget/models/allocation.py
+msgid "A fixed rule needs an amount."
+msgstr "A fixed rule needs an amount."
+
+#: apps/budget/models/allocation.py
+msgid "A percentage rule needs a percentage."
+msgstr "A percentage rule needs a percentage."
+
+#: apps/budget/models/allocation.py
+msgid "Pick the goal this goes to."
+msgstr "Pick the goal this goes to."
+
+#: apps/budget/models/allocation.py
+msgid "Pick the category this goes to."
+msgstr "Pick the category this goes to."
+
+#: apps/budget/models/allocation.py
+msgid "monthly split"
+msgstr "monthly split"
+
+#: apps/budget/models/allocation.py
+msgid "monthly splits"
+msgstr "monthly splits"
+
+#: apps/budget/models/allocation.py
+msgid "actual"
+msgstr "actual"
+
+#: apps/budget/models/allocation.py
+msgid "granted"
+msgstr "granted"
+
+#: apps/budget/models/allocation.py
+msgid "spent"
+msgstr "spent"
+
+#: apps/budget/models/allocation.py
+msgid "adjustment"
+msgstr "adjustment"
+
+#: apps/budget/models/allocation.py
+msgid "carried in"
+msgstr "carried in"
+
+#: apps/budget/models/allocation.py
+msgid "carried out"
+msgstr "carried out"
+
+#: apps/budget/models/allocation.py
+msgid "allowance"
+msgstr "allowance"
+
+#: apps/budget/models/allocation.py
+msgid "allowances"
+msgstr "allowances"
