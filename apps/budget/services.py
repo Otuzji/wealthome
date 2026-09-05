@@ -13,15 +13,21 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from apps.budget.engine import allowance as motor_allowance
+from apps.budget.engine import cascade as motor_cascade
 from apps.budget.engine import closing as motor_closing
 from apps.budget.engine.money import centavos
 from apps.budget.models import (
     DIAS_PARA_EL_CIERRE_AUTOMATICO,
+    AllocationRule,
+    AllowanceLedger,
     BudgetLine,
     BudgetMonth,
     ExpenseRule,
+    GoalContribution,
     IncomeSource,
     MesCerrado,
+    MonthlyAllocation,
     MonthlyClose,
     Transaction,
 )
@@ -199,6 +205,14 @@ def cerrar_mes(mes):
 
     cierre_calculado = motor_closing.cerrar(renglones, _arrastre_previo(mes))
 
+    # El sobrante real del mes es lo que de verdad quedo, SIN el arrastre: el
+    # saldo que venia de meses anteriores ya se repartio en su momento, y
+    # volver a repartirlo daria mesada dos veces por el mismo dinero.
+    sobrante_real = centavos(
+        cierre_calculado.ingresos_reales - cierre_calculado.egresos_reales
+    )
+    aplicar_cascada_al_cierre(mes, sobrante_real)
+
     cierre = MonthlyClose(
         household=mes.household, budget_month=mes,
         ingresos_presupuestados=cierre_calculado.ingresos_presupuestados,
@@ -311,3 +325,167 @@ def reemplazar_regla(regla, nuevo_importe, desde):
     )
     sucesora.save()
     return sucesora
+
+
+# ---------------------------------------------------------------------------
+# La cascada aplicada a datos reales (§4.5) y el libro mayor de la mesada.
+# ---------------------------------------------------------------------------
+
+
+def miembros_activos(hogar):
+    """Los miembros activos, por pk, para que el reparto sea determinista."""
+    return tuple(hogar.active_memberships().order_by("pk").values_list("pk", flat=True))
+
+
+def _reglas_del_motor(hogar):
+    miembros = miembros_activos(hogar)
+    return [
+        regla.a_regla_de_reparto(miembros)
+        for regla in AllocationRule.objects.for_household(hogar).filter(is_active=True)
+    ]
+
+
+def _mes_anterior(mes):
+    anio, numero = (mes.year - 1, 12) if mes.month == 1 else (mes.year, mes.month - 1)
+    return BudgetMonth.objects.for_household(mes.household).filter(
+        year=anio, month=numero
+    ).first()
+
+
+def _fila_del_mes_siguiente(mes):
+    """La fila del mes que viene, creándola si el hogar no ha llegado allí.
+
+    Distinta de `_mes_siguiente(anio, mes)`, que solo hace la aritmética del
+    calendario: aquí hace falta una fila donde escribir el ajuste de la
+    mesada, y el hogar puede no haber entrado nunca a ese mes.
+    """
+    anio, numero = _mes_siguiente(mes.year, mes.month)
+    fila, _ = BudgetMonth.unscoped.get_or_create(
+        household=mes.household, year=anio, month=numero,
+        defaults={"status": BudgetMonth.OPEN, "opened_at": timezone.now()},
+    )
+    return fila
+
+
+def mesada_de_por_id(hogar, membresia_id, mes):
+    fila, _ = AllowanceLedger.unscoped.get_or_create(
+        household=hogar, member_id=membresia_id, budget_month=mes
+    )
+    return fila
+
+
+def mesada_de(membresia, mes):
+    return mesada_de_por_id(mes.household, membresia.pk, mes)
+
+
+def _carried_in(hogar, membresia_id, mes):
+    anterior = _mes_anterior(mes)
+    if anterior is None:
+        return Decimal("0.00")
+    libro = AllowanceLedger.objects.for_household(hogar).filter(
+        member_id=membresia_id, budget_month=anterior
+    ).first()
+    return libro.carried_out if libro else Decimal("0.00")
+
+
+def gasto_personal_del_mes(membresia, mes):
+    """Lo gastado con ámbito personal por ese miembro en ese mes (§3.3).
+
+    §4.5.5: no cuenta el entretenimiento familiar, que es un gasto fijo del
+    hogar decidido al configurar. Confundirlos es lo que hace que las parejas
+    discutan por dinero.
+    """
+    total = (
+        Transaction.objects.for_household(mes.household)
+        .filter(member=membresia, budget_month=mes, scope="personal")
+        .aggregate(total=Sum("amount"))["total"]
+    )
+    return centavos(total or 0)
+
+
+@transaction.atomic
+def planificar_mes(hogar, mes, sobrante_proyectado):
+    """Aplica la cascada y escribe el reparto y las mesadas del mes (§4.5.6).
+
+    Al confirmar la planificación, cada miembro sabe desde el día 1 cuánta
+    mesada tiene, y esa cifra ya no se mueve durante el mes.
+    """
+    if MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes).exists():
+        return list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
+
+    reglas_orm = {
+        r.order: r
+        for r in AllocationRule.objects.for_household(hogar).filter(is_active=True)
+    }
+    asignaciones = motor_cascade.repartir(sobrante_proyectado, _reglas_del_motor(hogar))
+
+    escritas = []
+    for asignacion in asignaciones:
+        fila = MonthlyAllocation(
+            household=hogar, budget_month=mes, rule=reglas_orm[asignacion.orden],
+            planned_amount=asignacion.importe,
+            member_id=asignacion.miembro_id,
+        )
+        fila.save()
+        escritas.append(fila)
+
+        if asignacion.miembro_id is not None:
+            libro = mesada_de_por_id(hogar, asignacion.miembro_id, mes)
+            libro.granted = asignacion.importe
+            libro.carried_in = _carried_in(hogar, asignacion.miembro_id, mes)
+            libro.save()
+
+    return escritas
+
+
+@transaction.atomic
+def aplicar_cascada_al_cierre(mes, sobrante_real):
+    """Ajusta el reparto a lo que de verdad sobró (§4.5.3).
+
+    El faltante lo absorbe la última regla hacia arriba, pero la mesada ya
+    asignada nunca se retira: su parte cae como ajuste del mes siguiente.
+    """
+    hogar = mes.household
+    planeadas = list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
+    planeado = [
+        motor_cascade.Asignacion(a.rule.order, a.planned_amount, a.member_id)
+        for a in planeadas
+    ]
+
+    finales, ajustes = motor_cascade.absorber_faltante(
+        planeado, _reglas_del_motor(hogar), sobrante_real
+    )
+
+    por_clave = {(f.orden, f.miembro_id): f.importe for f in finales}
+    for fila in planeadas:
+        fila.actual_amount = por_clave.get(
+            (fila.rule.order, fila.member_id), Decimal("0.00")
+        )
+        fila.save(update_fields=["actual_amount"])
+
+        if fila.member_id is None and fila.rule.target_type == motor_cascade.GOAL:
+            aporte = GoalContribution(
+                household=hogar, goal=fila.rule.target_goal,
+                amount=fila.actual_amount, date=_ultimo_dia(mes.year, mes.month),
+                member=hogar.active_memberships().order_by("pk").first(),
+                origen="cascade",
+            )
+            aporte.save()
+
+    # El ajuste viaja al mes siguiente: la mesada de este mes ya se gastó.
+    if ajustes:
+        siguiente = _fila_del_mes_siguiente(mes)
+        for ajuste in ajustes:
+            libro = mesada_de_por_id(hogar, ajuste.miembro_id, siguiente)
+            libro.adjustment = centavos(libro.adjustment + ajuste.importe)
+            libro.save(update_fields=["adjustment"])
+
+    # Y se cierra el libro de este mes.
+    for libro in AllowanceLedger.objects.for_household(hogar).filter(budget_month=mes):
+        libro.spent = gasto_personal_del_mes(libro.member, mes)
+        libro.carried_out = motor_allowance.carried_out(
+            libro.saldo(), hogar.allowance_rollover
+        )
+        libro.save(update_fields=["spent", "carried_out"])
+
+    return ajustes
