@@ -734,7 +734,7 @@ msgstr "date"
 
 #: apps/budget/models/ledger.py
 msgid "paid with"
-msgstr "payé avec"
+msgstr "moyen de paiement"
 
 #: apps/budget/models/ledger.py
 msgid "transaction"

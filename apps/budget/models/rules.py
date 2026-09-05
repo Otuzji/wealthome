@@ -73,7 +73,7 @@ class ReglaVigente(HouseholdScoped):
 
 class IncomeSource(ReglaVigente):
     owner = models.ForeignKey(
-        "households.Membership", on_delete=models.PROTECT, related_name="income_sources"
+        "households.Membership", on_delete=models.RESTRICT, related_name="income_sources"
     )
     source_type = models.CharField(_("kind of income"), max_length=20, choices=SOURCE_TYPE_CHOICES)
     amount_type = models.CharField(_("how much"), max_length=20, choices=AMOUNT_TYPE_CHOICES)
@@ -110,7 +110,7 @@ class IncomeSource(ReglaVigente):
 
 
 class ExpenseRule(ReglaVigente):
-    category = models.ForeignKey("budget.Category", on_delete=models.PROTECT, related_name="expense_rules")
+    category = models.ForeignKey("budget.Category", on_delete=models.RESTRICT, related_name="expense_rules")
     amount = MoneyField(verbose_name=_("amount"))
     is_essential = models.BooleanField(
         _("essential"),
@@ -118,7 +118,7 @@ class ExpenseRule(ReglaVigente):
         help_text=_("Essential expenses are the last ones a recommendation will touch."),
     )
     owner = models.ForeignKey(
-        "households.Membership", on_delete=models.PROTECT,
+        "households.Membership", on_delete=models.RESTRICT,
         null=True, blank=True, related_name="expense_rules",
     )
 

@@ -20,8 +20,17 @@ PAYMENT_METHOD_CHOICES = [
 class Transaction(EscrituraAcotadaAlMes, HouseholdScoped):
     """Lo que realmente pasó."""
 
-    budget_month = models.ForeignKey(BudgetMonth, on_delete=models.PROTECT, related_name="transacciones")
-    category = models.ForeignKey("budget.Category", on_delete=models.PROTECT, related_name="transacciones")
+    # RESTRICT, no PROTECT: borrar el mes o la categoría por sí solos sigue
+    # prohibido mientras existan transacciones — el registro de dinero que
+    # realmente se movió no se puede destruir así. Pero borrar el hogar
+    # entero tiene que funcionar, y con PROTECT nunca podría: el recolector
+    # de Django encuentra estas mismas filas por la FK household en cascada
+    # y, a la vez, por esta FK con PROTECT, y PROTECT no distingue — lanza
+    # aunque la fila proscrita ya esté siendo borrada por la otra ruta.
+    # RESTRICT sí distingue: solo lanza si la fila protegida NO va a
+    # borrarse también en cascada dentro de la misma operación.
+    budget_month = models.ForeignKey(BudgetMonth, on_delete=models.RESTRICT, related_name="transacciones")
+    category = models.ForeignKey("budget.Category", on_delete=models.RESTRICT, related_name="transacciones")
     merchant = models.ForeignKey(
         "budget.Merchant", on_delete=models.SET_NULL, null=True, blank=True, related_name="transacciones"
     )
@@ -34,7 +43,7 @@ class Transaction(EscrituraAcotadaAlMes, HouseholdScoped):
     )
     amount = MoneyField(_("amount"))
     date = models.DateField(_("date"))
-    member = models.ForeignKey("households.Membership", on_delete=models.PROTECT, related_name="transacciones")
+    member = models.ForeignKey("households.Membership", on_delete=models.RESTRICT, related_name="transacciones")
     payment_method = models.CharField(
         _("paid with"), max_length=20, choices=PAYMENT_METHOD_CHOICES, default="debit"
     )

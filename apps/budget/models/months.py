@@ -55,8 +55,13 @@ class EscrituraAcotadaAlMes(models.Model):
 
     Rechaza la escritura si el mes está cerrado (§9) y comprueba que el hogar
     denormalizado coincida con el de su mes. Un CheckConstraint no puede
-    cruzar tablas, así que esto vive en Python — pero en el modelo, no en la
-    vista, porque la vista se puede rodear.
+    cruzar tablas, así que esto vive en Python.
+
+    Alcance real de la guarda, para que Tarea 12 y el Plan 3 no lean aquí más
+    de lo que hay: cubre todo `save()`, incluido con `update_fields`, porque
+    ambos pasan por este método sobrescrito. NO cubre `queryset.update()` ni
+    `bulk_create()` — ninguno de los dos llama a `save()`, así que quedan
+    prohibidos por convención sobre estos modelos, no por esta guarda.
     """
 
     class Meta:
@@ -88,7 +93,7 @@ class BudgetLine(EscrituraAcotadaAlMes, HouseholdScoped):
     """
 
     budget_month = models.ForeignKey(BudgetMonth, on_delete=models.CASCADE, related_name="lineas")
-    category = models.ForeignKey("budget.Category", on_delete=models.PROTECT, related_name="lineas")
+    category = models.ForeignKey("budget.Category", on_delete=models.RESTRICT, related_name="lineas")
     kind = models.CharField(_("kind"), max_length=10, choices=KIND_CHOICES, default=EXPENSE)
     planned_amount = MoneyField(_("planned"))
     is_exceptional = models.BooleanField(_("one-off"), default=False)
@@ -102,7 +107,7 @@ class BudgetLine(EscrituraAcotadaAlMes, HouseholdScoped):
         "budget.ExpenseRule", on_delete=models.SET_NULL, null=True, blank=True, related_name="lineas"
     )
     owner = models.ForeignKey(
-        "households.Membership", on_delete=models.PROTECT, null=True, blank=True, related_name="lineas"
+        "households.Membership", on_delete=models.RESTRICT, null=True, blank=True, related_name="lineas"
     )
     scope = models.CharField(_("scope"), max_length=10, choices=SCOPE_CHOICES, default=HOUSEHOLD)
     note = models.CharField(_("note"), max_length=200, blank=True)

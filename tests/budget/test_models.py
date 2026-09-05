@@ -18,6 +18,7 @@ from tests.factories_budget import (
     ExpenseRuleFactory,
     IncomeSourceFactory,
     MerchantFactory,
+    TransactionFactory,
 )
 
 pytestmark = pytest.mark.django_db
@@ -256,3 +257,60 @@ def test_la_linea_acepta_un_kind_igual_al_de_su_categoria():
     )
 
     linea.full_clean()
+
+
+# --- borrar el hogar entero (revisión, ronda 1) ----------------------------
+
+
+def test_borrar_un_hogar_con_transacciones_reales_no_falla():
+    """Hallazgo de la ronda 1 de revisión: con `on_delete=PROTECT` en las FK
+    de Transaction/BudgetLine/IncomeSource/ExpenseRule hacia Category,
+    BudgetMonth y Membership, borrar el hogar entero era IMPOSIBLE en cuanto
+    existía una sola transacción. El recolector de Django baja de Household
+    a BudgetMonth por cascada, encuentra la transacción a través de la FK
+    con PROTECT y lanza — aunque esa misma fila ya está siendo borrada por
+    su propia FK `household` en la misma operación. `test_scoping.py` no lo
+    detecta porque su modelo de juguete (`Nota`) no tiene relaciones
+    protegidas. Con `RESTRICT`, el recolector solo lanza si la fila
+    protegida NO va a borrarse también en cascada — que es exactamente este
+    caso, así que el borrado debe completarse."""
+    from apps.budget.models import BudgetLine, Category, ExpenseRule, Transaction
+    from apps.households.models import Membership
+
+    hogar = crear_hogar(UserFactory(), "Familia Test", family_size=2)
+    membresia = Membership.objects.get(household=hogar)
+    categoria = Category.objects.for_household(hogar).get(slug="rent")
+    regla = ExpenseRuleFactory(
+        household=hogar, category=categoria, owner=membresia,
+        effective_from=date(2026, 1, 1),
+    )
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=1)
+    linea = BudgetLineFactory(
+        household=hogar, budget_month=mes, category=categoria,
+        source_expense_rule=regla, owner=membresia,
+    )
+    TransactionFactory(
+        household=hogar, budget_month=mes, category=categoria,
+        member=membresia, budget_line=linea,
+    )
+
+    hogar_id = hogar.pk
+    hogar.delete()
+
+    assert Category.unscoped.filter(household_id=hogar_id).count() == 0
+    assert ExpenseRule.unscoped.filter(household_id=hogar_id).count() == 0
+    assert BudgetLine.unscoped.filter(household_id=hogar_id).count() == 0
+    assert Transaction.unscoped.filter(household_id=hogar_id).count() == 0
+
+
+def test_borrar_un_mes_con_transacciones_sigue_prohibido():
+    """La otra mitad de la garantía: RESTRICT no es un PROTECT disfrazado.
+    Borrar el BudgetMonth *por sí solo*, sin arrastrar también sus
+    transacciones en la misma operación, debe seguir levantando."""
+    from django.db.models.deletion import RestrictedError
+
+    mes = BudgetMonthFactory()
+    TransactionFactory(budget_month=mes, household=mes.household)
+
+    with pytest.raises(RestrictedError):
+        mes.delete()
