@@ -433,3 +433,110 @@ def test_scoped_no_puede_declararse_sin_el_manager_estricto():
     ]
     assert infractores == [], f"Modelos con hogar que redefinieron objects: {infractores}"
 
+
+# --- full_clean() sobre un modelo con hogar y UniqueConstraint --------------
+#
+# Model.validate_constraints() (UniqueConstraint.validate) y
+# Model.validate_unique() (_perform_unique_checks) resuelven su queryset con
+# model._default_manager, que en un modelo con hogar es el manager estricto
+# de arriba: por diseño lanza RuntimeError salvo por accesor inverso o
+# for_household(). full_clean() —el candado que el resto del plan pone justo
+# antes de save() para atajar escrituras entre hogares— llama a los dos, así
+# que sobre Category (household, slug) reventaba con RuntimeError donde debía
+# devolver, como mucho, una ValidationError.
+
+
+@pytest.mark.django_db
+def test_full_clean_valida_una_categoria_sin_lanzar_runtimeerror():
+    """La instancia es válida y no hay ningún duplicado: full_clean() debe
+    poder consultar la restricción sin que el manager estricto se lo impida."""
+    from tests.factories_budget import CategoryFactory
+
+    categoria = CategoryFactory(household=HouseholdFactory(), slug="rent")
+
+    categoria.full_clean()  # no debe lanzar RuntimeError
+
+
+@pytest.mark.django_db
+def test_full_clean_sobre_un_duplicado_lanza_validationerror_no_runtimeerror():
+    """La prueba que demuestra que el arreglo no desactivó la unicidad: un
+    duplicado real de (household, slug) sigue siendo un ValidationError, el
+    que corresponde, no un RuntimeError."""
+    from django.core.exceptions import ValidationError
+
+    from tests.factories_budget import CategoryFactory
+
+    hogar = HouseholdFactory()
+    CategoryFactory(household=hogar, slug="rent")
+    duplicada = CategoryFactory.build(household=hogar, slug="rent")
+
+    with pytest.raises(ValidationError):
+        duplicada.full_clean()
+
+
+@pytest.mark.django_db
+def test_full_clean_del_mismo_slug_en_otro_hogar_no_lanza():
+    """El queryset sin acotar que arma UniqueConstraint.validate() sigue
+    filtrando por household porque la restricción lo lleva entre sus propios
+    campos: el mismo slug en un hogar distinto no es un duplicado. Si el
+    arreglo hubiera ensanchado la consulta en vez de solo destrabarla, esta
+    prueba lo notaría."""
+    from tests.factories_budget import CategoryFactory
+
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    CategoryFactory(household=thompson, slug="rent")
+    en_garcia = CategoryFactory.build(household=garcia, slug="rent")
+
+    en_garcia.full_clean()  # no debe lanzar
+
+
+@pytest.mark.django_db
+def test_la_barrera_se_restaura_tras_un_full_clean_exitoso():
+    """El ContextVar que destraba la validación no debe quedarse destrabado
+    después: Category.objects.all() tiene que seguir lanzando."""
+    from apps.budget.models import Category
+    from tests.factories_budget import CategoryFactory
+
+    categoria = CategoryFactory(household=HouseholdFactory(), slug="rent")
+    categoria.full_clean()
+
+    with pytest.raises(RuntimeError):
+        list(Category.objects.all())
+
+
+def test_la_barrera_se_restaura_si_la_validacion_lanza_dentro_del_context_manager():
+    """El camino del `finally`: si algo revienta dentro del context manager
+    que destraba la validación, el ContextVar tiene que volver a False de
+    todos modos, o una excepción a mitad de full_clean() dejaría la barrera
+    abajo para la próxima consulta de esta misma petición."""
+    from apps.households.scoping import validando_unicidad
+    from tests.models import Nota
+
+    with pytest.raises(ValueError):
+        with validando_unicidad():
+            raise ValueError("boom")
+
+    with pytest.raises(RuntimeError):
+        list(Nota.objects.all())
+
+
+@pytest.mark.django_db
+def test_full_clean_sigue_ejecutando_el_clean_del_modelo():
+    """Lo que de verdad le importa al resto del plan: full_clean() no debe
+    limitarse a sobrevivir a validate_constraints(); tiene que seguir
+    llamando clean() y rechazar una categoría cuyo padre es de otro hogar,
+    nombrando el campo culpable — la guardia contra escrituras entre hogares
+    en la que las vistas del Plan 2 confían."""
+    from django.core.exceptions import ValidationError
+
+    from tests.factories_budget import CategoryFactory
+
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    padre_ajeno = CategoryFactory(household=garcia, slug="housing")
+    hija = CategoryFactory.build(household=thompson, slug="rent", parent=padre_ajeno)
+
+    with pytest.raises(ValidationError) as excinfo:
+        hija.full_clean()
+
+    assert "parent" in excinfo.value.message_dict
+

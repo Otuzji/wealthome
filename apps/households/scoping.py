@@ -29,9 +29,58 @@ el admin y los scripts de mantenimiento. Que haya que escribirla es el punto:
 se ve en la revisión.
 """
 
+import contextvars
+from contextlib import contextmanager
+
 from django.db import models
 
 from .models import Household
+
+# Ver validando_unicidad() más abajo: por diseño solo Model.full_clean() (por
+# validate_constraints() y validate_unique()) debe poner esto en True, y solo
+# mientras dura esa llamada.
+_VALIDANDO_UNICIDAD = contextvars.ContextVar("validando_unicidad", default=False)
+
+
+@contextmanager
+def validando_unicidad():
+    """Destraba el manager estricto solo mientras Django valida sus propias
+    restricciones de unicidad — nada más.
+
+    `Model.validate_constraints()` (`UniqueConstraint.validate()`) y
+    `Model.validate_unique()` (`_perform_unique_checks()`) resuelven su
+    queryset con `model._default_manager`, que en un modelo con hogar es
+    HouseholdScopedManager: por diseño lanza RuntimeError salvo por accesor
+    inverso o `for_household()`. Sin esta puerta, `full_clean()` —el candado
+    que el resto del plan pone justo antes de `save()` para atajar escrituras
+    entre hogares— reventaría con RuntimeError en cualquier modelo con hogar
+    que tenga un UniqueConstraint, en vez de devolver como mucho una
+    ValidationError.
+
+    No es un agujero nuevo: una restricción de unicidad de un modelo con
+    hogar siempre lleva `household` entre sus propios campos (p. ej.
+    `UniqueConstraint(fields=["household", "slug"])`), así que el queryset
+    sin acotar que arma Django ya viene filtrado al hogar de la instancia —
+    destrabar el manager aquí no ensancha lo que la restricción ve, solo
+    permite que Django la consulte.
+
+    Se implementa con un ContextVar —no cambiando `_default_manager` ni
+    `_meta.default_manager_name` del modelo— a propósito: mutar el manager,
+    aunque fuera brevemente y se restaurase después, es una mutación global
+    del modelo entero, y con vistas async o hilos concurrentes dejaría la
+    barrera abajo para la petición de otra familia mientras esta valida. Un
+    ContextVar es propio de cada hilo y de cada tarea async, así que la
+    relajación no puede escaparse de esta llamada — y el `finally` la cierra
+    incluso si la validación lanza, para que una excepción a mitad de
+    full_clean() no deje el candado abierto para la siguiente consulta de
+    esta misma petición.
+    """
+    token = _VALIDANDO_UNICIDAD.set(True)
+    try:
+        yield
+    finally:
+        _VALIDANDO_UNICIDAD.reset(token)
+
 
 MENSAJE = (
     "{modelo} tiene ámbito de hogar: no se puede consultar sin decir de qué "
@@ -53,6 +102,11 @@ class HouseholdScopedManager(models.Manager.from_queryset(HouseholdScopedQuerySe
             # Accesor inverso (hogar.notas, mes.lineas): Django construye ese
             # manager subclasando esta clase y fija self.instance. Ya viene
             # acotado por su dueño, así que dejarlo pasar no abre nada.
+            return super().get_queryset()
+        if _VALIDANDO_UNICIDAD.get():
+            # full_clean() del propio Django, validando una restricción de
+            # unicidad que ya lleva household entre sus campos. Ver
+            # validando_unicidad().
             return super().get_queryset()
         raise RuntimeError(MENSAJE.format(modelo=self.model.__name__))
 
@@ -85,3 +139,17 @@ class HouseholdScoped(models.Model):
     class Meta:
         abstract = True
         base_manager_name = "unscoped"
+
+    def validate_constraints(self, exclude=None):
+        # Ver validando_unicidad(): sin esto, cualquier UniqueConstraint de
+        # un modelo con hogar hace que full_clean() lance RuntimeError en
+        # vez de, como mucho, ValidationError.
+        with validando_unicidad():
+            super().validate_constraints(exclude=exclude)
+
+    def validate_unique(self, exclude=None):
+        # Mismo motivo que validate_constraints(): _perform_unique_checks()
+        # llega a _default_manager por el mismo camino, para unique=True o
+        # unique_together en vez de un UniqueConstraint explícito.
+        with validando_unicidad():
+            super().validate_unique(exclude=exclude)
