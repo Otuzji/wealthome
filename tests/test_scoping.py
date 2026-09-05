@@ -182,6 +182,33 @@ def test_todo_modelo_con_hogar_conserva_base_manager_name():
     )
 
 
+def test_toda_unique_constraint_de_un_modelo_con_hogar_incluye_household():
+    """`_validando_unicidad()` (apps/households/scoping.py) destraba el
+    manager estricto mientras Django valida restricciones de unicidad, y
+    eso solo es seguro porque la restricción de un modelo con hogar lleva
+    `household` entre sus propios campos: así el queryset sin acotar que
+    arma Django ya viene filtrado a esa familia. Nada en el tipo obliga a
+    eso — una UniqueConstraint es una UniqueConstraint como cualquier otra,
+    y nada impide que un modelo futuro declare una sin `household`. Si eso
+    pasara, la validación de unicidad compararía contra todas las familias a
+    la vez, sin que nada lo delate. Esta prueba nombra al infractor.
+    """
+    infractores = []
+    for modelo in _modelos_household_scoped():
+        for constraint in modelo._meta.constraints:
+            if isinstance(constraint, models.UniqueConstraint) and "household" not in constraint.fields:
+                infractores.append(f"{modelo.__name__}.{constraint.name}")
+        for campos in modelo._meta.unique_together:
+            if "household" not in campos:
+                infractores.append(f"{modelo.__name__}.unique_together{tuple(campos)}")
+
+    assert infractores == [], (
+        "UniqueConstraint (o unique_together) de un modelo con hogar sin "
+        "household entre sus campos — la validación de unicidad dejaría de "
+        "estar acotada por familia: " + ", ".join(infractores)
+    )
+
+
 @pytest.mark.django_db
 def test_todo_modelo_con_hogar_hereda_de_household_scoped():
     """Un modelo con FK a Household que no herede de HouseholdScoped es un agujero.
@@ -509,11 +536,11 @@ def test_la_barrera_se_restaura_si_la_validacion_lanza_dentro_del_context_manage
     que destraba la validación, el ContextVar tiene que volver a False de
     todos modos, o una excepción a mitad de full_clean() dejaría la barrera
     abajo para la próxima consulta de esta misma petición."""
-    from apps.households.scoping import validando_unicidad
+    from apps.households.scoping import _validando_unicidad
     from tests.models import Nota
 
     with pytest.raises(ValueError):
-        with validando_unicidad():
+        with _validando_unicidad():
             raise ValueError("boom")
 
     with pytest.raises(RuntimeError):
