@@ -12,6 +12,8 @@ from apps.budget.seeds import ARBOL, sembrar
 from apps.households.services import crear_hogar
 from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
 from tests.factories_budget import (
+    BudgetLineFactory,
+    BudgetMonthFactory,
     CategoryFactory,
     ExpenseRuleFactory,
     IncomeSourceFactory,
@@ -220,3 +222,37 @@ def test_una_regla_de_gasto_solo_acepta_una_categoria_de_su_hogar():
 
     with pytest.raises(ValidationError):
         regla.full_clean()
+
+
+# --- BudgetLine -----------------------------------------------------------
+
+
+def test_la_linea_no_puede_tener_un_kind_distinto_al_de_su_categoria():
+    """Hallazgo de la revisión de la Tarea 7: engine/closing.py podía producir
+    una varianza inatribuible si una categoría llegaba con una línea de
+    ingreso y otra de gasto. BudgetLine.kind y Category.kind son dos fuentes
+    que pueden discrepar — Tarea 12 leerá linea.kind para lo presupuestado y
+    tx.category.kind para lo real —, así que esta fila contradictoria no
+    puede llegar a existir."""
+    from django.core.exceptions import ValidationError
+
+    hogar = HouseholdFactory()
+    categoria = CategoryFactory(household=hogar, kind="expense")
+    mes = BudgetMonthFactory(household=hogar)
+    linea = BudgetLineFactory.build(
+        household=hogar, budget_month=mes, category=categoria, kind="income"
+    )
+
+    with pytest.raises(ValidationError):
+        linea.full_clean()
+
+
+def test_la_linea_acepta_un_kind_igual_al_de_su_categoria():
+    hogar = HouseholdFactory()
+    categoria = CategoryFactory(household=hogar, kind="expense")
+    mes = BudgetMonthFactory(household=hogar)
+    linea = BudgetLineFactory.build(
+        household=hogar, budget_month=mes, category=categoria, kind="expense"
+    )
+
+    linea.full_clean()

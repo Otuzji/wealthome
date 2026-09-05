@@ -623,3 +623,115 @@ msgstr "Bank loans"
 #: apps/budget/seeds.py
 msgid "Other income"
 msgstr "Other income"
+
+#: apps/budget/models/months.py
+msgid "year"
+msgstr "year"
+
+#: apps/budget/models/months.py
+msgid "month"
+msgstr "month"
+
+#: apps/budget/models/months.py
+msgid "status"
+msgstr "status"
+
+#: apps/budget/models/months.py
+msgid "Upcoming"
+msgstr "Upcoming"
+
+#: apps/budget/models/months.py
+msgid "Open"
+msgstr "Open"
+
+#: apps/budget/models/months.py
+msgid "Closed"
+msgstr "Closed"
+
+#: apps/budget/models/months.py
+msgid "This row does not belong to the same household as its month."
+msgstr "This row does not belong to the same household as its month."
+
+#: apps/budget/models/months.py
+msgid "planned"
+msgstr "planned"
+
+#: apps/budget/models/months.py
+msgid "one-off"
+msgstr "one-off"
+
+#: apps/budget/models/months.py apps/budget/models/ledger.py
+msgid "note"
+msgstr "note"
+
+#: apps/budget/models/months.py
+msgid "This line's kind must match its category's kind."
+msgstr "This line's kind must match its category's kind."
+
+#: apps/budget/models/months.py
+msgid "budget month"
+msgstr "budget month"
+
+#: apps/budget/models/months.py
+msgid "budget months"
+msgstr "budget months"
+
+#: apps/budget/models/months.py
+msgid "budget line"
+msgstr "budget line"
+
+#: apps/budget/models/months.py
+msgid "budget lines"
+msgstr "budget lines"
+
+#: apps/budget/models/months.py
+msgid "monthly close"
+msgstr "monthly close"
+
+#: apps/budget/models/months.py
+msgid "monthly closes"
+msgstr "monthly closes"
+
+#: apps/budget/models/ledger.py
+msgid "Debit card"
+msgstr "Debit card"
+
+#: apps/budget/models/ledger.py
+msgid "Credit card"
+msgstr "Credit card"
+
+#: apps/budget/models/ledger.py
+msgid "Cash"
+msgstr "Cash"
+
+#: apps/budget/models/ledger.py
+msgid "Transfer"
+msgstr "Transfer"
+
+#: apps/budget/models/ledger.py
+msgid "Which income this belongs to, so its average can be computed."
+msgstr "Which income this belongs to, so its average can be computed."
+
+#: apps/budget/models/ledger.py
+msgid "date"
+msgstr "date"
+
+#: apps/budget/models/ledger.py
+msgid "paid with"
+msgstr "paid with"
+
+#: apps/budget/models/ledger.py
+msgid "transaction"
+msgstr "transaction"
+
+#: apps/budget/models/ledger.py
+msgid "transactions"
+msgstr "transactions"
+
+#: apps/budget/models/ledger.py
+msgid "receipt"
+msgstr "receipt"
+
+#: apps/budget/models/ledger.py
+msgid "That belongs to another household."
+msgstr "That belongs to another household."

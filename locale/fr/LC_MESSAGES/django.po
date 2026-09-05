@@ -639,3 +639,115 @@ msgstr "Prêts bancaires"
 #: apps/budget/seeds.py
 msgid "Other income"
 msgstr "Autre revenu"
+
+#: apps/budget/models/months.py
+msgid "year"
+msgstr "année"
+
+#: apps/budget/models/months.py
+msgid "month"
+msgstr "mois"
+
+#: apps/budget/models/months.py
+msgid "status"
+msgstr "statut"
+
+#: apps/budget/models/months.py
+msgid "Upcoming"
+msgstr "À venir"
+
+#: apps/budget/models/months.py
+msgid "Open"
+msgstr "Ouvert"
+
+#: apps/budget/models/months.py
+msgid "Closed"
+msgstr "Fermé"
+
+#: apps/budget/models/months.py
+msgid "This row does not belong to the same household as its month."
+msgstr "Cette ligne n'appartient pas au même foyer que son mois."
+
+#: apps/budget/models/months.py
+msgid "planned"
+msgstr "prévu"
+
+#: apps/budget/models/months.py
+msgid "one-off"
+msgstr "ponctuel"
+
+#: apps/budget/models/months.py apps/budget/models/ledger.py
+msgid "note"
+msgstr "note"
+
+#: apps/budget/models/months.py
+msgid "This line's kind must match its category's kind."
+msgstr "Le type de cette ligne doit correspondre au type de sa catégorie."
+
+#: apps/budget/models/months.py
+msgid "budget month"
+msgstr "mois budgétaire"
+
+#: apps/budget/models/months.py
+msgid "budget months"
+msgstr "mois budgétaires"
+
+#: apps/budget/models/months.py
+msgid "budget line"
+msgstr "ligne budgétaire"
+
+#: apps/budget/models/months.py
+msgid "budget lines"
+msgstr "lignes budgétaires"
+
+#: apps/budget/models/months.py
+msgid "monthly close"
+msgstr "clôture mensuelle"
+
+#: apps/budget/models/months.py
+msgid "monthly closes"
+msgstr "clôtures mensuelles"
+
+#: apps/budget/models/ledger.py
+msgid "Debit card"
+msgstr "Carte de débit"
+
+#: apps/budget/models/ledger.py
+msgid "Credit card"
+msgstr "Carte de crédit"
+
+#: apps/budget/models/ledger.py
+msgid "Cash"
+msgstr "Comptant"
+
+#: apps/budget/models/ledger.py
+msgid "Transfer"
+msgstr "Virement"
+
+#: apps/budget/models/ledger.py
+msgid "Which income this belongs to, so its average can be computed."
+msgstr "À quel revenu ceci appartient, afin que sa moyenne puisse être calculée."
+
+#: apps/budget/models/ledger.py
+msgid "date"
+msgstr "date"
+
+#: apps/budget/models/ledger.py
+msgid "paid with"
+msgstr "payé avec"
+
+#: apps/budget/models/ledger.py
+msgid "transaction"
+msgstr "transaction"
+
+#: apps/budget/models/ledger.py
+msgid "transactions"
+msgstr "transactions"
+
+#: apps/budget/models/ledger.py
+msgid "receipt"
+msgstr "reçu"
+
+#: apps/budget/models/ledger.py
+msgid "That belongs to another household."
+msgstr "Cela appartient à un autre foyer."

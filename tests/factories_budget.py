@@ -51,3 +51,50 @@ class ExpenseRuleFactory(HouseholdScopedFactory):
     amount = Decimal("1800.00")
     periodicity = MONTHLY
     effective_from = date(2026, 1, 1)
+
+
+class BudgetMonthFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.BudgetMonth"
+
+    household = factory.SubFactory(HouseholdFactory)
+    year = 2026
+    month = factory.Sequence(lambda n: (n % 12) + 1)
+    status = "open"
+
+
+class BudgetLineFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.BudgetLine"
+
+    household = factory.SubFactory(HouseholdFactory)
+    budget_month = factory.LazyAttribute(lambda o: BudgetMonthFactory(household=o.household))
+    category = factory.LazyAttribute(lambda o: CategoryFactory(household=o.household))
+    kind = "expense"
+    planned_amount = Decimal("100.00")
+
+
+class TransactionFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.Transaction"
+
+    household = factory.SubFactory(HouseholdFactory)
+    budget_month = factory.LazyAttribute(lambda o: BudgetMonthFactory(household=o.household))
+    category = factory.LazyAttribute(lambda o: CategoryFactory(household=o.household))
+    member = factory.LazyAttribute(lambda o: MembershipFactory(household=o.household))
+    amount = Decimal("50.00")
+    date = date(2026, 1, 15)
+
+
+class MonthlyCloseFactory(HouseholdScopedFactory):
+    class Meta:
+        model = "budget.MonthlyClose"
+
+    household = factory.SubFactory(HouseholdFactory)
+    budget_month = factory.LazyAttribute(lambda o: BudgetMonthFactory(household=o.household))
+    ingresos_presupuestados = Decimal("0.00")
+    ingresos_reales = Decimal("0.00")
+    egresos_presupuestados = Decimal("0.00")
+    egresos_reales = Decimal("0.00")
+    balance = Decimal("0.00")
+    arrastre = Decimal("0.00")
