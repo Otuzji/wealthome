@@ -7,11 +7,19 @@ argumento. Ninguna vista elige "el" hogar por su cuenta.
 
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.households.permissions import requiere_permiso
+from apps.households.permissions import membresia_actual, requiere_permiso
 
-from .forms import AllocationRuleForm, CategoryForm, ExpenseRuleForm, IncomeSourceForm
+from . import services
+from .forms import (
+    AllocationRuleForm,
+    CategoryForm,
+    ExpenseRuleForm,
+    IncomeSourceForm,
+    TransactionForm,
+)
 from .models import AllocationRule, Category, ExpenseRule, IncomeSource
 
 
@@ -64,3 +72,35 @@ def categoria_nueva(request, hogar):
 @requiere_permiso("can_edit_budget")
 def reparto_nuevo(request, hogar):
     return _crear(request, hogar, AllocationRuleForm, _("New split rule"))
+
+
+@requiere_permiso("can_add_transactions")
+def registrar(request, hogar):
+    """La acción más frecuente de la aplicación (§7.1)."""
+    hoy = timezone.localdate()
+    form = TransactionForm(request.POST or None, household=hogar,
+                           initial={"date": hoy})
+    if request.method == "POST" and form.is_valid():
+        mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+        tx = form.save(commit=False)
+        tx.household = hogar
+        tx.budget_month = mes
+        tx.merchant = form.comercio()
+        tx.member = membresia_actual(request)
+        tx.full_clean()
+        tx.save()
+        return redirect("budget:registrar")
+    return render(request, "budget/gasto.html", {"form": form})
+
+
+@requiere_permiso("can_view_budget")
+def mes(request, hogar, anio=None, numero=None):
+    hoy = timezone.localdate()
+    anio = anio or hoy.year
+    numero = numero or hoy.month
+    resultado = services.obtener_mes(hogar, anio, numero)
+    return render(request, "budget/mes.html", {
+        "resultado": resultado,
+        "es_proyeccion": isinstance(resultado, services.ProyeccionDeMes),
+        "anio": anio, "numero": numero,
+    })

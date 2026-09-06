@@ -5271,7 +5271,7 @@ Cuerpo: primer uso real de `@requiere_permiso`, que hasta el lote de puertas est
 **Interfaces:**
 - Produce: `TransactionForm`, con `merchant_name` como texto libre y `TransactionForm.comercio()` que reutiliza o crea el `Merchant` por su nombre normalizado; rutas `budget:mes` (`/budget/month/`, y `/budget/month/<int:anio>/<int:numero>/`) y `budget:registrar` (`/budget/spend/`).
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 Añadir a `tests/budget/test_views.py`:
 
@@ -5430,7 +5430,7 @@ def test_el_comercio_de_otro_hogar_no_se_reutiliza(client, admin_con_hogar):
     assert Merchant.unscoped.count() == 2
 ```
 
-- [ ] **Step 2: Verificar que falla, luego implementar**
+- [x] **Step 2: Verificar que falla, luego implementar**
 
 Run: `.venv/Scripts/python.exe -m pytest tests/budget/test_views.py -q` → FAIL (`NoReverseMatch: budget:registrar`).
 
@@ -5582,7 +5582,7 @@ Rutas:
 {% endblock %}
 ```
 
-- [ ] **Step 3: El catálogo de esta tanda, la suite y el commit**
+- [x] **Step 3: El catálogo de esta tanda, la suite y el commit**
 
 Añade las cadenas nuevas a los dos `.po`, compila, y corre:
 

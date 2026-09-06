@@ -151,3 +151,157 @@ def test_la_pantalla_de_configuracion_lista_lo_creado(client, admin_con_hogar):
     html = client.get(reverse("budget:configurar")).content.decode()
 
     assert "Alquiler" in html
+
+
+# --- registrar un gasto: la acción más frecuente ------------------------------
+
+
+def test_registrar_exige_can_add_transactions(client, admin_con_hogar):
+    _, hogar = admin_con_hogar
+    client.force_login(_miembro(hogar, can_view_budget=True).user)
+
+    assert client.get(reverse("budget:registrar")).status_code == 403
+
+
+def test_el_adolescente_registra_su_gasto_sin_ver_la_hipoteca(client, admin_con_hogar):
+    """§6.2 completo, en dos afirmaciones."""
+    _, hogar = admin_con_hogar
+    adolescente = _miembro(hogar, can_add_transactions=True)
+    client.force_login(adolescente.user)
+
+    assert client.get(reverse("budget:registrar")).status_code == 200
+    assert client.get(reverse("budget:mes")).status_code == 403
+
+
+def test_registrar_un_gasto_lo_guarda_en_el_mes_corriente(client, admin_con_hogar):
+    from apps.budget.models import Transaction
+
+    admin, hogar = admin_con_hogar
+    categoria = CategoryFactory(household=hogar, slug="mi-groceries")
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("budget:registrar"), {
+        "category": categoria.pk, "amount": "45.50",
+        "date": "2026-09-05", "payment_method": "debit", "scope": "household",
+        "note": "Metro",
+    })
+
+    assert respuesta.status_code == 302
+    tx = Transaction.objects.for_household(hogar).get()
+    assert tx.amount == Decimal("45.50")
+    assert tx.member == hogar.active_memberships().get(user=admin)
+
+
+def test_el_gasto_se_registra_a_nombre_de_quien_lo_teclea(client, admin_con_hogar):
+    """`member` no es un campo del formulario: sale de la petición. Si lo
+    fuera, cualquiera podría registrar gastos a nombre de otro."""
+    from apps.budget.forms import TransactionForm
+
+    assert "member" not in TransactionForm.base_fields
+
+
+# --- ver el mes ---------------------------------------------------------------
+
+
+def test_el_mes_exige_can_view_budget(client, admin_con_hogar):
+    _, hogar = admin_con_hogar
+    client.force_login(_miembro(hogar, can_add_transactions=True).user)
+
+    assert client.get(reverse("budget:mes")).status_code == 403
+
+
+def test_el_mes_muestra_lo_planeado_y_lo_real(client, admin_con_hogar):
+    from tests.factories_budget import ExpenseRuleFactory
+
+    admin, hogar = admin_con_hogar
+    categoria = CategoryFactory(household=hogar, slug="mi-rent", name="Alquiler")
+    ExpenseRuleFactory(household=hogar, category=categoria, name="Alquiler",
+                       amount=Decimal("1800.00"))
+    client.force_login(admin)
+
+    html = client.get(reverse("budget:mes")).content.decode()
+
+    assert "1,800.00" in html or "1 800,00" in html
+
+
+def test_un_mes_futuro_se_puede_consultar_y_no_persiste(client, admin_con_hogar):
+    from apps.budget.models import BudgetMonth
+
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    respuesta = client.get(reverse("budget:mes", args=[2030, 5]))
+
+    assert respuesta.status_code == 200
+    assert not BudgetMonth.objects.for_household(hogar).filter(year=2030).exists()
+
+
+# --- el comercio se teclea, no se elige --------------------------------------
+
+
+def _gasto(categoria, **extra):
+    datos = {"category": categoria.pk, "amount": "45.50", "date": "2026-09-05",
+             "payment_method": "debit", "scope": "household"}
+    datos.update(extra)
+    return datos
+
+
+def test_teclear_un_comercio_nuevo_lo_crea(client, admin_con_hogar):
+    from apps.budget.models import Merchant
+
+    admin, hogar = admin_con_hogar
+    categoria = CategoryFactory(household=hogar, slug="mi-groceries")
+    client.force_login(admin)
+
+    client.post(reverse("budget:registrar"),
+                _gasto(categoria, merchant_name="WALMART #3421"))
+
+    assert Merchant.objects.for_household(hogar).get().normalized_name == "WALMART"
+
+
+def test_teclear_una_variante_reutiliza_el_comercio_que_ya_existe(client, admin_con_hogar):
+    """Para lo que existe engine/merchants.py: WALMART #3421 y walmart son el
+    mismo comercio, y sin esto la lista se llenaria de duplicados en un mes."""
+    from apps.budget.models import Merchant
+
+    admin, hogar = admin_con_hogar
+    categoria = CategoryFactory(household=hogar, slug="mi-groceries")
+    client.force_login(admin)
+
+    client.post(reverse("budget:registrar"),
+                _gasto(categoria, merchant_name="WALMART #3421"))
+    client.post(reverse("budget:registrar"),
+                _gasto(categoria, merchant_name="walmart"))
+
+    assert Merchant.objects.for_household(hogar).count() == 1
+
+
+def test_un_gasto_sin_comercio_se_guarda_igual(client, admin_con_hogar):
+    """No todo gasto tiene comercio: una transferencia, un reembolso."""
+    from apps.budget.models import Transaction
+
+    admin, hogar = admin_con_hogar
+    categoria = CategoryFactory(household=hogar, slug="mi-groceries")
+    client.force_login(admin)
+
+    client.post(reverse("budget:registrar"), _gasto(categoria, merchant_name=""))
+
+    assert Transaction.objects.for_household(hogar).get().merchant is None
+
+
+def test_el_comercio_de_otro_hogar_no_se_reutiliza(client, admin_con_hogar):
+    """Dos familias que compran en el mismo Walmart tienen cada una su fila:
+    fundirlas cruzaria el historial de gasto de dos hogares."""
+    from apps.budget.models import Merchant
+    from tests.factories_budget import MerchantFactory
+
+    admin, hogar = admin_con_hogar
+    ajeno = crear_hogar(UserFactory(), "Family Garcia", family_size=2)
+    MerchantFactory(household=ajeno, name="Walmart")
+    categoria = CategoryFactory(household=hogar, slug="mi-groceries")
+    client.force_login(admin)
+
+    client.post(reverse("budget:registrar"),
+                _gasto(categoria, merchant_name="WALMART #3421"))
+
+    assert Merchant.unscoped.count() == 2

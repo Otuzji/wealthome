@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "This month" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ anio }}-{{ numero }}</h1>
+  {% if es_proyeccion %}
+    <p>{% translate "This month has not started yet — these numbers come from your rules." %}</p>
+    <table>
+      {% for linea in resultado.lineas %}
+        <tr><td>{{ linea.nombre }}</td><td>{{ linea.importe|money:hogar.currency }}</td></tr>
+      {% endfor %}
+    </table>
+    <p>{% translate "Left over" %}: {{ resultado.sobrante|money:hogar.currency }}</p>
+  {% else %}
+    <table>
+      <tr><th>{% translate "Category" %}</th><th>{% translate "Planned" %}</th></tr>
+      {% for linea in resultado.lineas.all %}
+        <tr>
+          <td>{{ linea.category.etiqueta }}</td>
+          <td>{{ linea.planned_amount|money:hogar.currency }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+    <h2>{% translate "What actually happened" %}</h2>
+    <table>
+      {% for tx in resultado.transacciones.all %}
+        <tr><td>{{ tx.date }}</td><td>{{ tx.category.etiqueta }}</td>
+            <td>{{ tx.amount|money:hogar.currency }}</td></tr>
+      {% empty %}
+        <tr><td>{% translate "Nothing recorded yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</section>
+{% endblock %}

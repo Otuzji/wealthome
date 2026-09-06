@@ -1019,3 +1019,43 @@ msgstr "Nouvelle catégorie"
 #: apps/budget/views.py
 msgid "New split rule"
 msgstr "Nouvelle règle de répartition"
+
+#: templates/budget/mes.html
+msgid "This month"
+msgstr "Ce mois-ci"
+
+#: templates/budget/mes.html
+msgid "This month has not started yet — these numbers come from your rules."
+msgstr "Ce mois n'a pas encore commencé — ces montants viennent de vos règles."
+
+#: templates/budget/mes.html
+msgid "Left over"
+msgstr "Surplus"
+
+#: templates/budget/mes.html
+msgid "Category"
+msgstr "Catégorie"
+
+#: templates/budget/mes.html
+msgid "Planned"
+msgstr "Prévu"
+
+#: templates/budget/mes.html
+msgid "What actually happened"
+msgstr "Ce qui s'est réellement passé"
+
+#: templates/budget/mes.html
+msgid "Nothing recorded yet."
+msgstr "Rien d'enregistré pour l'instant."
+
+#: templates/budget/gasto.html
+msgid "Record a spend"
+msgstr "Enregistrer une dépense"
+
+#: apps/budget/forms.py
+msgid "Where"
+msgstr "Où"
+
+#: apps/budget/forms.py
+msgid "Type it as it appears on the receipt."
+msgstr "Écrivez-le tel qu'il apparaît sur le reçu."

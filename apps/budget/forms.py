@@ -6,10 +6,12 @@ las categorías de otra familia no llega a existir.
 """
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
+from apps.budget.engine.merchants import normalizar
 from apps.households.scoped_forms import HouseholdScopedModelForm
 
-from .models import AllocationRule, Category, ExpenseRule, IncomeSource
+from .models import AllocationRule, Category, ExpenseRule, IncomeSource, Merchant, Transaction
 
 
 class CategoryForm(HouseholdScopedModelForm):
@@ -64,3 +66,42 @@ class AllocationRuleForm(HouseholdScopedModelForm):
             "order", "target_type", "target_goal", "target_category",
             "method", "amount", "percentage", "split", "is_active",
         ]
+
+
+class TransactionForm(HouseholdScopedModelForm):
+    """`member` y `budget_month` NO son campos: salen de la petición y del
+    ciclo del mes. Si `member` lo fuera, cualquiera podría registrar gastos a
+    nombre de otro.
+
+    `merchant` tampoco es un desplegable: nadie da de alta un comercio antes
+    de comprar en él. Se teclea el nombre tal como aparece en el recibo y
+    `Merchant.normalized_name` decide si es uno que ya existe — que es
+    exactamente para lo que existe engine/merchants.py. Un `<select>` de
+    comercios estaría vacío el primer día y sería inservible el centésimo.
+    """
+
+    merchant_name = forms.CharField(
+        label=_("Where"), max_length=120, required=False,
+        help_text=_("Type it as it appears on the receipt."),
+    )
+
+    class Meta:
+        model = Transaction
+        fields = ["category", "income_source", "amount", "date",
+                  "payment_method", "scope", "note"]
+        widgets = {"date": forms.DateInput(attrs={"type": "date"})}
+
+    def comercio(self):
+        """El comercio tecleado, reutilizando el que ya exista en el hogar."""
+        nombre = self.cleaned_data.get("merchant_name", "").strip()
+        if not nombre:
+            return None
+        normalizado = normalizar(nombre)
+        existente = Merchant.objects.for_household(self.household).filter(
+            normalized_name=normalizado
+        ).first()
+        if existente is not None:
+            return existente
+        comercio = Merchant(household=self.household, name=nombre)
+        comercio.save()
+        return comercio
