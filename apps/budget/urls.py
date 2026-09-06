@@ -13,4 +13,9 @@ urlpatterns = [
     path("spend/", views.registrar, name="registrar"),
     path("month/", views.mes, name="mes"),
     path("month/<int:anio>/<int:numero>/", views.mes, name="mes"),
+    path("plan/", views.planificar, name="planificar"),
+    path("close/", views.cerrar, name="cerrar"),
+    path("goals/", views.metas, name="metas"),
+    path("goals/new/", views.meta_nueva, name="meta_nueva"),
+    path("goals/contribute/", views.aportar, name="aportar"),
 ]

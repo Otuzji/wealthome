@@ -11,7 +11,16 @@ from django.utils.translation import gettext_lazy as _
 from apps.budget.engine.merchants import normalizar
 from apps.households.scoped_forms import HouseholdScopedModelForm
 
-from .models import AllocationRule, Category, ExpenseRule, IncomeSource, Merchant, Transaction
+from .models import (
+    AllocationRule,
+    Category,
+    ExpenseRule,
+    Goal,
+    GoalContribution,
+    IncomeSource,
+    Merchant,
+    Transaction,
+)
 
 
 class CategoryForm(HouseholdScopedModelForm):
@@ -105,3 +114,23 @@ class TransactionForm(HouseholdScopedModelForm):
         comercio = Merchant(household=self.household, name=nombre)
         comercio.save()
         return comercio
+
+
+class GoalForm(HouseholdScopedModelForm):
+    class Meta:
+        model = Goal
+        fields = ["name", "scope", "owner", "contribution_mode",
+                  "target_amount", "target_date", "monthly_amount"]
+        widgets = {"target_date": forms.DateInput(attrs={"type": "date"})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner"].queryset = self.household.active_memberships()
+        self.fields["owner"].required = False
+
+
+class GoalContributionForm(HouseholdScopedModelForm):
+    class Meta:
+        model = GoalContribution
+        fields = ["goal", "amount", "date"]
+        widgets = {"date": forms.DateInput(attrs={"type": "date"})}

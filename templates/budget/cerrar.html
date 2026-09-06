@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate "Close the month" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Close the month" %}</h1>
+  <p>{% translate "Once closed, the month becomes a frozen picture and admits no more changes." %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn--primary" type="submit">{% translate "Close the month" %}</button>
+    <a href="{% url 'budget:mes' %}">{% translate "Cancel" %}</a>
+  </form>
+</section>
+{% endblock %}

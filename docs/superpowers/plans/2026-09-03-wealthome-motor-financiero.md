@@ -5604,7 +5604,7 @@ git commit -m "Anade registrar un gasto y la pantalla del mes"
 **Interfaces:**
 - Produce: `GoalForm`, `GoalContributionForm`; rutas `budget:planificar`, `budget:cerrar`, `budget:metas`, `budget:meta_nueva`, `budget:aportar`.
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 Añadir a `tests/budget/test_views.py`:
 
@@ -5720,7 +5720,7 @@ def test_aportar_a_una_meta_exige_can_edit_budget(client, admin_con_hogar):
 
 (Añade `from datetime import date` al principio del archivo de pruebas.)
 
-- [ ] **Step 2: Implementar**
+- [x] **Step 2: Implementar**
 
 `apps/budget/views.py`:
 
@@ -5831,7 +5831,7 @@ Rutas: `plan/`, `close/`, `goals/`, `goals/new/`, `goals/contribute/`.
 
 `templates/budget/planificar.html` muestra el sobrante proyectado, la cascada aplicada y la mesada resultante por miembro, con un botón `{% translate "Confirm the plan" %}`. `templates/budget/cerrar.html` pide confirmación con `{% translate "Close the month" %}`. `templates/budget/metas.html` lista cada meta con su acumulado, su aporte mensual derivado y su fecha.
 
-- [ ] **Step 3: El catálogo, la suite y el commit**
+- [x] **Step 3: El catálogo, la suite y el commit**
 
 ```bash
 .venv/Scripts/python.exe -m pytest -q

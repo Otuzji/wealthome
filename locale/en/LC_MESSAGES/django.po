@@ -1043,3 +1043,67 @@ msgstr "Where"
 #: apps/budget/forms.py
 msgid "Type it as it appears on the receipt."
 msgstr "Type it as it appears on the receipt."
+
+#: templates/budget/planificar.html
+msgid "Plan the month"
+msgstr "Plan the month"
+
+#: templates/budget/planificar.html
+msgid "How it gets split"
+msgstr "How it gets split"
+
+#: templates/budget/planificar.html
+msgid "Allowance"
+msgstr "Allowance"
+
+#: templates/budget/planificar.html
+msgid "Confirm the plan"
+msgstr "Confirm the plan"
+
+#: templates/budget/cerrar.html
+msgid "Close the month"
+msgstr "Close the month"
+
+#: templates/budget/cerrar.html
+msgid "Once closed, the month becomes a frozen picture and admits no more changes."
+msgstr "Once closed, the month becomes a frozen picture and admits no more changes."
+
+#: templates/budget/metas.html
+msgid "Goals"
+msgstr "Goals"
+
+#: templates/budget/metas.html
+msgid "Goal"
+msgstr "Goal"
+
+#: templates/budget/metas.html
+msgid "Saved so far"
+msgstr "Saved so far"
+
+#: templates/budget/metas.html
+msgid "Target"
+msgstr "Target"
+
+#: templates/budget/metas.html
+msgid "Per month"
+msgstr "Per month"
+
+#: templates/budget/metas.html
+msgid "Reached by"
+msgstr "Reached by"
+
+#: templates/budget/metas.html
+msgid "No goals yet."
+msgstr "No goals yet."
+
+#: templates/budget/metas.html
+msgid "Add a goal"
+msgstr "Add a goal"
+
+#: apps/budget/views.py
+msgid "Add to a goal"
+msgstr "Add to a goal"
+
+#: apps/budget/views.py
+msgid "New goal"
+msgstr "New goal"

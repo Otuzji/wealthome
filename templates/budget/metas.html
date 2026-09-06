@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Goals" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Goals" %}</h1>
+  <table>
+    <tr>
+      <th>{% translate "Goal" %}</th>
+      <th>{% translate "Saved so far" %}</th>
+      <th>{% translate "Target" %}</th>
+      <th>{% translate "Per month" %}</th>
+      <th>{% translate "Reached by" %}</th>
+    </tr>
+    {% for fila in filas %}
+      <tr>
+        <td>{{ fila.meta.name }}</td>
+        <td>{{ fila.acumulado|money:hogar.currency }}</td>
+        <td>{{ fila.meta.target_amount|money:hogar.currency }}</td>
+        <td>{{ fila.aporte|money:hogar.currency }}</td>
+        <td>{{ fila.fecha }}</td>
+      </tr>
+    {% empty %}
+      <tr><td>{% translate "No goals yet." %}</td></tr>
+    {% endfor %}
+  </table>
+  <a class="btn" href="{% url 'budget:meta_nueva' %}">{% translate "Add a goal" %}</a>
+  <a class="btn" href="{% url 'budget:aportar' %}">{% translate "Add to a goal" %}</a>
+</section>
+{% endblock %}

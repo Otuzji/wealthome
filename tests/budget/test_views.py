@@ -5,6 +5,7 @@ y no lo llamaba ningún código de producción. Aquí queda ejercitado el
 adolescente del §6.2 — registra sus gastos y no ve la hipoteca.
 """
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -305,3 +306,112 @@ def test_el_comercio_de_otro_hogar_no_se_reutiliza(client, admin_con_hogar):
                 _gasto(categoria, merchant_name="WALMART #3421"))
 
     assert Merchant.unscoped.count() == 2
+
+
+# --- planificar el mes (§4.5.6) -----------------------------------------------
+
+
+@pytest.fixture
+def hogar_listo_para_planificar(admin_con_hogar):
+    from apps.budget.engine.cascade import ALLOWANCE, FIXED, GOAL, REMAINDER
+    from tests.factories_budget import (
+        AllocationRuleFactory, ExpenseRuleFactory, GoalFactory, IncomeSourceFactory,
+    )
+
+    admin, hogar = admin_con_hogar
+    membresia = hogar.active_memberships().first()
+    IncomeSourceFactory(household=hogar, owner=membresia, amount=Decimal("3000.00"))
+    ExpenseRuleFactory(household=hogar, amount=Decimal("1800.00"),
+                       category=CategoryFactory(household=hogar, slug="mi-rent"))
+    meta = GoalFactory(household=hogar, target_amount=Decimal("10000.00"))
+    AllocationRuleFactory(household=hogar, order=1, target_type=GOAL,
+                          target_goal=meta, method=FIXED, amount=Decimal("600.00"))
+    AllocationRuleFactory(household=hogar, order=2, target_type=ALLOWANCE,
+                          method=REMAINDER, target_goal=None)
+    return admin, hogar
+
+
+def test_planificar_muestra_el_sobrante_y_la_mesada(client, hogar_listo_para_planificar):
+    """§13.5: la pareja ve su sobrante repartido y cada uno sabe su mesada."""
+    admin, hogar = hogar_listo_para_planificar
+    client.force_login(admin)
+
+    html = client.get(reverse("budget:planificar")).content.decode()
+
+    assert "1,200.00" in html or "1 200,00" in html   # el sobrante proyectado
+
+
+def test_confirmar_la_planificacion_escribe_las_mesadas(client, hogar_listo_para_planificar):
+    from apps.budget.models import AllowanceLedger
+
+    admin, hogar = hogar_listo_para_planificar
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("budget:planificar"))
+
+    assert respuesta.status_code == 302
+    assert AllowanceLedger.objects.for_household(hogar).exists()
+
+
+def test_planificar_exige_can_edit_budget(client, hogar_listo_para_planificar):
+    _, hogar = hogar_listo_para_planificar
+    client.force_login(_miembro(hogar, can_view_budget=True).user)
+
+    assert client.get(reverse("budget:planificar")).status_code == 403
+
+
+# --- cerrar el mes ------------------------------------------------------------
+
+
+def test_cerrar_el_mes_escribe_el_cierre(client, hogar_listo_para_planificar):
+    from apps.budget.models import MonthlyClose
+
+    admin, hogar = hogar_listo_para_planificar
+    client.force_login(admin)
+    client.post(reverse("budget:planificar"))
+
+    respuesta = client.post(reverse("budget:cerrar"))
+
+    assert respuesta.status_code == 302
+    assert MonthlyClose.objects.for_household(hogar).exists()
+
+
+def test_un_mes_cerrado_es_de_solo_lectura(client, hogar_listo_para_planificar):
+    """§4.3: un mes cerrado no admite nada."""
+    admin, hogar = hogar_listo_para_planificar
+    client.force_login(admin)
+    client.post(reverse("budget:planificar"))
+    client.post(reverse("budget:cerrar"))
+
+    respuesta = client.post(reverse("budget:cerrar"))
+
+    assert respuesta.status_code in (302, 409)
+    from apps.budget.models import MonthlyClose
+
+    assert MonthlyClose.objects.for_household(hogar).count() == 1
+
+
+# --- metas --------------------------------------------------------------------
+
+
+def test_las_metas_muestran_su_dato_derivado(client, admin_con_hogar):
+    from apps.budget.engine.goals import BY_TARGET_DATE
+    from tests.factories_budget import GoalFactory
+
+    admin, hogar = admin_con_hogar
+    GoalFactory(household=hogar, name="Vacaciones",
+                contribution_mode=BY_TARGET_DATE,
+                target_amount=Decimal("7200.00"),
+                target_date=date(2027, 6, 30))
+    client.force_login(admin)
+
+    html = client.get(reverse("budget:metas")).content.decode()
+
+    assert "Vacaciones" in html
+
+
+def test_aportar_a_una_meta_exige_can_edit_budget(client, admin_con_hogar):
+    _, hogar = admin_con_hogar
+    client.force_login(_miembro(hogar, can_view_budget=True).user)
+
+    assert client.get(reverse("budget:aportar")).status_code == 403
