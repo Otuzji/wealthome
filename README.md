@@ -80,6 +80,76 @@ minutos contra el pooler de Supabase. Es normal ver una advertencia de que
 `test_postgres` sigue en uso al finalizar — el pooler mantiene conexiones
 abiertas un momento; si una corrida falla por eso, repítela.
 
+## El motor financiero
+
+El cálculo del presupuesto vive en `apps/budget/engine/`: dinero y redondeo,
+las ocho periodicidades, los cinco modos de ingreso variable, la cascada del
+sobrante, el cierre del mes, la mesada y las metas.
+
+**Ese paquete no importa el ORM, ni `django.conf`, ni `django.utils`.** No es
+una preferencia de estilo: es lo que permite probar la aritmética del dinero
+sin base de datos, en segundos en vez de minutos, y lo que impide que una
+consulta se cuele dentro de un bucle de cálculo. Una prueba de pureza
+(`tests/budget/engine/test_pureza.py`) falla si alguien añade un import de
+Django ahí dentro. El único módulo que cruza las dos capas es
+`apps/budget/services.py`, y que la frontera esté en un solo archivo es lo
+que la hace auditable de un vistazo.
+
+```bash
+pytest tests/budget/engine -q     # solo el motor: sin Postgres, en segundos
+pytest tests/budget -q            # el motor y sus modelos, contra la base
+pytest -q                         # todo
+pytest -q --create-db             # OBLIGATORIO tras añadir una migración
+```
+
+`--create-db` hace falta porque la suite corre con `--reuse-db`: la base de
+pruebas se conserva entre corridas para no pagarle al pooler de Supabase la
+creación cada vez, y una base reutilizada se queda con el esquema viejo.
+
+### El ciclo del mes
+
+Un mes vive en tres estados: **futuro** (se proyecta desde las reglas
+vigentes, sin filas persistidas, para que cambiar el alquiler se refleje al
+instante en todos los meses por venir), **abierto** (filas reales, editables)
+y **cerrado** (una foto congelada que no admite escrituras).
+
+El disparador es **entrar**: al pedir un mes se cierran en cadena los
+vencidos —en orden, porque cada cierre arrastra su saldo al siguiente— y se
+materializa el corriente. No hay cron ni Celery en el stack, y un comando
+programado como único disparador no correría en desarrollo.
+
+```bash
+python manage.py cerrar_meses_vencidos            # todos los hogares
+python manage.py cerrar_meses_vencidos --hoy 2026-03-05
+```
+
+El comando existe para las instalaciones que sí puedan programarlo. No es el
+único camino, y no hace falta para que la aplicación funcione.
+
+### Las cinco desviaciones del spec de la Fase 1
+
+Están razonadas en detalle en
+[el diseño del Plan 2](docs/superpowers/specs/2026-09-03-wealthome-motor-financiero-design.md);
+en corto:
+
+1. **Las categorías se siembran por hogar**, no como árbol global con
+   `household` nulo: `HouseholdScoped.household` no admite nulo y ablandarlo
+   destriparía el aislamiento. Copiar el árbol al crear el hogar hace además
+   que el «añadir *y renombrar*» del spec sea cierto sin una tabla de
+   anulaciones.
+2. **`source_rule` se parte en dos claves foráneas anulables**
+   (`source_income`, `source_expense_rule`) con un `CheckConstraint` que
+   exige como máximo una y que concuerde con el tipo de línea. Una clave
+   genérica arrastraría `contenttypes` a cambio de nada.
+3. **Los dueños son `Membership`, no `User`.** Con clave foránea a `User` se
+   puede asignar el sueldo de una casa a alguien que no vive en ella; con
+   `Membership` eso es irrepresentable, porque la membresía ya está atada al
+   hogar.
+4. **`Transaction` gana `income_source`.** Sin ella, el modo
+   `rolling_average` de los ingresos variables no se puede calcular.
+5. **`receipt_image` entra anulable y sin usar**, como pide el spec, aunque
+   su destino real (Supabase Storage) siga sin decidirse.
+
 ## Internacionalización
 
 Los idiomas soportados son `en` (por defecto) y `fr`. Cada cadena visible en

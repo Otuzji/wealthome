@@ -5851,7 +5851,7 @@ git commit -m "Anade planificar el mes, cerrarlo y las metas"
 - Consumes: todo lo anterior.
 - Produce: la evidencia de que los diez criterios de aceptación del spec se cumplen.
 
-- [ ] **Step 1: Escribir la batería de aislamiento**
+- [x] **Step 1: Escribir la batería de aislamiento**
 
 `tests/budget/test_aislamiento.py`:
 
@@ -5926,7 +5926,7 @@ def test_todo_modelo_del_motor_esta_acotado():
             list(modelo.objects.all())
 ```
 
-- [ ] **Step 2: Escribir los criterios de aceptación de punta a punta**
+- [x] **Step 2: Escribir los criterios de aceptación de punta a punta**
 
 `tests/budget/test_aceptacion.py`: una prueba por cada uno de los diez criterios del §10 del diseño del Plan 2, escritas contra los servicios y el cliente de pruebas. Las que ya están cubiertas por pruebas anteriores se escriben aquí igualmente, en su forma de extremo a extremo, porque son el contrato del plan:
 
@@ -6019,7 +6019,7 @@ def test_criterio_9_tres_quincenas_y_un_seguro_anual():
 
 Escribe del mismo modo los criterios 1, 3, 4, 6, 7, 8 y 10 — el 6 (el arrastre entre meses), el 4 (el faltante que ajusta la mesada del mes siguiente sin retirar nada) y el 10 (la aplicación en francés, comprobando que un importe se renderiza `2 847,50 $`) son los que más valor tienen, porque cruzan varias tareas.
 
-- [ ] **Step 3: Correr todo, incluida una corrida limpia**
+- [x] **Step 3: Correr todo, incluida una corrida limpia**
 
 ```bash
 .venv/Scripts/python.exe -m pytest -q --create-db
@@ -6027,11 +6027,11 @@ Escribe del mismo modo los criterios 1, 3, 4, 6, 7, 8 y 10 — el 6 (el arrastre
 
 Expected: PASS. Una corrida con `--create-db` es la única que demuestra que las migraciones acumuladas del plan construyen el esquema desde cero.
 
-- [ ] **Step 4: Actualizar el README**
+- [x] **Step 4: Actualizar el README**
 
 Añade al `README.md` una sección "El motor financiero" con: cómo correr solo el motor (`pytest tests/budget/engine -q`), la nota de que `apps/budget/engine/` no importa el ORM y por qué, el comando `cerrar_meses_vencidos` y para qué existe, y las cinco desviaciones del spec de la Fase 1 con un enlace al diseño del Plan 2.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
