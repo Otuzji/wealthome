@@ -88,6 +88,18 @@ class HouseholdScopedModelForm(forms.ModelForm, metaclass=_MetaclaseAcotada):
     def __init__(self, *args, household, **kwargs):
         super().__init__(*args, **kwargs)
         self.household = household
+        if self.instance.household_id is None:
+            # Un alta nace ya en el hogar de la petición, ANTES de validar.
+            # `ModelForm._post_clean()` llama a `instance.full_clean()` dentro
+            # de `is_valid()`, y el `clean()` de casi todo modelo del Plan 2
+            # compara el hogar de sus relaciones con el suyo: con el hogar
+            # todavía sin fijar, esa comparación es `1295 != None` y el
+            # formulario rechaza una categoría propia como si fuera ajena.
+            # Fijarlo en la vista, después de validar, llega tarde.
+            #
+            # Solo cuando falta: reasignarlo en una edición movería una fila
+            # de un hogar a otro, que es justo lo que la barrera impide.
+            self.instance.household = household
         for campo in self.fields.values():
             queryset = getattr(campo, "queryset", None)
             if queryset is not None and issubclass(queryset.model, HouseholdScoped):

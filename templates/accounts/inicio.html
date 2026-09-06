@@ -1,5 +1,8 @@
 {% extends "base.html" %}{% load i18n %}
 {% block content %}
   <h1>{% translate "Welcome" %}</h1>
+  {% if perms_presupuesto %}
+    <p><a href="{% url 'budget:configurar' %}">{% translate "Set up the budget" %}</a></p>
+  {% endif %}
   <p><a href="{% url 'households:ajustes' %}">{% translate "Household settings" %}</a></p>
 {% endblock %}

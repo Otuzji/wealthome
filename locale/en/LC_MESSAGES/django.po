@@ -939,3 +939,67 @@ msgstr "%(hogar)s: closed %(mes)s"
 #: apps/budget/management/commands/cerrar_meses_vencidos.py
 msgid "%(total)s months closed."
 msgstr "%(total)s months closed."
+
+#: templates/budget/configurar.html
+msgid "Set up the budget"
+msgstr "Set up the budget"
+
+#: templates/budget/configurar.html
+msgid "No income yet."
+msgstr "No income yet."
+
+#: templates/budget/configurar.html
+msgid "Add income"
+msgstr "Add income"
+
+#: templates/budget/configurar.html
+msgid "Fixed expenses"
+msgstr "Fixed expenses"
+
+#: templates/budget/configurar.html
+msgid "No fixed expenses yet."
+msgstr "No fixed expenses yet."
+
+#: templates/budget/configurar.html
+msgid "Add a fixed expense"
+msgstr "Add a fixed expense"
+
+#: templates/budget/configurar.html
+msgid "How the leftover is split"
+msgstr "How the leftover is split"
+
+#: templates/budget/configurar.html
+msgid "No split rules yet."
+msgstr "No split rules yet."
+
+#: templates/budget/configurar.html
+msgid "Add a split rule"
+msgstr "Add a split rule"
+
+#: templates/budget/configurar.html
+msgid "Categories"
+msgstr "Categories"
+
+#: templates/budget/configurar.html
+msgid "Add a category"
+msgstr "Add a category"
+
+#: templates/budget/formulario.html
+msgid "Cancel"
+msgstr "Cancel"
+
+#: apps/budget/views.py
+msgid "New income"
+msgstr "New income"
+
+#: apps/budget/views.py
+msgid "New fixed expense"
+msgstr "New fixed expense"
+
+#: apps/budget/views.py
+msgid "New category"
+msgstr "New category"
+
+#: apps/budget/views.py
+msgid "New split rule"
+msgstr "New split rule"

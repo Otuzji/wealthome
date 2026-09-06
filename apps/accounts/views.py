@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
@@ -44,7 +45,19 @@ class Logout(LogoutView):
 
 @login_required
 def inicio(request):
-    return render(request, "accounts/inicio.html")
+    """El menú no ofrece lo que el miembro no puede hacer.
+
+    Un 403 al hacer clic es correcto pero grosero.
+    """
+    from apps.households.permissions import membresia_actual
+
+    try:
+        membresia = membresia_actual(request)
+    except PermissionDenied:
+        membresia = None
+    return render(request, "accounts/inicio.html", {
+        "perms_presupuesto": bool(membresia and membresia.can_edit_budget),
+    })
 
 
 @login_required

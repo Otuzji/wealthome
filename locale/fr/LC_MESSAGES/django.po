@@ -955,3 +955,67 @@ msgstr "%(hogar)s : %(mes)s clôturé"
 #: apps/budget/management/commands/cerrar_meses_vencidos.py
 msgid "%(total)s months closed."
 msgstr "%(total)s mois clôturés."
+
+#: templates/budget/configurar.html
+msgid "Set up the budget"
+msgstr "Configurer le budget"
+
+#: templates/budget/configurar.html
+msgid "No income yet."
+msgstr "Aucun revenu pour l'instant."
+
+#: templates/budget/configurar.html
+msgid "Add income"
+msgstr "Ajouter un revenu"
+
+#: templates/budget/configurar.html
+msgid "Fixed expenses"
+msgstr "Dépenses fixes"
+
+#: templates/budget/configurar.html
+msgid "No fixed expenses yet."
+msgstr "Aucune dépense fixe pour l'instant."
+
+#: templates/budget/configurar.html
+msgid "Add a fixed expense"
+msgstr "Ajouter une dépense fixe"
+
+#: templates/budget/configurar.html
+msgid "How the leftover is split"
+msgstr "Comment le surplus est réparti"
+
+#: templates/budget/configurar.html
+msgid "No split rules yet."
+msgstr "Aucune règle de répartition pour l'instant."
+
+#: templates/budget/configurar.html
+msgid "Add a split rule"
+msgstr "Ajouter une règle de répartition"
+
+#: templates/budget/configurar.html
+msgid "Categories"
+msgstr "Catégories"
+
+#: templates/budget/configurar.html
+msgid "Add a category"
+msgstr "Ajouter une catégorie"
+
+#: templates/budget/formulario.html
+msgid "Cancel"
+msgstr "Annuler"
+
+#: apps/budget/views.py
+msgid "New income"
+msgstr "Nouveau revenu"
+
+#: apps/budget/views.py
+msgid "New fixed expense"
+msgstr "Nouvelle dépense fixe"
+
+#: apps/budget/views.py
+msgid "New category"
+msgstr "Nouvelle catégorie"
+
+#: apps/budget/views.py
+msgid "New split rule"
+msgstr "Nouvelle règle de répartition"

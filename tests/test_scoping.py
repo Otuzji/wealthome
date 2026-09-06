@@ -567,3 +567,22 @@ def test_full_clean_sigue_ejecutando_el_clean_del_modelo():
 
     assert "parent" in excinfo.value.message_dict
 
+
+
+@pytest.mark.django_db
+def test_el_formulario_seguro_fija_el_hogar_antes_de_validar():
+    """Un alta nace en el hogar de la petición, no al guardarla.
+
+    `ModelForm._post_clean()` corre `instance.full_clean()` dentro de
+    `is_valid()`. Si el hogar se fijara después, en la vista, el `clean()` de
+    cualquier modelo que compare el hogar de sus relaciones con el suyo vería
+    `None` y rechazaría una fila propia como si fuera de otra familia.
+    """
+    thompson = HouseholdFactory()
+    propia = EtiquetaFactory(household=thompson, nombre="Hipoteca Thompson")
+
+    form = _nota_form()(data={"etiqueta": propia.pk, "texto": "nota"}, household=thompson)
+
+    assert form.instance.household_id == thompson.pk
+    assert form.is_valid(), form.errors
+    assert form.save().household_id == thompson.pk

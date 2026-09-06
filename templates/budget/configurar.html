@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Set up the budget" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Set up the budget" %}</h1>
+
+  <h2>{% translate "Income" %}</h2>
+  <ul>
+    {% for fuente in ingresos %}
+      <li>{{ fuente.name }} — {{ fuente.get_amount_type_display }}</li>
+    {% empty %}
+      <li>{% translate "No income yet." %}</li>
+    {% endfor %}
+  </ul>
+  <a class="btn" href="{% url 'budget:ingreso_nuevo' %}">{% translate "Add income" %}</a>
+
+  <h2>{% translate "Fixed expenses" %}</h2>
+  <ul>
+    {% for gasto in gastos %}
+      <li>{{ gasto.name }} — {{ gasto.amount|money:hogar.currency }} · {{ gasto.get_periodicity_display }}</li>
+    {% empty %}
+      <li>{% translate "No fixed expenses yet." %}</li>
+    {% endfor %}
+  </ul>
+  <a class="btn" href="{% url 'budget:gasto_nuevo' %}">{% translate "Add a fixed expense" %}</a>
+
+  <h2>{% translate "How the leftover is split" %}</h2>
+  <ol>
+    {% for regla in repartos %}
+      <li>{{ regla.get_target_type_display }} — {{ regla.get_method_display }}</li>
+    {% empty %}
+      <li>{% translate "No split rules yet." %}</li>
+    {% endfor %}
+  </ol>
+  <a class="btn" href="{% url 'budget:reparto_nuevo' %}">{% translate "Add a split rule" %}</a>
+
+  <h2>{% translate "Categories" %}</h2>
+  <ul>
+    {% for categoria in categorias %}<li>{{ categoria.etiqueta }}</li>{% endfor %}
+  </ul>
+  <a class="btn" href="{% url 'budget:categoria_nueva' %}">{% translate "Add a category" %}</a>
+</section>
+{% endblock %}
