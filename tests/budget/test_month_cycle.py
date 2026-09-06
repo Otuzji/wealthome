@@ -12,13 +12,19 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from apps.budget import services
 from apps.budget.engine.periodicity import MONTHLY
 from apps.budget.models import BudgetMonth, MonthlyClose
 from apps.households.services import crear_hogar
 from tests.factories import UserFactory
-from tests.factories_budget import ExpenseRuleFactory, IncomeSourceFactory, TransactionFactory
+from tests.factories_budget import (
+    CategoryFactory,
+    ExpenseRuleFactory,
+    IncomeSourceFactory,
+    TransactionFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -189,3 +195,103 @@ def test_el_comando_cierra_los_meses_vencidos_de_todos_los_hogares(hogar_con_reg
     call_command("cerrar_meses_vencidos", "--hoy", "2026-03-12")
 
     assert MonthlyClose.unscoped.count() >= 1
+
+
+# --- los tres huecos que encontró la revisión de la rama ----------------------
+
+
+def test_un_mes_pasado_que_nunca_se_vivio_no_se_materializa(hogar_con_reglas):
+    """Entrar a enero de 2020 no puede fabricar historia.
+
+    Materializarlo dejaba una fila abierta en 2020, y la siguiente petición
+    la cerraba en cadena mes a mes hasta hoy, escribiendo ochenta MonthlyClose
+    que son inmutables por construcción: historial financiero inventado que
+    solo se puede borrar, no corregir. Un mes anterior a la vida del hogar es
+    una proyección de solo lectura, como cualquier mes que no se está viviendo.
+    """
+    hogar = hogar_con_reglas
+
+    resultado = services.obtener_mes(hogar, 2020, 1, hoy=date(2026, 9, 6))
+
+    assert isinstance(resultado, services.ProyeccionDeMes)
+    assert not BudgetMonth.objects.for_household(hogar).filter(year=2020).exists()
+    assert not MonthlyClose.objects.for_household(hogar).exists()
+
+
+def test_entrar_a_un_mes_abierto_sin_lineas_lo_materializa(hogar_con_reglas):
+    """La fila puede existir vacía: el ajuste del §4.5.3 crea la del mes
+    siguiente solo para escribir en ella el descuento de la mesada.
+
+    Si entrar no la materializara, ese mes se quedaría con presupuesto cero
+    para siempre —nunca se materializa, porque materializar solo se llamaba
+    cuando NO había fila—, la pantalla saldría vacía, planificar repartiría
+    sobre cero y al vencer se cerraría con «presupuestado 0».
+    """
+    hogar = hogar_con_reglas
+    vacio = BudgetMonth.unscoped.create(
+        household=hogar, year=2026, month=9,
+        status=BudgetMonth.OPEN, opened_at=timezone.now(),
+    )
+    assert not vacio.lineas.exists()
+
+    resultado = services.obtener_mes(hogar, 2026, 9, hoy=date(2026, 9, 6))
+
+    assert resultado.pk == vacio.pk
+    assert resultado.lineas.count() == 2      # el sueldo y el alquiler
+
+
+def test_la_media_movil_no_se_multiplica_por_las_quincenas():
+    """§4.1: la media de rolling_average es de totales MENSUALES.
+
+    Multiplicarla por las ocurrencias del mes presupuestaba el doble en un
+    ingreso quincenal y el triple en el mes de tres quincenas — justo el
+    optimismo que el modo existe para evitar.
+    """
+    from apps.budget.engine.income import ROLLING_AVERAGE
+    from apps.budget.engine.periodicity import BIWEEKLY
+
+    hogar = crear_hogar(UserFactory(), "Thompson", family_size=2)
+    membresia = hogar.active_memberships().first()
+    fuente = IncomeSourceFactory(
+        household=hogar, owner=membresia, amount_type=ROLLING_AVERAGE,
+        amount=None, periodicity=BIWEEKLY, effective_from=date(2026, 1, 1),
+    )
+    for numero in (1, 2, 3):
+        mes = services.obtener_mes(hogar, 2026, numero, hoy=date(2026, numero, 10))
+        TransactionFactory(
+            household=hogar, budget_month=mes, member=membresia,
+            category=mes.lineas.filter(kind="income").first().category
+            if mes.lineas.filter(kind="income").exists()
+            else CategoryFactory(household=hogar, slug=f"ingreso-{numero}", kind="income"),
+            income_source=fuente, amount=Decimal("2000.00"),
+            date=date(2026, numero, 15),
+        )
+
+    proyeccion = services.proyectar(hogar, 2026, 4)
+
+    assert proyeccion.total_ingresos == Decimal("2000.00")
+
+
+def test_el_arrastre_no_toma_el_saldo_de_un_mes_posterior(hogar_con_reglas):
+    """El arrastre viene del mes ANTERIOR, no del último cerrado.
+
+    `cerrar_mes` es público y nada obliga a cerrar en orden. Filtrando por
+    `year__lte` y ordenando descendente, cerrar marzo con diciembre ya cerrado
+    tomaba el arrastre de diciembre — y lo congelaba en un MonthlyClose que es
+    inmutable por construcción.
+    """
+    hogar = hogar_con_reglas
+    diciembre = services.obtener_mes(hogar, 2026, 12, hoy=date(2026, 12, 10))
+    TransactionFactory(
+        household=hogar, budget_month=diciembre,
+        member=hogar.active_memberships().first(),
+        category=diciembre.lineas.get(kind="income").category,
+        amount=Decimal("5000.00"), date=date(2026, 12, 15),
+    )
+    cierre_diciembre = services.cerrar_mes(diciembre)
+    assert cierre_diciembre.arrastre == Decimal("5000.00")
+
+    marzo = services.obtener_mes(hogar, 2026, 3, hoy=date(2026, 3, 10))
+    cierre_marzo = services.cerrar_mes(marzo)
+
+    assert cierre_marzo.arrastre == Decimal("0.00")

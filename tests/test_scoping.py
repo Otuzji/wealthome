@@ -586,3 +586,26 @@ def test_el_formulario_seguro_fija_el_hogar_antes_de_validar():
     assert form.instance.household_id == thompson.pk
     assert form.is_valid(), form.errors
     assert form.save().household_id == thompson.pk
+
+
+@pytest.mark.django_db
+def test_el_formulario_seguro_no_reasigna_el_hogar_de_una_fila_existente():
+    """Fijar el hogar al construir el formulario vale para las altas.
+
+    En una edición, sobrescribirlo movería la fila de un hogar a otro con solo
+    abrir el formulario desde el hogar equivocado — exactamente lo que la
+    barrera existe para impedir. Hoy no hay vistas de edición; esta prueba
+    está escrita antes que ellas a propósito, porque la garantía depende de
+    una sola condición y nada más la ejercita.
+    """
+    from tests.models import Nota
+
+    thompson, garcia = HouseholdFactory(), HouseholdFactory()
+    ajena = Nota.unscoped.create(household=garcia, texto="de los García")
+
+    form = _nota_form()(data={"texto": "editada"}, household=thompson, instance=ajena)
+
+    assert form.instance.household_id == garcia.pk
+    assert form.is_valid(), form.errors
+    assert form.save().household_id == garcia.pk
+

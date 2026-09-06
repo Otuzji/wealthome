@@ -415,3 +415,45 @@ def test_aportar_a_una_meta_exige_can_edit_budget(client, admin_con_hogar):
     client.force_login(_miembro(hogar, can_view_budget=True).user)
 
     assert client.get(reverse("budget:aportar")).status_code == 403
+
+
+# --- lo que encontró la revisión de la rama ----------------------------------
+
+
+def test_un_mes_fuera_del_calendario_da_404_y_no_500(client, admin_con_hogar):
+    """A esta URL se llega escribiéndola o con un enlace viejo.
+
+    Un mes 13 reventaba en calendar.monthrange con un 500, y un mes 0 llegaba
+    a crear la fila del BudgetMonth antes de reventar: solo la transacción la
+    salvaba.
+    """
+    from apps.budget.models import BudgetMonth
+
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    assert client.get("/budget/month/2026/13/").status_code == 404
+    assert client.get("/budget/month/2026/0/").status_code == 404
+    assert client.get("/budget/month/99999/5/").status_code == 404
+    assert not BudgetMonth.objects.for_household(hogar).exists()
+
+
+def test_registrar_en_un_mes_cerrado_avisa_en_vez_de_reventar(client, admin_con_hogar):
+    """§4.3: un mes cerrado no admite escrituras, y decirlo es cosa del
+    formulario, no de una página de error del servidor."""
+    from django.utils import timezone
+
+    from apps.budget import services
+    from apps.budget.models import Transaction
+
+    admin, hogar = admin_con_hogar
+    categoria = CategoryFactory(household=hogar, slug="mi-groceries")
+    client.force_login(admin)
+    hoy = timezone.localdate()
+    services.cerrar_mes(services.obtener_mes(hogar, hoy.year, hoy.month))
+
+    respuesta = client.post(reverse("budget:registrar"), _gasto(categoria))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["form"].errors
+    assert not Transaction.objects.for_household(hogar).exists()

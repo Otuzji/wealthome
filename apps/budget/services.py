@@ -10,12 +10,13 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from apps.budget.engine import allowance as motor_allowance
 from apps.budget.engine import cascade as motor_cascade
 from apps.budget.engine import closing as motor_closing
+from apps.budget.engine import income as motor_income
 from apps.budget.engine.money import centavos
 from apps.budget.models import (
     DIAS_PARA_EL_CIERRE_AUTOMATICO,
@@ -85,7 +86,10 @@ def proyectar(hogar, anio, mes):
         veces = len(fuente.ocurrencias_en(anio, mes))
         if not veces:
             continue
-        cifra = fuente.cifra_del_mes(historial=historial_de_ingreso(fuente, primero))
+        media = fuente.amount_type == motor_income.ROLLING_AVERAGE
+        cifra = fuente.cifra_del_mes(
+            historial=historial_de_ingreso(fuente, primero) if media else ()
+        )
         if cifra is None:
             # rolling_average sin historia: aún no hay datos, y no se inventa
             # un número. La interfaz lo dice con todas sus letras.
@@ -93,7 +97,11 @@ def proyectar(hogar, anio, mes):
         lineas.append(
             LineaProyectada(
                 categoria_id=categoria_de_ingreso.pk, kind=INCOME,
-                importe=centavos(cifra * veces),
+                # Los otros cuatro modos dan la cifra de UN pago, y hay que
+                # multiplicarla por las veces que cae en el mes (§2.2). La
+                # media móvil ya es de totales mensuales: multiplicarla
+                # presupuestaría el doble en un ingreso quincenal.
+                importe=centavos(cifra) if media else centavos(cifra * veces),
                 origen="income", origen_id=fuente.pk, nombre=fuente.name,
             )
         )
@@ -242,10 +250,19 @@ def _reales_por_categoria(mes):
 
 
 def _arrastre_previo(mes):
+    """El saldo del último mes cerrado ANTERIOR a este.
+
+    `year__lte` con orden descendente tomaba el último cerrado del año, que
+    puede ser posterior: `cerrar_mes` es público y nada obliga a cerrar en
+    orden. Cerrar marzo con diciembre ya cerrado se traía el saldo de
+    diciembre y lo congelaba en un MonthlyClose inmutable.
+    """
     anterior = (
         MonthlyClose.objects.for_household(mes.household)
-        .filter(budget_month__year__lte=mes.year)
-        .exclude(budget_month=mes)
+        .filter(
+            Q(budget_month__year__lt=mes.year)
+            | Q(budget_month__year=mes.year, budget_month__month__lt=mes.month)
+        )
         .order_by("-budget_month__year", "-budget_month__month")
         .first()
     )
@@ -290,17 +307,30 @@ def cerrar_vencidos(hogar, hoy=None):
 def obtener_mes(hogar, anio, mes, hoy=None):
     """El único punto de entrada al ciclo del mes (§2.3).
 
-    Cierra los vencidos, materializa el corriente, proyecta el futuro y
-    devuelve el cierre congelado si ya pasó.
+    Cierra los vencidos, materializa el corriente y proyecta todo lo demás.
+
+    **Solo el mes corriente se materializa.** Un mes pasado sin fila es un mes
+    que el hogar no vivió, y fabricarlo tenía consecuencias que no se pueden
+    deshacer: la fila quedaba abierta en el pasado, la siguiente petición la
+    cerraba en cadena mes a mes hasta hoy, y cada eslabón escribía un
+    `MonthlyClose` que es inmutable por construcción. Historial inventado que
+    solo se puede borrar. Los meses intermedios que sí hay que crear los crea
+    `cerrar_vencidos`, que es quien conoce la cadena.
     """
     hoy = hoy or timezone.localdate()
     cerrar_vencidos(hogar, hoy)
 
     existente = BudgetMonth.objects.for_household(hogar).filter(year=anio, month=mes).first()
     if existente is not None:
+        # Una fila abierta puede estar vacía: `aplicar_cascada_al_cierre` crea
+        # la del mes siguiente solo para escribir en ella el ajuste de la
+        # mesada (§4.5.3). Sin esto se quedaría con presupuesto cero para
+        # siempre, porque materializar solo se llamaba cuando no había fila.
+        if existente.status == BudgetMonth.OPEN and not existente.lineas.exists():
+            return materializar(hogar, anio, mes)
         return existente
 
-    if (anio, mes) > (hoy.year, hoy.month):
+    if (anio, mes) != (hoy.year, hoy.month):
         return proyectar(hogar, anio, mes)
 
     return materializar(hogar, anio, mes)

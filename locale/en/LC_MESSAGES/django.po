@@ -1107,3 +1107,11 @@ msgstr "Add to a goal"
 #: apps/budget/views.py
 msgid "New goal"
 msgstr "New goal"
+
+#: apps/budget/views.py
+msgid "That month is not on the calendar."
+msgstr "That month is not on the calendar."
+
+#: apps/budget/views.py
+msgid "This month is already closed."
+msgstr "This month is already closed."

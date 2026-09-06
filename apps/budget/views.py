@@ -6,6 +6,7 @@ argumento. Ninguna vista elige "el" hogar por su cuenta.
 """
 
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -97,17 +98,37 @@ def registrar(request, hogar):
         tx.budget_month = mes
         tx.merchant = form.comercio()
         tx.member = membresia_actual(request)
-        tx.full_clean()
-        tx.save()
-        return redirect("budget:registrar")
+        try:
+            tx.full_clean()
+            tx.save()
+        except MesCerrado:
+            # §4.3: el mes cerrado no admite escrituras. Que lo diga el
+            # formulario y no una página de error del servidor.
+            form.add_error(None, _("This month is already closed."))
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            return redirect("budget:registrar")
     return render(request, "budget/gasto.html", {"form": form})
+
+
+# El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
+# PositiveSmallIntegerField del modelo y en el que un presupuesto tiene sentido.
+ANIO_MINIMO, ANIO_MAXIMO = 2000, 2100
 
 
 @requiere_permiso("can_view_budget")
 def mes(request, hogar, anio=None, numero=None):
     hoy = timezone.localdate()
-    anio = anio or hoy.year
-    numero = numero or hoy.month
+    # `is None`, no `or`: un mes 0 en la URL es falsy y se colaba como "no
+    # dado", devolviendo el mes corriente en vez del 404 que merece.
+    anio = hoy.year if anio is None else anio
+    numero = hoy.month if numero is None else numero
+    # A esta URL se llega escribiéndola o con un enlace viejo. Sin esto, un mes
+    # 13 revienta en calendar.monthrange con un 500 y un mes 0 llega a crear la
+    # fila del BudgetMonth antes de reventar.
+    if not (1 <= numero <= 12) or not (ANIO_MINIMO <= anio <= ANIO_MAXIMO):
+        raise Http404(_("That month is not on the calendar."))
     resultado = services.obtener_mes(hogar, anio, numero)
     return render(request, "budget/mes.html", {
         "resultado": resultado,
