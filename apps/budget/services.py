@@ -182,6 +182,10 @@ def _categoria_de_ingreso(hogar):
 @transaction.atomic
 def cerrar_mes(mes):
     """Escribe el MonthlyClose y congela el mes (§4.2)."""
+    # El §6 del diseño del Plan 2 lo exige para materializar y para cerrar;
+    # materializar ya lo hacia. Sin el, dos peticiones pueden cerrar el mismo
+    # mes a la vez y escribir dos MonthlyClose, que son inmutables.
+    mes = BudgetMonth.unscoped.select_for_update().get(pk=mes.pk)
     if mes.esta_cerrado:
         raise MesCerrado(f"El mes {mes} ya está cerrado.")
 
@@ -455,8 +459,16 @@ def planificar_mes(hogar, mes, sobrante_proyectado):
     Al confirmar la planificación, cada miembro sabe desde el día 1 cuánta
     mesada tiene, y esa cifra ya no se mueve durante el mes.
     """
-    if MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes).exists():
-        return list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
+    # Bloquea la fila del mes antes de mirar si ya hay reparto: sin esto, dos
+    # envios del boton "Confirmar el plan" pasan los dos por el exists() antes
+    # de que ninguno escriba, y el hogar acaba con las mesadas por duplicado.
+    # El bloqueo es sobre BudgetMonth y no sobre MonthlyAllocation porque no se
+    # puede bloquear una fila que aun no existe.
+    BudgetMonth.unscoped.select_for_update().get(pk=mes.pk)
+
+    ya = list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
+    if ya:
+        return ya
 
     reglas_orm = {
         r.order: r

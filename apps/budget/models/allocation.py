@@ -118,6 +118,21 @@ class MonthlyAllocation(EscrituraAcotadaAlMes, HouseholdScoped):
     class Meta(HouseholdScoped.Meta):
         verbose_name = _("monthly split")
         verbose_name_plural = _("monthly splits")
+        constraints = [
+            # Dos constraints y no una: en Postgres dos NULL no chocan entre
+            # si, asi que la primera no cubriria las reglas sin miembro (las
+            # que no son de mesada), que son justo las de ahorro.
+            models.UniqueConstraint(
+                fields=["household", "budget_month", "rule", "member"],
+                condition=models.Q(member__isnull=False),
+                name="un_reparto_por_regla_y_miembro",
+            ),
+            models.UniqueConstraint(
+                fields=["household", "budget_month", "rule"],
+                condition=models.Q(member__isnull=True),
+                name="un_reparto_por_regla_sin_miembro",
+            ),
+        ]
 
 
 class AllowanceLedger(HouseholdScoped):

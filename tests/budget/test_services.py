@@ -78,6 +78,63 @@ def test_un_sobrante_negativo_no_genera_mesada(hogar_con_cascada):
     assert AllowanceLedger.objects.for_household(hogar_con_cascada).count() == 0
 
 
+def test_planificar_dos_veces_no_duplica_las_mesadas():
+    hogar = HouseholdFactory()
+    MembershipFactory(household=hogar)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3)
+    AllocationRuleFactory(
+        household=hogar, order=1, target_type="allowance",
+        method="fixed", amount=Decimal("100.00"),
+    )
+
+    services.planificar_mes(hogar, mes, Decimal("500.00"))
+    services.planificar_mes(hogar, mes, Decimal("500.00"))
+
+    assert MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes).count() == 1
+    assert AllowanceLedger.objects.for_household(hogar).filter(budget_month=mes).count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_la_base_impide_dos_repartos_de_la_misma_regla_y_miembro():
+    """La barrera de verdad no es el exists(): es el esquema."""
+    from django.db.utils import IntegrityError
+
+    hogar = HouseholdFactory()
+    miembro = MembershipFactory(household=hogar)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3)
+    regla = AllocationRuleFactory(household=hogar, order=1)
+
+    MonthlyAllocation.unscoped.create(
+        household=hogar, budget_month=mes, rule=regla,
+        member=miembro, planned_amount=Decimal("100.00"),
+    )
+    with pytest.raises(IntegrityError):
+        MonthlyAllocation.unscoped.create(
+            household=hogar, budget_month=mes, rule=regla,
+            member=miembro, planned_amount=Decimal("100.00"),
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_la_base_impide_dos_repartos_de_la_misma_regla_sin_miembro():
+    """Dos NULL no chocan en Postgres: hace falta la segunda constraint parcial."""
+    from django.db.utils import IntegrityError
+
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3)
+    regla = AllocationRuleFactory(household=hogar, order=1)
+
+    MonthlyAllocation.unscoped.create(
+        household=hogar, budget_month=mes, rule=regla,
+        member=None, planned_amount=Decimal("100.00"),
+    )
+    with pytest.raises(IntegrityError):
+        MonthlyAllocation.unscoped.create(
+            household=hogar, budget_month=mes, rule=regla,
+            member=None, planned_amount=Decimal("100.00"),
+        )
+
+
 def test_el_faltante_ajusta_la_mesada_del_mes_siguiente(hogar_con_cascada):
     """§13.6, el ejemplo literal del §4.5.3: proyectado $800, real $720. El
     ahorro conserva sus $600; las mesadas de octubre bajan $40 cada una."""
