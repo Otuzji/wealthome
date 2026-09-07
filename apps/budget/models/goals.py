@@ -79,7 +79,9 @@ class GoalContribution(EscrituraAcotadaAlMes, HouseholdScoped):
         help_text=_("Nulo si la fecha cae en un mes que el hogar no ha vivido."),
     )
     member = models.ForeignKey(
-        "households.Membership", on_delete=models.RESTRICT, related_name="goal_contributions"
+        "households.Membership", on_delete=models.RESTRICT,
+        null=True, blank=True, related_name="goal_contributions",
+        help_text=_("Nulo cuando el aporte viene del reparto: ahorra el hogar, no una persona."),
     )
     origen = models.CharField(max_length=10, choices=ORIGEN_CHOICES, default="manual")
 

@@ -820,6 +820,14 @@ msgstr "contribution"
 msgid "contributions"
 msgstr "contributions"
 
+#: apps/budget/models/goals.py
+msgid "Nulo si la fecha cae en un mes que el hogar no ha vivido."
+msgstr "Nul si la date tombe dans un mois que le foyer n'a pas encore vécu."
+
+#: apps/budget/models/goals.py
+msgid "Nulo cuando el aporte viene del reparto: ahorra el hogar, no una persona."
+msgstr "Nul quand l'apport vient de la répartition : c'est le foyer qui épargne, pas une personne."
+
 #: apps/budget/models/allocation.py
 msgid "A savings goal"
 msgstr "Un objectif d'épargne"

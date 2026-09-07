@@ -512,7 +512,11 @@ def aplicar_cascada_al_cierre(mes, sobrante_real):
             aporte = GoalContribution(
                 household=hogar, goal=fila.rule.target_goal,
                 amount=fila.actual_amount, date=_ultimo_dia(mes.year, mes.month),
-                member=hogar.active_memberships().order_by("pk").first(),
+                # Ahorra el hogar entero, no una persona. Atribuirlo al pk mas
+                # bajo era un dato falso en el historial de la meta, y con cero
+                # membresias activas reventaba el cierre con IntegrityError.
+                member=None,
+                budget_month=mes,
                 origen="cascade",
             )
             aporte.save()
