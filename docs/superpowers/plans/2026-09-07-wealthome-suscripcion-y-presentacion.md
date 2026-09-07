@@ -40,16 +40,39 @@ Propias de este plan:
 
 ## Cómo correr las pruebas en esta máquina
 
+**El límite de una llamada de herramienta son 600 s, y `tests/budget` entera tarda ~692 s.**
+No cabe. Se corre en **cuatro** llamadas, todas en primer plano, ninguna cerca del límite:
+
 ```bash
-.venv/Scripts/python.exe -m pytest tests/budget/engine -q     # el motor: bajo un segundo
-.venv/Scripts/python.exe -m pytest tests/budget -q            # ~11-15 min
-.venv/Scripts/python.exe -m pytest -q --ignore=tests/budget   # ~5-7 min
-.venv/Scripts/python.exe -m pytest -q --create-db             # OBLIGATORIO tras una migración nueva
+# 1 · el motor puro: 128 pruebas, bajo un segundo
+.venv/Scripts/python.exe -m pytest tests/budget/engine -q
+
+# 2 · modelos y vistas: 62 pruebas, ~5 min
+.venv/Scripts/python.exe -m pytest tests/budget/test_models.py tests/budget/test_views.py -q
+
+# 3 · el resto del presupuesto: 79 pruebas, ~6-7 min
+.venv/Scripts/python.exe -m pytest tests/budget -q \
+    --ignore=tests/budget/engine \
+    --ignore=tests/budget/test_models.py --ignore=tests/budget/test_views.py
+
+# 4 · todo lo que no es presupuesto: ~5-7 min
+.venv/Scripts/python.exe -m pytest -q --ignore=tests/budget
 ```
+
+Añade `--create-db` **a la primera llamada que toque la base** (la 2) tras una migración
+nueva; las siguientes reutilizan ya el esquema nuevo.
 
 **Trampas del entorno — leer antes de la primera tarea:**
 
-- **La suite completa tarda ~19 minutos y NO cabe en una sola llamada de herramienta** (límite 600 s). Córrela **en dos mitades y en primer plano**, con los dos comandos de arriba. Lanzarlas en segundo plano y esperar un aviso cuelga al agente: pasó tres veces en el Plan 1.
+- **Las llamadas 1 a 3 cubren exactamente las mismas pruebas que `tests/budget` entera.**
+  La partición es por tiempo, no por tema: las 141 pruebas de base de datos van a ~4,9 s
+  cada una contra el pooler de Supabase, y las 128 del motor puro a menos de un segundo
+  las 128 juntas. Si añades un archivo de pruebas nuevo bajo `tests/budget/`, la llamada 3
+  lo recoge sola; si lo añades a `test_models.py` o `test_views.py`, vigila que la llamada
+  2 siga por debajo de 600 s.
+- **Nunca lances las pruebas en segundo plano esperando un aviso: cuelga al agente.** Pasó
+  tres veces en el Plan 1 y dos veces en las dos primeras tareas de este plan, hasta que se
+  vio que la causa no era desobediencia sino que la suite no cabía en una llamada.
 - **Tras añadir una migración hay que correr una vez con `--create-db`**, o la base reutilizada conserva el esquema viejo y las pruebas mienten. Este plan añade **seis** migraciones.
 - El pooler de Supabase deja sesiones abiertas: dos corridas seguidas pueden dar un error de arranque espurio (`There is 1 other session using the database`) que un reintento limpia.
 - La base `test_postgres` **no es basura**: es la que reutiliza `--reuse-db`.
