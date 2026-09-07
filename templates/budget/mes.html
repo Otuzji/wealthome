@@ -14,7 +14,7 @@
   {% else %}
     <table>
       <tr><th>{% translate "Category" %}</th><th>{% translate "Planned" %}</th></tr>
-      {% for linea in resultado.lineas.all %}
+      {% for linea in lineas %}
         <tr>
           <td>{{ linea.category.etiqueta }}</td>
           <td>{{ linea.planned_amount|money:hogar.currency }}</td>
@@ -23,7 +23,7 @@
     </table>
     <h2>{% translate "What actually happened" %}</h2>
     <table>
-      {% for tx in resultado.transacciones.all %}
+      {% for tx in transacciones %}
         <tr><td>{{ tx.date }}</td><td>{{ tx.category.etiqueta }}</td>
             <td>{{ tx.amount|money:hogar.currency }}</td></tr>
       {% empty %}

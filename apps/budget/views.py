@@ -130,11 +130,18 @@ def mes(request, hogar, anio=None, numero=None):
     if not (1 <= numero <= 12) or not (ANIO_MINIMO <= anio <= ANIO_MAXIMO):
         raise Http404(_("That month is not on the calendar."))
     resultado = services.obtener_mes(hogar, anio, numero)
-    return render(request, "budget/mes.html", {
-        "resultado": resultado,
-        "es_proyeccion": isinstance(resultado, services.ProyeccionDeMes),
+    es_proyeccion = isinstance(resultado, services.ProyeccionDeMes)
+    contexto = {
+        "resultado": resultado, "es_proyeccion": es_proyeccion,
         "anio": anio, "numero": numero,
-    })
+    }
+    if not es_proyeccion:
+        # select_related sobre la categoria: la plantilla lee category.etiqueta
+        # en cada fila, y sin esto un mes con 120 transacciones son 120
+        # consultas contra el pooler.
+        contexto["lineas"] = resultado.lineas.select_related("category")
+        contexto["transacciones"] = resultado.transacciones.select_related("category")
+    return render(request, "budget/mes.html", contexto)
 
 
 @requiere_permiso("can_edit_budget")
@@ -147,7 +154,13 @@ def planificar(request, hogar):
     """
     hoy = timezone.localdate()
     mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
-    proyeccion = services.proyectar(hogar, hoy.year, hoy.month)
+    # obtener_mes devuelve una fila (mes corriente materializado) o una
+    # ProyeccionDeMes. Solo en el primer caso hace falta proyectar aparte,
+    # porque planificar reparte sobre el sobrante proyectado del mes.
+    proyeccion = (
+        mes_actual if isinstance(mes_actual, services.ProyeccionDeMes)
+        else services.proyectar(hogar, hoy.year, hoy.month)
+    )
 
     if request.method == "POST":
         services.planificar_mes(hogar, mes_actual, proyeccion.sobrante)
@@ -196,9 +209,10 @@ def cerrar(request, hogar):
 def metas(request, hogar):
     filas = []
     for meta in Goal.objects.for_household(hogar):
-        aporte, fecha = meta.derivar()
+        acumulado = meta.acumulado()
+        aporte, fecha = meta.derivar(acumulado=acumulado)
         filas.append({"meta": meta, "aporte": aporte, "fecha": fecha,
-                      "acumulado": meta.acumulado()})
+                      "acumulado": acumulado})
     return render(request, "budget/metas.html", {"filas": filas})
 
 

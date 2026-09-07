@@ -57,12 +57,17 @@ class Goal(HouseholdScoped):
         total = self.contributions.aggregate(total=models.Sum("amount"))["total"]
         return total if total is not None else Decimal("0.00")
 
-    def derivar(self, desde=None):
-        """El dato que falta: el aporte mensual o la fecha de llegada."""
+    def derivar(self, desde=None, acumulado=None):
+        """El dato que falta: el aporte mensual o la fecha de llegada.
+
+        `acumulado` se puede pasar ya calculado: quien pinta una lista de metas
+        lo necesita tambien para la barra de progreso, y calcularlo dos veces
+        es una consulta por meta y por pantalla.
+        """
         return motor_goals.derivar(
             self.contribution_mode,
             objetivo=self.target_amount,
-            acumulado=self.acumulado(),
+            acumulado=self.acumulado() if acumulado is None else acumulado,
             desde=desde or timezone.localdate(),
             fecha_objetivo=self.target_date,
             aporte_mensual=self.monthly_amount,
