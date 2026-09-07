@@ -214,8 +214,13 @@ def aportar(request, hogar):
         aporte = form.save(commit=False)
         aporte.household = hogar
         aporte.member = membresia_actual(request)
-        aporte.full_clean()
-        aporte.save()
-        return redirect("budget:metas")
+        aporte.budget_month = services.mes_de_fecha(hogar, aporte.date)
+        try:
+            aporte.full_clean()
+            aporte.save()
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        else:
+            return redirect("budget:metas")
     return render(request, "budget/formulario.html",
                   {"form": form, "titulo": _("Add to a goal")})

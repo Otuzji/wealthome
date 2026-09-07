@@ -10,6 +10,7 @@ from apps.core.fields import MoneyField
 from apps.households.scoping import HouseholdScoped
 
 from .catalog import HOUSEHOLD, SCOPE_CHOICES
+from .months import BudgetMonth, EscrituraAcotadaAlMes
 
 CONTRIBUTION_MODE_CHOICES = [
     (motor_goals.BY_TARGET_DATE, _("By a target date")),
@@ -68,10 +69,15 @@ class Goal(HouseholdScoped):
         )
 
 
-class GoalContribution(HouseholdScoped):
+class GoalContribution(EscrituraAcotadaAlMes, HouseholdScoped):
     goal = models.ForeignKey(Goal, on_delete=models.CASCADE, related_name="contributions")
     amount = MoneyField(_("amount"))
     date = models.DateField(_("date"))
+    budget_month = models.ForeignKey(
+        BudgetMonth, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="aportes",
+        help_text=_("Nulo si la fecha cae en un mes que el hogar no ha vivido."),
+    )
     member = models.ForeignKey(
         "households.Membership", on_delete=models.RESTRICT, related_name="goal_contributions"
     )

@@ -382,6 +382,21 @@ def _mes_anterior(mes):
     ).first()
 
 
+def mes_de_fecha(hogar, fecha):
+    """La fila del mes que contiene esa fecha, o None. NO la crea.
+
+    Resolver sin crear es deliberado: quien escribe un aporte con fecha de un
+    mes que el hogar nunca vivió no debe fabricar ese mes por el camino. Un
+    mes sin fila tampoco puede estar cerrado, así que devolver None deja pasar
+    la escritura, que es lo correcto.
+    """
+    return (
+        BudgetMonth.objects.for_household(hogar)
+        .filter(year=fecha.year, month=fecha.month)
+        .first()
+    )
+
+
 def _fila_del_mes_siguiente(mes):
     """La fila del mes que viene, creándola si el hogar no ha llegado allí.
 

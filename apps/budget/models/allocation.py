@@ -9,7 +9,7 @@ from apps.budget.engine import cascade as motor_cascade
 from apps.core.fields import MoneyField
 from apps.households.scoping import HouseholdScoped
 
-from .months import BudgetMonth
+from .months import BudgetMonth, EscrituraAcotadaAlMes
 
 TARGET_TYPE_CHOICES = [
     (motor_cascade.GOAL, _("A savings goal")),
@@ -104,7 +104,7 @@ class AllocationRule(HouseholdScoped):
         )
 
 
-class MonthlyAllocation(HouseholdScoped):
+class MonthlyAllocation(EscrituraAcotadaAlMes, HouseholdScoped):
     """El reparto materializado de un mes."""
 
     budget_month = models.ForeignKey(BudgetMonth, on_delete=models.CASCADE, related_name="asignaciones")

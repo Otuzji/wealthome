@@ -5,14 +5,18 @@ capas porque el Plan 3 añadirá caminos de escritura que hoy no existen, y la
 capa de modelo es la que no se puede rodear.
 """
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
 
-from apps.budget.models import BudgetMonth, MesCerrado
+from apps.budget.models import BudgetMonth, GoalContribution, MesCerrado, MonthlyAllocation
+from tests.factories import HouseholdFactory, MembershipFactory
 from tests.factories_budget import (
+    AllocationRuleFactory,
     BudgetLineFactory,
     BudgetMonthFactory,
+    GoalFactory,
     MonthlyCloseFactory,
     TransactionFactory,
 )
@@ -108,3 +112,44 @@ def test_una_linea_no_puede_venir_de_dos_reglas_a_la_vez():
             source_income=IncomeSourceFactory(household=mes.household),
             source_expense_rule=ExpenseRuleFactory(household=mes.household),
         )
+
+
+def test_monthly_allocation_no_se_escribe_contra_un_mes_cerrado():
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3, status="closed")
+    regla = AllocationRuleFactory(household=hogar)
+
+    fila = MonthlyAllocation(
+        household=hogar, budget_month=mes, rule=regla,
+        planned_amount=Decimal("100.00"),
+    )
+    with pytest.raises(MesCerrado):
+        fila.save()
+
+
+def test_goal_contribution_no_se_escribe_contra_un_mes_cerrado():
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3, status="closed")
+    meta = GoalFactory(household=hogar)
+    miembro = MembershipFactory(household=hogar)
+
+    aporte = GoalContribution(
+        household=hogar, goal=meta, amount=Decimal("50.00"),
+        date=date(2026, 3, 15), member=miembro, budget_month=mes,
+    )
+    with pytest.raises(MesCerrado):
+        aporte.save()
+
+
+def test_goal_contribution_sin_mes_se_escribe_sin_problema():
+    """Un mes sin fila es un mes que nadie cerró: no hay a quién preguntarle."""
+    hogar = HouseholdFactory()
+    meta = GoalFactory(household=hogar)
+    miembro = MembershipFactory(household=hogar)
+
+    aporte = GoalContribution(
+        household=hogar, goal=meta, amount=Decimal("50.00"),
+        date=date(2026, 3, 15), member=miembro, budget_month=None,
+    )
+    aporte.save()
+    assert aporte.pk is not None
