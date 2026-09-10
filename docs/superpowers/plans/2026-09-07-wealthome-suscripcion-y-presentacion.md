@@ -55,8 +55,14 @@ No cabe. Se corre en **cuatro** llamadas, todas en primer plano, ninguna cerca d
     --ignore=tests/budget/engine \
     --ignore=tests/budget/test_models.py --ignore=tests/budget/test_views.py
 
-# 4 · todo lo que no es presupuesto: ~5-7 min
-.venv/Scripts/python.exe -m pytest -q --ignore=tests/budget
+# 4 · la fundación: 77 pruebas, ~5-8 min
+.venv/Scripts/python.exe -m pytest -q tests/test_scoping.py tests/test_permisos.py \
+    tests/test_settings_views.py tests/test_money_field.py
+
+# 5 · todo lo demás: ~5-8 min
+.venv/Scripts/python.exe -m pytest -q --ignore=tests/budget \
+    --ignore=tests/test_scoping.py --ignore=tests/test_permisos.py \
+    --ignore=tests/test_settings_views.py --ignore=tests/test_money_field.py
 ```
 
 Añade `--create-db` **a la primera llamada que toque la base** (la 2) tras una migración
@@ -71,8 +77,17 @@ nueva; las siguientes reutilizan ya el esquema nuevo.
   lo recoge sola; si lo añades a `test_models.py` o `test_views.py`, vigila que la llamada
   2 siga por debajo de 600 s.
 - **Nunca lances las pruebas en segundo plano esperando un aviso: cuelga al agente.** Pasó
-  tres veces en el Plan 1 y dos veces en las dos primeras tareas de este plan, hasta que se
-  vio que la causa no era desobediencia sino que la suite no cabía en una llamada.
+  tres veces en el Plan 1 y cuatro veces en este plan, hasta que se vio que la causa no era
+  desobediencia sino que la suite no cabía en una llamada.
+- **El tiempo del pooler varía, y la partición se queda corta sola.** La llamada 4 empezó
+  el plan siendo una sola de ~5-7 min y hubo que partirla en dos en la Tarea 6, porque
+  contra el pooler de Supabase el mismo conjunto de pruebas tarda distinto según el día.
+  **Si una llamada se acerca a los 600 s, pártela y actualiza esta sección** — no la dejes
+  al borde para la siguiente persona. La regla es que cada llamada quede holgadamente por
+  debajo, no justo por debajo.
+- **Correr `tests/budget` en una sola llamada, además de no caber, provoca deadlocks del
+  pooler** y errores de `sqlflush` en el desmontaje. Partida no pasa. Son dos razones
+  independientes para la misma partición.
 - **Tras añadir una migración hay que correr una vez con `--create-db`**, o la base reutilizada conserva el esquema viejo y las pruebas mienten. Este plan añade **seis** migraciones.
 - El pooler de Supabase deja sesiones abiertas: dos corridas seguidas pueden dar un error de arranque espurio (`There is 1 other session using the database`) que un reintento limpia.
 - La base `test_postgres` **no es basura**: es la que reutiliza `--reuse-db`.
