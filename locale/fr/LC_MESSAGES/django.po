@@ -1139,3 +1139,31 @@ msgstr "Ce mois n'existe pas au calendrier."
 #: apps/budget/views.py
 msgid "This month is already closed."
 msgstr "Ce mois est déjà clôturé."
+
+#: apps/subscriptions/models.py
+msgid "Trial"
+msgstr "Essai"
+
+#: apps/subscriptions/models.py
+msgid "trial ends at"
+msgstr "fin de la période d'essai"
+
+#: apps/subscriptions/models.py
+msgid "paid at"
+msgstr "payé le"
+
+#: apps/subscriptions/models.py
+msgid "subscription"
+msgstr "abonnement"
+
+#: apps/subscriptions/models.py
+msgid "subscriptions"
+msgstr "abonnements"
+
+#: apps/subscriptions/models.py
+msgid "Stripe event"
+msgstr "Événement Stripe"
+
+#: apps/subscriptions/models.py
+msgid "Stripe events"
+msgstr "Événements Stripe"

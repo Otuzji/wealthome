@@ -1123,3 +1123,31 @@ msgstr "That month is not on the calendar."
 #: apps/budget/views.py
 msgid "This month is already closed."
 msgstr "This month is already closed."
+
+#: apps/subscriptions/models.py
+msgid "Trial"
+msgstr "Trial"
+
+#: apps/subscriptions/models.py
+msgid "trial ends at"
+msgstr "trial ends at"
+
+#: apps/subscriptions/models.py
+msgid "paid at"
+msgstr "paid at"
+
+#: apps/subscriptions/models.py
+msgid "subscription"
+msgstr "subscription"
+
+#: apps/subscriptions/models.py
+msgid "subscriptions"
+msgstr "subscriptions"
+
+#: apps/subscriptions/models.py
+msgid "Stripe event"
+msgstr "Stripe event"
+
+#: apps/subscriptions/models.py
+msgid "Stripe events"
+msgstr "Stripe events"

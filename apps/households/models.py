@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 
@@ -34,6 +35,23 @@ class Household(models.Model):
 
     def active_memberships(self):
         return self.memberships.filter(is_active=True)
+
+    @cached_property
+    def puede_escribir(self):
+        """Si este hogar admite escrituras hoy (§5.2).
+
+        Un hogar SIN fila de suscripcion puede escribir. Es deliberado (§2.4
+        del spec del Plan 3): fallar cerrado romperia toda fabrica de pruebas
+        que no pase por crear_hogar, y lo que hay que impedir es que escriba un
+        hogar con una suscripcion vencida, no uno sin fila. Los tres sitios que
+        crean hogares crean la suscripcion, y hay prueba de ello.
+
+        `cached_property` y no `property`: la guardia de HouseholdScoped.save()
+        pregunta esto en cada guardado, y sin cache seria una consulta por fila
+        escrita.
+        """
+        suscripcion = getattr(self, "subscription", None)
+        return True if suscripcion is None else suscripcion.esta_vigente
 
 
 class Membership(models.Model):

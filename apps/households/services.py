@@ -34,6 +34,10 @@ def crear_hogar(user, nombre, family_size):
     from apps.budget.seeds import sembrar
 
     sembrar(household)
+
+    from apps.subscriptions.services import crear_suscripcion
+
+    crear_suscripcion(household)
     return household
 
 
