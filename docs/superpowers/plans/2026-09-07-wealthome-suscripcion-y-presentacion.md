@@ -41,25 +41,30 @@ Propias de este plan:
 ## Cómo correr las pruebas en esta máquina
 
 **El límite de una llamada de herramienta son 600 s, y `tests/budget` entera tarda ~692 s.**
-No cabe. Se corre en **cuatro** llamadas, todas en primer plano, ninguna cerca del límite:
+No cabe. Se corre en **seis** llamadas, todas en primer plano, ninguna cerca del límite:
 
 ```bash
 # 1 · el motor puro: 128 pruebas, bajo un segundo
 .venv/Scripts/python.exe -m pytest tests/budget/engine -q
 
-# 2 · modelos y vistas: 62 pruebas, ~5 min
+# 2 · modelos y vistas: 65 pruebas, ~6 min
 .venv/Scripts/python.exe -m pytest tests/budget/test_models.py tests/budget/test_views.py -q
 
-# 3 · el resto del presupuesto: 79 pruebas, ~6-7 min
+# 3 · el ciclo del mes y los servicios: 31 pruebas, ~5 min
+.venv/Scripts/python.exe -m pytest -q \
+    tests/budget/test_month_cycle.py tests/budget/test_services.py
+
+# 4 · el resto del presupuesto: 51 pruebas, ~4-5 min
 .venv/Scripts/python.exe -m pytest tests/budget -q \
     --ignore=tests/budget/engine \
-    --ignore=tests/budget/test_models.py --ignore=tests/budget/test_views.py
+    --ignore=tests/budget/test_models.py --ignore=tests/budget/test_views.py \
+    --ignore=tests/budget/test_month_cycle.py --ignore=tests/budget/test_services.py
 
-# 4 · la fundación: 77 pruebas, ~5-8 min
+# 5 · la fundación: 77 pruebas, ~3-8 min
 .venv/Scripts/python.exe -m pytest -q tests/test_scoping.py tests/test_permisos.py \
     tests/test_settings_views.py tests/test_money_field.py
 
-# 5 · todo lo demás: ~5-8 min
+# 6 · todo lo demás: 82 pruebas, ~6 min
 .venv/Scripts/python.exe -m pytest -q --ignore=tests/budget \
     --ignore=tests/test_scoping.py --ignore=tests/test_permisos.py \
     --ignore=tests/test_settings_views.py --ignore=tests/test_money_field.py
@@ -70,18 +75,24 @@ nueva; las siguientes reutilizan ya el esquema nuevo.
 
 **Trampas del entorno — leer antes de la primera tarea:**
 
-- **Las llamadas 1 a 3 cubren exactamente las mismas pruebas que `tests/budget` entera.**
-  La partición es por tiempo, no por tema: las 141 pruebas de base de datos van a ~4,9 s
-  cada una contra el pooler de Supabase, y las 128 del motor puro a menos de un segundo
-  las 128 juntas. Si añades un archivo de pruebas nuevo bajo `tests/budget/`, la llamada 3
-  lo recoge sola; si lo añades a `test_models.py` o `test_views.py`, vigila que la llamada
-  2 siga por debajo de 600 s.
+- **Las llamadas 1 a 4 cubren exactamente las mismas pruebas que `tests/budget` entera.**
+  La partición es por tiempo, no por tema: las pruebas de base de datos van a ~5-10 s cada
+  una contra el pooler de Supabase, y las 128 del motor puro a menos de un segundo las 128
+  juntas. Si añades un archivo de pruebas nuevo bajo `tests/budget/`, la llamada 4 lo
+  recoge sola; si lo añades a `test_models.py` o `test_views.py`, vigila que la llamada 2
+  siga por debajo de 600 s.
 - **Nunca lances las pruebas en segundo plano esperando un aviso: cuelga al agente.** Pasó
   tres veces en el Plan 1 y cuatro veces en este plan, hasta que se vio que la causa no era
   desobediencia sino que la suite no cabía en una llamada.
-- **El tiempo del pooler varía, y la partición se queda corta sola.** La llamada 4 empezó
-  el plan siendo una sola de ~5-7 min y hubo que partirla en dos en la Tarea 6, porque
-  contra el pooler de Supabase el mismo conjunto de pruebas tarda distinto según el día.
+- **El tiempo del pooler varía, y la partición se queda corta sola.** La llamada de
+  todo lo que no es presupuesto empezó el plan siendo una sola de ~5-7 min y hubo
+  que partirla en dos en la Tarea 6, porque contra el pooler de Supabase el mismo
+  conjunto de pruebas tarda distinto según el día.
+  En la Tarea 7 le tocó al resto del presupuesto: 565 s de 600, y salieron de ahí las
+  llamadas 3 y 4 de ahora. **El coste por prueba no es uniforme entre archivos**, así que
+  repartir por número de pruebas desequilibra: el primer corte dio 433 s contra 151 s, y
+  hubo que mover `test_aceptacion.py` al otro lado para dejarlas en 315 s y 261 s. Mide
+  cada mitad antes de escribirla aquí; no la estimes.
   **Si una llamada se acerca a los 600 s, pártela y actualiza esta sección** — no la dejes
   al borde para la siguiente persona. La regla es que cada llamada quede holgadamente por
   debajo, no justo por debajo.
