@@ -17,6 +17,10 @@ from apps.core.fields import MoneyField
 from apps.households.models import Household
 
 
+class SuscripcionVencidaError(Exception):
+    """Se intento escribir en un hogar cuya suscripcion vencio (§5.2)."""
+
+
 def _fin_de_la_prueba():
     return timezone.now() + timedelta(days=settings.DIAS_DE_PRUEBA)
 

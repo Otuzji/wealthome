@@ -228,6 +228,10 @@ msgstr "invitations"
 msgid "You do not have permission to do that in this household."
 msgstr "You do not have permission to do that in this household."
 
+#: apps/households/permissions.py
+msgid "Your trial has ended. Subscribe to keep adding to your budget."
+msgstr "Your trial has ended. Subscribe to keep adding to your budget."
+
 #: apps/households/services.py
 msgid "Only the administrator can invite members."
 msgstr "Only the administrator can invite members."
@@ -343,6 +347,10 @@ msgstr "Not allowed"
 #: templates/403.html
 msgid "You do not have permission to see this page."
 msgstr "You do not have permission to see this page."
+
+#: templates/403.html
+msgid "See subscription"
+msgstr "See subscription"
 
 #: templates/404.html
 msgid "Page not found"

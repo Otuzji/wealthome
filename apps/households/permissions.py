@@ -38,13 +38,36 @@ from .models import Membership
 
 __all__ = [
     "PermissionDenied",
+    "SuscripcionVencida",
     "con_hogar",
     "get_membership",
     "hogar_actual",
     "require_permission",
     "requiere_permiso",
+    "sin_guardia_de_suscripcion",
     "solo_admin",
 ]
+
+METODOS_SEGUROS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
+
+
+class SuscripcionVencida(PermissionDenied):
+    """La prueba termino y el hogar no ha pagado: solo lectura (§5.2).
+
+    Subclase de PermissionDenied para que la maquinaria de 403 que ya existe la
+    sirva sin middleware nuevo. La plantilla 403 la distingue y ofrece pagar.
+    """
+
+
+def sin_guardia_de_suscripcion(vista):
+    """Marca una vista como exenta de la guardia de suscripcion.
+
+    Existe con nombre y no como una condicion escondida dentro de la guardia:
+    si la guardia cubriera las vistas de pago, un hogar expirado no podria
+    pagar para dejar de estarlo. Es la unica exencion, y se ve en la revision.
+    """
+    vista.permite_escritura_expirada = True
+    return vista
 
 
 def get_membership(user, household):
@@ -107,6 +130,17 @@ def _decorador(comprobar):
         def envuelta(request, *args, **kwargs):
             membresia = membresia_actual(request)
             comprobar(membresia)
+            # La guardia de suscripcion, por METODO y no por vista: asi las
+            # vistas de htmx que aun no existen nacen cubiertas, y "expirar no
+            # destruye datos" (§5.2) se cumple por construccion.
+            if (
+                request.method not in METODOS_SEGUROS
+                and not getattr(vista, "permite_escritura_expirada", False)
+                and not membresia.household.puede_escribir
+            ):
+                raise SuscripcionVencida(
+                    _("Your trial has ended. Subscribe to keep adding to your budget.")
+                )
             return vista(request, membresia.household, *args, **kwargs)
 
         return envuelta

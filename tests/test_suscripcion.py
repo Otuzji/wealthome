@@ -61,3 +61,50 @@ def test_un_hogar_sin_fila_de_suscripcion_puede_escribir():
     hogar = type(hogar).objects.get(pk=hogar.pk)
 
     assert hogar.puede_escribir is True
+
+
+@pytest.mark.django_db
+def test_un_hogar_expirado_lee_pero_no_escribe(client):
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    client.force_login(user)
+
+    assert client.get(reverse("budget:configurar")).status_code == 200
+    assert client.post(reverse("budget:ingreso_nuevo"), {}).status_code == 403
+
+
+@pytest.mark.django_db
+def test_la_capa_de_modelo_lanza_aunque_se_rodee_la_vista():
+    from apps.subscriptions.models import SuscripcionVencidaError
+    from tests.factories_budget import CategoryFactory
+
+    hogar = HouseholdFactory()
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    hogar = type(hogar).objects.get(pk=hogar.pk)   # limpia la cached_property
+
+    with pytest.raises(SuscripcionVencidaError):
+        CategoryFactory(household=hogar)
+
+
+@pytest.mark.django_db
+def test_un_hogar_en_prueba_escribe_sin_problema(client):
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    assert client.get(reverse("budget:configurar")).status_code == 200
+    # 200 porque el formulario vacio se re-renderiza con errores, no 403.
+    assert client.post(reverse("budget:ingreso_nuevo"), {}).status_code == 200

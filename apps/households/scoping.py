@@ -163,3 +163,24 @@ class HouseholdScoped(models.Model):
         # unique_together en vez de un UniqueConstraint explícito.
         with _validando_unicidad():
             super().validate_unique(exclude=exclude)
+
+    def save(self, *args, **kwargs):
+        """Rechaza la escritura si la suscripcion del hogar vencio (§5.2).
+
+        Es la capa que no se puede rodear: cubre el comando de gestion, los
+        scripts y cualquier camino que no pase por una vista. La otra capa esta
+        en apps/households/permissions.py::_decorador.
+
+        Alcance real, para que nadie lea aqui mas de lo que hay: cubre todo
+        `save()`, incluido con update_fields. NO cubre `queryset.update()` ni
+        `bulk_create()`, que no llaman a save() — exactamente el mismo punto
+        ciego que EscrituraAcotadaAlMes documenta en su docstring. Quedan
+        prohibidos por convencion sobre estos modelos.
+        """
+        from apps.subscriptions.models import SuscripcionVencidaError
+
+        if self.household_id and not self.household.puede_escribir:
+            raise SuscripcionVencidaError(
+                f"La suscripcion del hogar {self.household_id} vencio: solo lectura."
+            )
+        super().save(*args, **kwargs)
