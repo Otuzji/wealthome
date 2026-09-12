@@ -13,6 +13,7 @@ urlpatterns = [
     path("setup/category/new/", views_setup.categoria_nueva, name="categoria_nueva"),
     path("setup/split/new/", views_setup.reparto_nuevo, name="reparto_nuevo"),
     path("spend/", views_month.registrar, name="registrar"),
+    path("line/new/", views_month.linea_nueva, name="linea_nueva"),
     path("goals/new/", views_goals.meta_nueva, name="meta_nueva"),
     path("goals/contribute/", views_goals.aportar, name="aportar"),
     # Antes de los patrones con <str:ambito>, o "personal" se comeria el

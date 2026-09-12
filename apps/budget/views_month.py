@@ -15,7 +15,7 @@ from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services
 from .engine.cascade import repartir
-from .forms import TransactionForm
+from .forms import BudgetLineForm, TransactionForm
 from .models import AllocationRule, AllowanceLedger, MesCerrado, Transaction
 from .scopes import acotar, acotar_por_dueno, validar
 
@@ -220,3 +220,27 @@ def mesada(request, hogar):
         "mes": mes_actual, "hay_ajuste": hay_ajuste,
         "mes_del_ajuste": mes_del_ajuste,
     })
+
+
+@requiere_permiso("can_edit_budget")
+def linea_nueva(request, hogar):
+    """Anade una partida excepcional al mes corriente (paso 2 del §4.5.6)."""
+    hoy = timezone.localdate()
+    form = BudgetLineForm(request.POST or None, household=hogar)
+    if request.method == "POST" and form.is_valid():
+        mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
+        linea = form.save(commit=False)
+        linea.household = hogar
+        linea.budget_month = mes_actual
+        linea.is_exceptional = True
+        try:
+            linea.full_clean()
+            linea.save()
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            return redirect("budget:mes", "household")
+    return render(request, "budget/formulario.html",
+                  {"form": form, "titulo": _("One-off item this month")})

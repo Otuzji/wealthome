@@ -13,6 +13,7 @@ from apps.households.scoped_forms import HouseholdScopedModelForm
 
 from .models import (
     AllocationRule,
+    BudgetLine,
     Category,
     ExpenseRule,
     Goal,
@@ -134,3 +135,25 @@ class GoalContributionForm(HouseholdScopedModelForm):
         model = GoalContribution
         fields = ["goal", "amount", "date"]
         widgets = {"date": forms.DateInput(attrs={"type": "date"})}
+
+
+class BudgetLineForm(HouseholdScopedModelForm):
+    """Las partidas excepcionales del paso 2 del §4.5.6.
+
+    Sin este formulario, `is_exceptional` era un campo que nadie podia poner:
+    materializar solo escribe lineas nacidas de una regla. Una linea sin
+    source_income ni source_expense_rule ES una linea excepcional (§5.3 del
+    diseno del Plan 2), asi que el formulario no ofrece esos dos campos y la
+    vista marca is_exceptional.
+    """
+
+    class Meta:
+        model = BudgetLine
+        fields = ["category", "kind", "planned_amount", "scope", "owner", "note"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # `owner` es una Membership, que no hereda de HouseholdScoped, asi que la
+        # base no lo acota: mismo caso que IncomeSourceForm.
+        self.fields["owner"].queryset = self.household.active_memberships()
+        self.fields["owner"].required = False

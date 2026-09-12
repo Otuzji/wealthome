@@ -813,3 +813,68 @@ def test_sin_mesada_la_pantalla_lo_dice_y_no_revienta(client, admin_con_hogar):
     assert respuesta.status_code == 200
     assert respuesta.context["libro"] is None
     assert respuesta.context["hay_ajuste"] is False
+
+
+# --- la linea excepcional (Tarea 25) ------------------------------------------
+
+
+def test_se_puede_anadir_una_partida_excepcional_al_mes(client, admin_con_hogar):
+    from apps.budget.models import BudgetLine
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    categoria = CategoryFactory(household=hogar, slug="campamento", kind="expense")
+
+    respuesta = client.post(reverse("budget:linea_nueva"), {
+        "category": categoria.pk, "kind": "expense",
+        "planned_amount": "320.00", "scope": "household",
+        "note": "Inscripcion del campamento",
+    })
+
+    assert respuesta.status_code == 302
+    linea = BudgetLine.objects.for_household(hogar).get(
+        note="Inscripcion del campamento"
+    )
+    assert linea.planned_amount == Decimal("320.00")
+    # Sin regla detras: eso ES una linea excepcional (§5.3 del Plan 2).
+    assert linea.source_income_id is None
+    assert linea.source_expense_rule_id is None
+    assert linea.is_exceptional is True
+
+
+def test_no_se_anade_una_partida_a_un_mes_cerrado(client, admin_con_hogar):
+    from django.utils import timezone
+
+    from tests.factories_budget import BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    categoria = CategoryFactory(household=hogar, slug="tarde", kind="expense")
+    hoy = timezone.localdate()
+    BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month,
+                       status="closed")
+
+    respuesta = client.post(reverse("budget:linea_nueva"), {
+        "category": categoria.pk, "kind": "expense",
+        "planned_amount": "320.00", "scope": "household", "note": "Tarde",
+    })
+
+    assert respuesta.status_code == 200      # el formulario, con su error
+    assert b"closed" in respuesta.content.lower()
+
+
+def test_la_partida_excepcional_no_ofrece_miembros_de_otro_hogar(client, admin_con_hogar):
+    """owner es una Membership, que no hereda de HouseholdScoped: la base no la
+    acota sola. Sin el queryset explicito, el <select> traeria a las demas
+    familias — el mismo agujero que IncomeSourceForm ya tenia tapado."""
+    from apps.budget.forms import BudgetLineForm
+    from apps.households.services import crear_hogar
+
+    _user, hogar = admin_con_hogar
+    ajeno = crear_hogar(UserFactory(), "Los Otros", family_size=2)
+
+    form = BudgetLineForm(household=hogar)
+    duenos = set(form.fields["owner"].queryset)
+
+    assert duenos == set(hogar.active_memberships())
+    assert not duenos & set(ajeno.active_memberships())
