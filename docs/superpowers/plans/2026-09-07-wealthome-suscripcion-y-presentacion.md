@@ -41,41 +41,73 @@ Propias de este plan:
 ## Cómo correr las pruebas en esta máquina
 
 **El límite de una llamada de herramienta son 600 s, y `tests/budget` entera tarda ~692 s.**
-No cabe. Se corre en **seis** llamadas, todas en primer plano, ninguna cerca del límite:
+No cabe. Se corre en **ocho** llamadas, todas en primer plano, ninguna cerca del
+límite. Los tiempos son los medidos al cerrar la tanda 2 (458 pruebas):
 
 ```bash
 # 1 · el motor puro: 128 pruebas, bajo un segundo
 .venv/Scripts/python.exe -m pytest tests/budget/engine -q
 
-# 2 · modelos y vistas: 65 pruebas, ~6 min
+# 2 · modelos y vistas del presupuesto: 65 pruebas, ~6-7 min
 .venv/Scripts/python.exe -m pytest tests/budget/test_models.py tests/budget/test_views.py -q
 
-# 3 · el ciclo del mes y los servicios: 31 pruebas, ~5 min
+# 3 · el ciclo del mes y los servicios: 35 pruebas, ~6 min
 .venv/Scripts/python.exe -m pytest -q \
     tests/budget/test_month_cycle.py tests/budget/test_services.py
 
-# 4 · el resto del presupuesto: 51 pruebas, ~4-5 min
+# 4 · el resto del presupuesto: 51 pruebas, ~5 min
 .venv/Scripts/python.exe -m pytest tests/budget -q \
     --ignore=tests/budget/engine \
     --ignore=tests/budget/test_models.py --ignore=tests/budget/test_views.py \
     --ignore=tests/budget/test_month_cycle.py --ignore=tests/budget/test_services.py
 
-# 5 · la fundación: 77 pruebas, ~3-8 min
+# 5 · la fundación: 77 pruebas, ~3,5 min
 .venv/Scripts/python.exe -m pytest -q tests/test_scoping.py tests/test_permisos.py \
     tests/test_settings_views.py tests/test_money_field.py
 
-# 6 · todo lo demás: 82 pruebas, ~6 min
+# 6 · cuentas e invitaciones: 32 pruebas, ~3 min
+.venv/Scripts/python.exe -m pytest -q tests/test_invitations.py \
+    tests/test_auth_flow.py tests/test_accounts.py
+
+# 7 · suscripción y webhook: 28 pruebas, ~1,5 min
+.venv/Scripts/python.exe -m pytest -q tests/test_suscripcion.py tests/test_webhook.py
+
+# 8 · todo lo demás: 42 pruebas, ~5 min
 .venv/Scripts/python.exe -m pytest -q --ignore=tests/budget \
     --ignore=tests/test_scoping.py --ignore=tests/test_permisos.py \
-    --ignore=tests/test_settings_views.py --ignore=tests/test_money_field.py
+    --ignore=tests/test_settings_views.py --ignore=tests/test_money_field.py \
+    --ignore=tests/test_suscripcion.py --ignore=tests/test_webhook.py \
+    --ignore=tests/test_invitations.py --ignore=tests/test_auth_flow.py \
+    --ignore=tests/test_accounts.py
 ```
+
+**El modelo de coste, medido, para que el próximo reparto no sea a ciegas.** El
+tiempo de una llamada es `suma de los tiempos de ejecución + ~3,2 s por prueba`.
+Ese segundo término es el montaje y desmontaje de cada prueba contra el pooler y
+**domina**: en la llamada 8 original, 74 pruebas daban 223 s de ejecución y 234 s
+de puro montaje. Por eso una llamada con muchas pruebas rápidas puede costar más
+que una con pocas lentas, y por eso repartir por número de pruebas desequilibra.
+Para medir por archivo:
+
+```bash
+.venv/Scripts/python.exe -m pytest -q <selección> --durations=0 2>&1 \
+  | grep -E "^[0-9]+\.[0-9]+s call" \
+  | awk '{split($3,a,"::"); t[a[1]]+=$1} END {for (f in t) printf "%7.1fs  %s\n", t[f], f}' \
+  | sort -rn
+```
+
+**Las llamadas 2 y 3 son las próximas en romperse** (~396 s y ~375 s): la Tarea 18
+parte `views.py` y las Tareas 19-22 añaden pantallas, así que `test_views.py`
+crece. Mide antes de dar por buena la partición al abrir la tanda 4.
 
 Añade `--create-db` **a la primera llamada que toque la base** (la 2) tras una migración
 nueva; las siguientes reutilizan ya el esquema nuevo.
 
 **Trampas del entorno — leer antes de la primera tarea:**
 
-- **Las llamadas 1 a 4 cubren exactamente las mismas pruebas que `tests/budget` entera.**
+- **Las llamadas 1 a 4 cubren exactamente las mismas pruebas que `tests/budget` entera,
+  y la 8 autorecoge todo lo que no nombren las otras.** Un archivo de pruebas nuevo
+  fuera de `tests/budget/` cae solo en la 8; uno dentro, en la 4.
   La partición es por tiempo, no por tema: las pruebas de base de datos van a ~5-10 s cada
   una contra el pooler de Supabase, y las 128 del motor puro a menos de un segundo las 128
   juntas. Si añades un archivo de pruebas nuevo bajo `tests/budget/`, la llamada 4 lo
