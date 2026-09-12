@@ -119,3 +119,37 @@ def reordenar_reglas(request, hogar):
     return render(request, "wizards/_reglas.html", {
         "reglas": AllocationRule.objects.for_household(hogar).filter(is_active=True),
     })
+
+
+# El paso 1 es accounts:registro, que ya crea usuario y hogar. Del 2 al 6, cada
+# paso ENVUELVE un formulario que ya existe en Configurar en vez de duplicarlo:
+# el asistente es una guia, no una segunda forma de crear las mismas cosas.
+PASOS_INCORPORACION = {
+    2: ("miembros", "households:invitar", _("Who else lives here")),
+    3: ("ingresos", "budget:ingreso_nuevo", _("What comes in")),
+    4: ("gastos", "budget:gasto_nuevo", _("What goes out every month")),
+    5: ("meta", "budget:meta_nueva", _("What you are saving for")),
+    6: ("reparto", "budget:reparto_nuevo", _("How the leftover gets split")),
+}
+
+TOTAL_INCORPORACION = 6
+
+
+@requiere_permiso("can_edit_budget")
+def incorporacion(request, hogar, paso):
+    """El asistente del §7.2, del paso 2 al 6. El 1 es el registro.
+
+    Cada paso se puede saltar, y eso NO es un adorno: el paso 1 crea el hogar de
+    verdad y los cinco siguientes escriben contra el, asi que quien cierre la
+    pestana en el paso 3 ya tiene un hogar. Un asistente que hay que terminar de
+    una sentada convierte una interrupcion en una cuenta rota.
+    """
+    if paso not in PASOS_INCORPORACION:
+        raise Http404(_("That step does not exist."))
+
+    nombre, ruta, titulo = PASOS_INCORPORACION[paso]
+    siguiente = paso + 1 if paso + 1 in PASOS_INCORPORACION else None
+    return render(request, "wizards/incorporacion.html", {
+        "paso": paso, "total": TOTAL_INCORPORACION, "nombre": nombre,
+        "titulo": titulo, "ruta_del_formulario": ruta, "siguiente": siguiente,
+    })

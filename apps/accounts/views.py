@@ -28,7 +28,9 @@ def registro(request):
                 )
                 crear_hogar(user, form.cleaned_data["household_name"], form.cleaned_data["family_size"])
             login(request, user)
-            return redirect("accounts:inicio")
+            # Al paso 2 del asistente y no a la portada: el paso 1 acaba de
+            # crear el hogar, y sin esto nadie descubre los cinco que faltan.
+            return redirect("budget:incorporacion", paso=2)
     else:
         form = RegistroForm()
     return render(request, "accounts/registro.html", {"form": form})

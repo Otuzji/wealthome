@@ -15,6 +15,7 @@ urlpatterns = [
     path("spend/", views_month.registrar, name="registrar"),
     path("line/new/", views_month.linea_nueva, name="linea_nueva"),
     path("split/reorder/", wizards.reordenar_reglas, name="reordenar_reglas"),
+    path("welcome/<int:paso>/", wizards.incorporacion, name="incorporacion"),
     path("goals/new/", views_goals.meta_nueva, name="meta_nueva"),
     path("goals/contribute/", views_goals.aportar, name="aportar"),
     # Antes de los patrones con <str:ambito>, o "personal" se comeria el
