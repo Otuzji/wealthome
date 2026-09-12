@@ -77,7 +77,7 @@ def test_criterio_1_un_mes_futuro_se_calcula_desde_las_reglas_sin_persistir(
     admin, hogar = hogar_configurado
     client.force_login(admin)
 
-    html = client.get(reverse("budget:mes", args=[2030, 5])).content.decode()
+    html = client.get(reverse("budget:mes", args=["household", 2030, 5])).content.decode()
 
     assert "3,000.00" in html          # el ingreso proyectado desde la regla
     assert "1,200.00" in html          # el sobrante
@@ -118,10 +118,10 @@ def test_criterio_3_la_pareja_planifica_y_cada_uno_sabe_su_mesada(client, hogar_
     admin, hogar = hogar_configurado
     client.force_login(admin)
 
-    html = client.get(reverse("budget:planificar")).content.decode()
+    html = client.get(reverse("budget:planificar", args=["household"])).content.decode()
     assert "1,200.00" in html          # el sobrante que van a repartir
 
-    assert client.post(reverse("budget:planificar")).status_code == 302
+    assert client.post(reverse("budget:planificar", args=["household"])).status_code == 302
 
     mesadas = AllowanceLedger.objects.for_household(hogar).order_by("member_id")
     assert [m.granted for m in mesadas] == [Decimal("300.00"), Decimal("300.00")]
@@ -305,7 +305,7 @@ def test_criterio_10_la_aplicacion_entera_funciona_en_frances(client, hogar_conf
     admin.profile.save()
     client.force_login(admin)
 
-    html = _normalizar(client.get(reverse("budget:mes", args=[2030, 5])).content.decode())
+    html = _normalizar(client.get(reverse("budget:mes", args=["household", 2030, 5])).content.decode())
 
     assert "2 847,50 $" in html
     assert "Ce mois-ci" in html

@@ -42,7 +42,7 @@
   <form method="post">
     {% csrf_token %}
     <button class="btn btn--primary btn--bloque" type="submit">{% translate "Confirm the plan" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:mes' %}">{% translate "Cancel" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito %}">{% translate "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

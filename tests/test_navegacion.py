@@ -31,8 +31,8 @@ PERMISOS = {
 # Lo que CADA perfil tiene que poder alcanzar desde el menu, por nombre de
 # entrada. Ni una mas, ni una menos.
 ESPERADO = {
-    ADMIN: {"hogar", "registrar", "metas", "ajustes"},
-    SOLO_VER: {"hogar", "metas", "ajustes"},
+    ADMIN: {"hogar", "personal", "registrar", "metas", "ajustes"},
+    SOLO_VER: {"hogar", "personal", "metas", "ajustes"},
     ADOLESCENTE: {"registrar", "ajustes"},
 }
 

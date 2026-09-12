@@ -1,8 +1,8 @@
-"""Las pantallas del presupuesto.
+"""El mes: verlo, registrar en el, planificarlo y cerrarlo.
 
-Primer uso real de `@requiere_permiso`: el decorador resuelve el hogar de la
-petición, comprueba el permiso del §6.2 y pasa el hogar como segundo
-argumento. Ninguna vista elige "el" hogar por su cuenta.
+`mes`, `planificar` y `cerrar` llevan ambito; `registrar` no. Registrar un gasto
+es una sola accion —la mas frecuente del §7.1— y el ambito de la fila lo decide
+el formulario, no la URL de la que se entro.
 """
 
 from django.core.exceptions import ValidationError
@@ -15,74 +15,13 @@ from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services
 from .engine.cascade import repartir
-from .forms import (
-    AllocationRuleForm,
-    CategoryForm,
-    ExpenseRuleForm,
-    GoalContributionForm,
-    GoalForm,
-    IncomeSourceForm,
-    TransactionForm,
-)
-from .models import (
-    AllocationRule,
-    Category,
-    ExpenseRule,
-    Goal,
-    IncomeSource,
-    MesCerrado,
-)
+from .forms import TransactionForm
+from .models import AllocationRule, MesCerrado
+from .scopes import acotar, acotar_por_dueno, validar
 
-
-@requiere_permiso("can_edit_budget")
-def configurar(request, hogar):
-    return render(request, "budget/configurar.html", {
-        "ingresos": IncomeSource.objects.for_household(hogar).select_related("owner__user"),
-        "gastos": ExpenseRule.objects.for_household(hogar).select_related("category"),
-        "categorias": Category.objects.for_household(hogar).order_by("parent_id", "slug"),
-        "repartos": AllocationRule.objects.for_household(hogar),
-    })
-
-
-def _crear(request, hogar, form_class, titulo):
-    """Un formulario de alta, con el hogar acotado por la base segura.
-
-    El `full_clean()` tras fijar el hogar es lo que hace que un POST con el id
-    de una fila ajena falle aunque alguien se saltara el formulario: el
-    `clean()` del modelo comprueba el hogar de cada relación.
-    """
-    form = form_class(request.POST or None, household=hogar)
-    if request.method == "POST" and form.is_valid():
-        objeto = form.save(commit=False)
-        objeto.household = hogar
-        try:
-            objeto.full_clean()
-        except ValidationError as exc:
-            form.add_error(None, exc)
-        else:
-            objeto.save()
-            return redirect("budget:configurar")
-    return render(request, "budget/formulario.html", {"form": form, "titulo": titulo})
-
-
-@requiere_permiso("can_edit_budget")
-def ingreso_nuevo(request, hogar):
-    return _crear(request, hogar, IncomeSourceForm, _("New income"))
-
-
-@requiere_permiso("can_edit_budget")
-def gasto_nuevo(request, hogar):
-    return _crear(request, hogar, ExpenseRuleForm, _("New fixed expense"))
-
-
-@requiere_permiso("can_edit_budget")
-def categoria_nueva(request, hogar):
-    return _crear(request, hogar, CategoryForm, _("New category"))
-
-
-@requiere_permiso("can_edit_budget")
-def reparto_nuevo(request, hogar):
-    return _crear(request, hogar, AllocationRuleForm, _("New split rule"))
+# El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
+# PositiveSmallIntegerField del modelo y en el que un presupuesto tiene sentido.
+ANIO_MINIMO, ANIO_MAXIMO = 2000, 2100
 
 
 @requiere_permiso("can_add_transactions")
@@ -92,10 +31,10 @@ def registrar(request, hogar):
     form = TransactionForm(request.POST or None, household=hogar,
                            initial={"date": hoy})
     if request.method == "POST" and form.is_valid():
-        mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+        mes_fila = services.obtener_mes(hogar, hoy.year, hoy.month)
         tx = form.save(commit=False)
         tx.household = hogar
-        tx.budget_month = mes
+        tx.budget_month = mes_fila
         tx.merchant = form.comercio()
         tx.member = membresia_actual(request)
         try:
@@ -112,13 +51,10 @@ def registrar(request, hogar):
     return render(request, "budget/gasto.html", {"form": form})
 
 
-# El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
-# PositiveSmallIntegerField del modelo y en el que un presupuesto tiene sentido.
-ANIO_MINIMO, ANIO_MAXIMO = 2000, 2100
-
-
 @requiere_permiso("can_view_budget")
-def mes(request, hogar, anio=None, numero=None):
+def mes(request, hogar, ambito, anio=None, numero=None):
+    ambito = validar(ambito)
+    membresia = membresia_actual(request)
     hoy = timezone.localdate()
     # `is None`, no `or`: un mes 0 en la URL es falsy y se colaba como "no
     # dado", devolviendo el mes corriente en vez del 404 que merece.
@@ -133,25 +69,30 @@ def mes(request, hogar, anio=None, numero=None):
     es_proyeccion = isinstance(resultado, services.ProyeccionDeMes)
     contexto = {
         "resultado": resultado, "es_proyeccion": es_proyeccion,
-        "anio": anio, "numero": numero,
+        "anio": anio, "numero": numero, "ambito": ambito,
     }
     if not es_proyeccion:
         # select_related sobre la categoria: la plantilla lee category.etiqueta
         # en cada fila, y sin esto un mes con 120 transacciones son 120
         # consultas contra el pooler.
-        contexto["lineas"] = resultado.lineas.select_related("category")
-        contexto["transacciones"] = resultado.transacciones.select_related("category")
+        contexto["lineas"] = acotar_por_dueno(
+            resultado.lineas.select_related("category"), ambito, membresia
+        )
+        contexto["transacciones"] = acotar(
+            resultado.transacciones.select_related("category"), ambito, membresia
+        )
     return render(request, "budget/mes.html", contexto)
 
 
 @requiere_permiso("can_edit_budget")
-def planificar(request, hogar):
+def planificar(request, hogar, ambito):
     """El asistente del §4.5.6, en una sola pantalla.
 
     Los tres pasos del spec —ingresos, salidas, reparto— se presentan juntos
     porque el Plan 3 rehará la navegación; lo que importa aquí es que el
     cálculo y la escritura sean los definitivos.
     """
+    ambito = validar(ambito)
     hoy = timezone.localdate()
     mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
     # obtener_mes devuelve una fila (mes corriente materializado) o una
@@ -164,7 +105,7 @@ def planificar(request, hogar):
 
     if request.method == "POST":
         services.planificar_mes(hogar, mes_actual, proyeccion.sobrante)
-        return redirect("budget:mes")
+        return redirect("budget:mes", ambito)
 
     reglas_orm = {
         r.order: r
@@ -189,11 +130,13 @@ def planificar(request, hogar):
         "proyeccion": proyeccion,
         "asignaciones": asignaciones,
         "mes": mes_actual,
+        "ambito": ambito,
     })
 
 
 @requiere_permiso("can_edit_budget")
-def cerrar(request, hogar):
+def cerrar(request, hogar, ambito):
+    ambito = validar(ambito)
     hoy = timezone.localdate()
     mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
     if request.method == "POST":
@@ -201,40 +144,5 @@ def cerrar(request, hogar):
             services.cerrar_mes(mes_actual)
         except MesCerrado:
             pass   # ya estaba cerrado: idempotente, no un error del usuario
-        return redirect("budget:mes")
-    return render(request, "budget/cerrar.html", {"mes": mes_actual})
-
-
-@requiere_permiso("can_view_budget")
-def metas(request, hogar):
-    filas = []
-    for meta in Goal.objects.for_household(hogar):
-        acumulado = meta.acumulado()
-        aporte, fecha = meta.derivar(acumulado=acumulado)
-        filas.append({"meta": meta, "aporte": aporte, "fecha": fecha,
-                      "acumulado": acumulado})
-    return render(request, "budget/metas.html", {"filas": filas})
-
-
-@requiere_permiso("can_edit_budget")
-def meta_nueva(request, hogar):
-    return _crear(request, hogar, GoalForm, _("New goal"))
-
-
-@requiere_permiso("can_edit_budget")
-def aportar(request, hogar):
-    form = GoalContributionForm(request.POST or None, household=hogar)
-    if request.method == "POST" and form.is_valid():
-        aporte = form.save(commit=False)
-        aporte.household = hogar
-        aporte.member = membresia_actual(request)
-        aporte.budget_month = services.mes_de_fecha(hogar, aporte.date)
-        try:
-            aporte.full_clean()
-            aporte.save()
-        except MesCerrado:
-            form.add_error(None, _("This month is already closed."))
-        else:
-            return redirect("budget:metas")
-    return render(request, "budget/formulario.html",
-                  {"form": form, "titulo": _("Add to a goal")})
+        return redirect("budget:mes", ambito)
+    return render(request, "budget/cerrar.html", {"mes": mes_actual, "ambito": ambito})

@@ -65,8 +65,12 @@ def navegacion(request):
     entradas = []
     if _permiso(membresia, "can_view_budget"):
         entradas.append({
-            "nombre": "hogar", "url": reverse("budget:mes"),
+            "nombre": "hogar", "url": reverse("budget:overview", args=["household"]),
             "etiqueta": _("Household"), "icono": "home",
+        })
+        entradas.append({
+            "nombre": "personal", "url": reverse("budget:overview", args=["personal"]),
+            "etiqueta": _("Personal"), "icono": "persona",
         })
     if _permiso(membresia, "can_add_transactions") and puede_escribir:
         # El [+] del §7.1: la accion mas frecuente, siempre a un toque, y
@@ -78,7 +82,7 @@ def navegacion(request):
         })
     if _permiso(membresia, "can_view_budget"):
         entradas.append({
-            "nombre": "metas", "url": reverse("budget:metas"),
+            "nombre": "metas", "url": reverse("budget:metas", args=["household"]),
             "etiqueta": _("Goals"), "icono": "meta",
         })
     entradas.append({

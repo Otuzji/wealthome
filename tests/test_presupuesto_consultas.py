@@ -63,7 +63,7 @@ def test_la_pantalla_del_mes_no_hace_una_consulta_por_transaccion(
     _hogar, user, mes = hogar_con_movimiento
     client.force_login(user)
     with django_assert_num_queries(CONSULTAS_MES):
-        respuesta = client.get(reverse("budget:mes", args=[mes.year, mes.month]))
+        respuesta = client.get(reverse("budget:mes", args=["household", mes.year, mes.month]))
     assert respuesta.status_code == 200
 
 
@@ -76,5 +76,5 @@ def test_metas_no_calcula_el_acumulado_dos_veces(
         GoalFactory(household=hogar)
     client.force_login(user)
     with django_assert_num_queries(CONSULTAS_METAS):
-        respuesta = client.get(reverse("budget:metas"))
+        respuesta = client.get(reverse("budget:metas", args=["household"]))
     assert respuesta.status_code == 200

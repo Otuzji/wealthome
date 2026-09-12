@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% load i18n money static %}
+{% block title %}{% translate "Overview" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Overview" %}</h1>
+
+  <div class="cifras">
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Income" %}</div>
+      <div class="cifra__valor">{{ resultado.total_ingresos|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Fixed expenses" %}</div>
+      <div class="cifra__valor">{{ resultado.total_egresos|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+      <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>{% translate "Planned against real" %}</h2>
+  <canvas id="grafica-categorias"
+          data-etiqueta-planeado="{% translate 'Planned' %}"
+          data-etiqueta-real="{% translate 'Real' %}"></canvas>
+</section>
+
+<section class="card">
+  <h2>{% translate "How the balance moved" %}</h2>
+  <canvas id="grafica-balance"
+          data-etiqueta-balance="{% translate 'Balance' %}"></canvas>
+</section>
+
+<section class="card">
+  <h2>{% translate "Recent activity" %}</h2>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      {% for tx in recientes %}
+        <tr><td>{{ tx.date }}</td><td>{{ tx.category.etiqueta }}</td>
+            <td class="numero">{{ tx.amount|money:hogar.currency }}</td></tr>
+      {% empty %}
+        <tr><td>{% translate "Nothing recorded yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+
+{{ series_categorias|json_script:"series-categorias" }}
+{{ series_balance|json_script:"series-balance" }}
+<script src="{% static 'vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/graficas.js' %}"></script>
+{% endblock %}

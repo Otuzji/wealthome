@@ -381,5 +381,5 @@ def test_un_hogar_expirado_puede_mirar_su_mes(client):
     hogar.subscription.save()
     client.force_login(user)
 
-    assert client.get(reverse("budget:mes")).status_code == 200
+    assert client.get(reverse("budget:mes", args=["household"])).status_code == 200
     assert not BudgetMonth.objects.for_household(hogar).exists()

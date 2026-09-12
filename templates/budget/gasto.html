@@ -7,7 +7,7 @@
     {% csrf_token %}
     {{ form.as_div }}
     <button class="btn btn--primary btn--bloque" type="submit">{% translate "Save" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:mes' %}">{% translate "Cancel" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:mes' 'household' %}">{% translate "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

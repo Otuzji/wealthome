@@ -4,6 +4,6 @@
 <section class="card">
   <h1>{% translate "Welcome" %}</h1>
   <p>{% translate "Your budget lives in the menu. Start with this month." %}</p>
-  <p><a class="btn btn--primary" href="{% url 'budget:mes' %}">{% translate "This month" %}</a></p>
+  <p><a class="btn btn--primary" href="{% url 'budget:mes' 'household' %}">{% translate "This month" %}</a></p>
 </section>
 {% endblock %}
