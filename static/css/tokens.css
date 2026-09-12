@@ -26,6 +26,15 @@
   --shadow-inset:  inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
 
   --touch-target: 44px;
+
+  /* Paleta categorica de graficas. Cinco series: mas de cinco categorias en
+     una grafica ya no se distinguen por color, se distinguen por etiqueta. */
+  --chart-1: #3f8f6f;
+  --chart-2: #4a7a9b;
+  --chart-3: #a8894f;
+  --chart-4: #8c6b8f;
+  --chart-5: #6f7d8a;
+  --chart-grid: #d2d8de;
 }
 
 /* ---------- Nocturno ---------- */
@@ -40,6 +49,13 @@
 
   --shadow-light: #2c333c;
   --shadow-dark:  #1a1e24;
+
+  --chart-1: #5cc196;
+  --chart-2: #6ba3c9;
+  --chart-3: #d0ac6a;
+  --chart-4: #b795bb;
+  --chart-5: #93a0ad;
+  --chart-grid: #333b45;
 }
 
 /* ---------- Accesible ----------
@@ -66,4 +82,13 @@
   --shadow-inset:  none;
 
   --touch-target: 56px;
+
+  /* Aqui no se buscan colores bonitos sino SEPARACION: el contraste es la
+     senal que queda cuando la sombra se pierde. */
+  --chart-1: #0a5c3a;
+  --chart-2: #123a63;
+  --chart-3: #6b4306;
+  --chart-4: #5a1a52;
+  --chart-5: #333a41;
+  --chart-grid: #14181d;
 }

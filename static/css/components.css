@@ -21,3 +21,83 @@
 }
 
 .btn--primary { color: var(--accent-strong); }
+
+/* ---------- superficies ---------- */
+.card--hundida {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-inset);
+  padding: 20px;
+}
+
+/* ---------- botones ---------- */
+.btn--bloque { width: 100%; }
+.btn--sutil { color: var(--text-muted); box-shadow: none; }
+.btn:active { box-shadow: var(--shadow-inset); }
+
+/* ---------- campos ---------- */
+.campo {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-inset);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+}
+.campo--error { border-color: var(--danger); color: var(--danger); }
+.campo__ayuda { color: var(--text-muted); font-size: 0.875em; }
+
+/* ---------- tablas ---------- */
+.tabla { width: 100%; border-collapse: collapse; }
+.tabla th, .tabla td { padding: 10px 12px; text-align: left; }
+.tabla th { color: var(--text-muted); font-weight: var(--font-weight-strong); }
+.tabla td.numero, .tabla th.numero { text-align: right; font-variant-numeric: tabular-nums; }
+.tabla__envoltura { overflow-x: auto; }
+
+/* ---------- barra de progreso ---------- */
+.progreso {
+  height: 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-inset);
+  overflow: hidden;
+}
+.progreso__relleno { height: 100%; background: var(--accent); }
+
+/* ---------- pildora de estado ---------- */
+.pildora {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: var(--border-width) solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.875em;
+  font-weight: var(--font-weight-strong);
+}
+.pildora--bien { color: var(--accent-strong); }
+.pildora--mal { color: var(--danger); }
+
+/* ---------- tarjeta de cifra ---------- */
+.cifra {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-raised);
+  padding: 16px 18px;
+}
+.cifra__etiqueta { color: var(--text-muted); font-size: 0.875em; }
+.cifra__valor {
+  font-size: 1.6em;
+  font-weight: var(--font-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+.cifra__valor--mal { color: var(--danger); }
+.cifras { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
