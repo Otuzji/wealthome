@@ -88,8 +88,18 @@ def _cadenas_plantilla(texto):
     cadenas = [m.group("cad") for m in _TAG_SIMPLE_RE.finditer(texto)]
     for m in _BLOCKTRANS_RE.finditer(texto):
         cuerpo = " ".join(m.group("cuerpo").split())
-        cuerpo = _VARIABLE_RE.sub(lambda mm: "%(" + mm.group(1) + ")s", cuerpo)
-        cadenas.extend(trozo.strip() for trozo in _PLURAL_RE.split(cuerpo))
+        # EL ORDEN IMPORTA, y equivocarlo cuesta un ciclo:
+        # 1. partir por {% plural %}, que lleva % dentro;
+        # 2. escapar el % LITERAL a %%, como hace Django en el msgid que luego
+        #    busca (BlockTranslateNode.render_token_list), porque el mensaje se
+        #    formatea con el operador %. Sin esto, un blocktranslate con un "%"
+        #    —el porcentaje de una meta— se reportaba eternamente como ausente
+        #    aunque el .po estuviera BIEN escrito. El plan lo llamaba "el error
+        #    mas caro de esta tanda";
+        # 3. traducir {{ var }} a %(var)s, que INTRODUCE un % que no se escapa.
+        for trozo in _PLURAL_RE.split(cuerpo):
+            trozo = trozo.strip().replace("%", "%%")
+            cadenas.append(_VARIABLE_RE.sub(lambda mm: "%(" + mm.group(1) + ")s", trozo))
     return cadenas
 
 

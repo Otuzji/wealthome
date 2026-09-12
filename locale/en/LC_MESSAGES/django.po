@@ -1217,3 +1217,131 @@ msgstr "Expired"
 #: templates/accounts/inicio.html
 msgid "Your budget lives in the menu. Start with this month."
 msgstr "Your budget lives in the menu. Start with this month."
+
+#: apps/budget/scopes.py
+msgid "That view does not exist."
+msgstr "That view does not exist."
+
+#: templates/budget/overview.html
+msgid "Overview"
+msgstr "Overview"
+
+#: templates/budget/overview.html
+msgid "Planned against real"
+msgstr "Planned against real"
+
+#: templates/budget/overview.html
+msgid "Real"
+msgstr "Real"
+
+#: templates/budget/overview.html
+msgid "How the balance moved"
+msgstr "How the balance moved"
+
+#: templates/budget/overview.html
+msgid "Recent activity"
+msgstr "Recent activity"
+
+#: templates/budget/balance.html
+msgid "Balance"
+msgstr "Balance"
+
+#: templates/budget/balance.html
+msgid "Income, planned"
+msgstr "Income, planned"
+
+#: templates/budget/balance.html
+msgid "Income, real"
+msgstr "Income, real"
+
+#: templates/budget/balance.html
+msgid "Spending, planned"
+msgstr "Spending, planned"
+
+#: templates/budget/balance.html
+msgid "Spending, real"
+msgstr "Spending, real"
+
+#: templates/budget/balance.html
+msgid "Where it went off plan"
+msgstr "Where it went off plan"
+
+#: templates/budget/balance.html
+msgid "Difference"
+msgstr "Difference"
+
+#: templates/budget/balance.html
+msgid "Everything landed on plan."
+msgstr "Everything landed on plan."
+
+#: templates/budget/balance.html
+msgid "No month has been closed yet. Your first balance appears when you close a month."
+msgstr "No month has been closed yet. Your first balance appears when you close a month."
+
+#: templates/budget/metas.html
+msgid "Contributions"
+msgstr "Contributions"
+
+#: templates/budget/metas.html
+msgid "The household"
+msgstr "The household"
+
+#: templates/budget/mesada.html
+msgid "My allowance"
+msgstr "My allowance"
+
+#: templates/budget/mesada.html
+msgid "Left to spend"
+msgstr "Left to spend"
+
+#: templates/budget/mesada.html
+msgid "How that number is made"
+msgstr "How that number is made"
+
+#: templates/budget/mesada.html
+msgid "Carried in from last month"
+msgstr "Carried in from last month"
+
+#: templates/budget/mesada.html
+msgid "Granted this month"
+msgstr "Granted this month"
+
+#: templates/budget/mesada.html
+msgid "Adjustment"
+msgstr "Adjustment"
+
+#: templates/budget/mesada.html
+msgid "Spent"
+msgstr "Spent"
+
+#: templates/budget/mesada.html
+msgid "Where it went"
+msgstr "Where it went"
+
+#: templates/budget/mesada.html
+msgid "Nothing spent yet this month."
+msgstr "Nothing spent yet this month."
+
+#: templates/budget/mesada.html
+msgid "You have no allowance this month yet. It appears once the month is planned."
+msgstr "You have no allowance this month yet. It appears once the month is planned."
+
+#: templates/budget/mesada.html
+msgid "A previous month closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+msgstr "A previous month closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+
+#: templates/budget/metas.html
+msgid "%(hecho)s of %(objetivo)s — %(pct)s%%"
+msgstr "%(hecho)s of %(objetivo)s — %(pct)s%%"
+
+#: templates/budget/metas.html
+msgid "Put in %(importe)s a month to get there on time."
+msgstr "Put in %(importe)s a month to get there on time."
+
+#: templates/budget/metas.html
+msgid "At this rate you get there in %(cuando)s."
+msgstr "At this rate you get there in %(cuando)s."
+
+#: templates/budget/mesada.html
+msgid "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+msgstr "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
