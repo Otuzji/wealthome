@@ -114,3 +114,28 @@ def test_las_graficas_no_llevan_cadenas_visibles():
         f"graficas.js lleva texto que parece visible: {sospechosos}. Va en un "
         f"atributo data- del canvas, traducido por Django."
     )
+
+
+def test_ninguna_plantilla_lleva_un_comentario_multilinea_de_llave():
+    """Los comentarios {# #} de Django son de UNA linea.
+
+    Uno multilinea se cierra al final de la primera y el RESTO SE RENDERIZA en la
+    pagina: un comentario para el programador acaba delante del usuario. Paso de
+    verdad en la Tarea 22 —la pantalla de la mesada publico media explicacion
+    interna— y no lo vio ninguna prueba hasta que una asercion sobre el cuerpo
+    del HTML tropezo con el. Los multilinea van en {% comment %}.
+
+    Vive en test_css.py porque es una guardia de fuentes, sin base de datos.
+    """
+    culpables = []
+    for plantilla in sorted((RAIZ / "templates").rglob("*.html")):
+        texto = plantilla.read_text(encoding="utf-8")
+        for m in re.finditer(r"\{#(.*?)#\}", texto, re.DOTALL):
+            if chr(10) in m.group(1):
+                culpables.append(str(plantilla.relative_to(RAIZ)))
+                break
+
+    assert not culpables, (
+        f"Comentarios {{# #}} multilinea, que se renderizan en la pagina: "
+        f"{culpables}. Usa {{% comment %}}."
+    )

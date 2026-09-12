@@ -9,8 +9,8 @@
     {% endfor %}
   </ul>
   {% if not nav_puede_escribir %}
-    {# Sustituye al [+], que el context processor ya no incluye para un hogar
-       expirado: un [+] que da 403 al tocarlo seria correcto y grosero (§7). #}
+    {% comment %} Sustituye al [+], que el context processor ya no incluye para un hogar
+       expirado: un [+] que da 403 al tocarlo seria correcto y grosero (§7). {% endcomment %}
     <p class="nav__aviso">
       <a href="{% url 'subscriptions:estado' %}">{% translate "Your trial has ended" %}</a>
     </p>

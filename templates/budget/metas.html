@@ -1,31 +1,47 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Goals" %} · Wealthome{% endblock %}
 {% block content %}
+<h1>{% translate "Goals" %}</h1>
+
+{% for fila in filas %}
 <section class="card">
-  <h1>{% translate "Goals" %}</h1>
+  <h2>{{ fila.meta.name }}</h2>
+
+  <div class="progreso">
+    <div class="progreso__relleno" style="width: {{ fila.porcentaje_barra }}%"></div>
+  </div>
+  <p>
+    {% blocktranslate with hecho=fila.acumulado|money:hogar.currency objetivo=fila.meta.target_amount|money:hogar.currency pct=fila.porcentaje %}{{ hecho }} of {{ objetivo }} — {{ pct }}%{% endblocktranslate %}
+  </p>
+
+  {% if fila.meta.contribution_mode == "by_target_date" %}
+    <p>{% blocktranslate with importe=fila.aporte|money:hogar.currency %}Put in {{ importe }} a month to get there on time.{% endblocktranslate %}</p>
+  {% else %}
+    <p>{% blocktranslate with cuando=fila.fecha %}At this rate you get there in {{ cuando }}.{% endblocktranslate %}</p>
+  {% endif %}
+
+  <h3>{% translate "Contributions" %}</h3>
   <div class="tabla__envoltura">
     <table class="tabla">
-      <tr>
-        <th>{% translate "Goal" %}</th>
-        <th class="numero">{% translate "Saved so far" %}</th>
-        <th class="numero">{% translate "Target" %}</th>
-        <th class="numero">{% translate "Per month" %}</th>
-        <th>{% translate "Reached by" %}</th>
-      </tr>
-      {% for fila in filas %}
+      {% for aporte in fila.meta.contributions.all %}
         <tr>
-          <td>{{ fila.meta.name }}</td>
-          <td class="numero">{{ fila.acumulado|money:hogar.currency }}</td>
-          <td class="numero">{{ fila.meta.target_amount|money:hogar.currency }}</td>
-          <td class="numero">{{ fila.aporte|money:hogar.currency }}</td>
-          <td>{{ fila.fecha }}</td>
+          <td>{{ aporte.date }}</td>
+          <td>
+            {% comment %} Consecuencia visible de la Tarea 2: un ahorro del hogar ya no
+               lleva el nombre de nadie, y aqui se dice con todas sus letras en
+               vez de dejar un hueco. {% endcomment %}
+            {% if aporte.member %}{{ aporte.member.user }}
+            {% else %}{% translate "The household" %}{% endif %}
+          </td>
+          <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
         </tr>
-      {% empty %}
-        <tr><td>{% translate "No goals yet." %}</td></tr>
       {% endfor %}
     </table>
   </div>
-  <a class="btn" href="{% url 'budget:meta_nueva' %}">{% translate "Add a goal" %}</a>
-  <a class="btn" href="{% url 'budget:aportar' %}">{% translate "Add to a goal" %}</a>
 </section>
+{% empty %}
+<section class="card"><p>{% translate "No goals yet." %}</p></section>
+{% endfor %}
+
+<p><a class="btn btn--primary" href="{% url 'budget:meta_nueva' %}">{% translate "New goal" %}</a></p>
 {% endblock %}

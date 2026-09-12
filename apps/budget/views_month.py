@@ -16,7 +16,7 @@ from apps.households.permissions import membresia_actual, requiere_permiso
 from . import services
 from .engine.cascade import repartir
 from .forms import TransactionForm
-from .models import AllocationRule, MesCerrado
+from .models import AllocationRule, AllowanceLedger, MesCerrado, Transaction
 from .scopes import acotar, acotar_por_dueno, validar
 
 # El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
@@ -146,3 +146,45 @@ def cerrar(request, hogar, ambito):
             pass   # ya estaba cerrado: idempotente, no un error del usuario
         return redirect("budget:mes", ambito)
     return render(request, "budget/cerrar.html", {"mes": mes_actual, "ambito": ambito})
+
+
+@requiere_permiso("can_view_budget")
+def mesada(request, hogar):
+    """Personal > Presupuesto: el libro mayor de la mesada (§7.2).
+
+    Hasta el Plan 3, AllowanceLedger aparecia UNA vez en toda la aplicacion, y
+    era una linea de texto en una previsualizacion. Aqui se ensena entero, y
+    sobre todo se explica el ajuste: el §4.5.3 descuenta el faltante de un mes
+    flojo en la mesada del mes SIGUIENTE, y sin esta pantalla un miembro recibe
+    menos dinero por una decision que no puede ver.
+
+    No lleva <ambito> en la ruta porque solo existe en Personal: la mesada es de
+    un miembro por definicion, y una "mesada del hogar" no significa nada.
+    """
+    membresia = membresia_actual(request)
+    hoy = timezone.localdate()
+    mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
+
+    libro = None
+    gastos = []
+    if not isinstance(mes_actual, services.ProyeccionDeMes):
+        libro = (
+            AllowanceLedger.objects.for_household(hogar)
+            .filter(member=membresia, budget_month=mes_actual)
+            .first()
+        )
+        gastos = list(
+            Transaction.objects.for_household(hogar)
+            .filter(member=membresia, budget_month=mes_actual, scope="personal")
+            .select_related("category")
+            .order_by("-date", "-pk")
+        )
+
+    hay_ajuste = bool(libro and libro.adjustment)
+    mes_del_ajuste = services.mes_anterior(mes_actual) if hay_ajuste else None
+
+    return render(request, "budget/mesada.html", {
+        "ambito": "personal", "libro": libro, "gastos": gastos,
+        "mes": mes_actual, "hay_ajuste": hay_ajuste,
+        "mes_del_ajuste": mes_del_ajuste,
+    })

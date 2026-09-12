@@ -4,9 +4,9 @@
 <section class="card">
   <h1>{% translate "Subscription" %}</h1>
 
-  {# El estado, con etiqueta traducida y no con el slug crudo: estado_visible
+  {% comment %} El estado, con etiqueta traducida y no con el slug crudo: estado_visible
      devuelve "active"/"trialing"/"expired", que son valores, no texto de cara
-     al usuario, y este producto es bilingue por requisito legal. #}
+     al usuario, y este producto es bilingue por requisito legal. {% endcomment %}
   {% if suscripcion.estado_visible == "active" %}
     <p><span class="pildora pildora--bien">{% translate "Active" %}</span></p>
   {% elif suscripcion.estado_visible == "trialing" %}

@@ -31,8 +31,10 @@ PERMISOS = {
 # Lo que CADA perfil tiene que poder alcanzar desde el menu, por nombre de
 # entrada. Ni una mas, ni una menos.
 ESPERADO = {
-    ADMIN: {"hogar", "personal", "registrar", "metas", "ajustes"},
-    SOLO_VER: {"hogar", "personal", "metas", "ajustes"},
+    ADMIN: {"hogar", "personal", "mesada", "registrar", "metas", "balance", "ajustes"},
+    # SOLO_VER no tiene can_view_reports, asi que NO ve Balance. Es la prueba de
+    # que la entrada esta bajo el permiso correcto y no bajo can_view_budget.
+    SOLO_VER: {"hogar", "personal", "mesada", "metas", "ajustes"},
     ADOLESCENTE: {"registrar", "ajustes"},
 }
 

@@ -400,7 +400,7 @@ def _reglas_del_motor(hogar):
     ]
 
 
-def _mes_anterior(mes):
+def mes_anterior(mes):
     anio, numero = (mes.year - 1, 12) if mes.month == 1 else (mes.year, mes.month - 1)
     return BudgetMonth.objects.for_household(mes.household).filter(
         year=anio, month=numero
@@ -449,7 +449,7 @@ def mesada_de(membresia, mes):
 
 
 def _carried_in(hogar, membresia_id, mes):
-    anterior = _mes_anterior(mes)
+    anterior = mes_anterior(mes)
     if anterior is None:
         return Decimal("0.00")
     libro = AllowanceLedger.objects.for_household(hogar).filter(

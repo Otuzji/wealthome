@@ -394,7 +394,11 @@ def test_un_mes_cerrado_es_de_solo_lectura(client, hogar_listo_para_planificar):
 # --- metas --------------------------------------------------------------------
 
 
-def test_las_metas_muestran_su_dato_derivado(client, admin_con_hogar):
+def test_la_pantalla_de_metas_lista_las_metas_del_hogar(client, admin_con_hogar):
+    """Nombre corregido en la Tarea 21: esta prueba solo afirma que la meta
+    APARECE, no su dato derivado. Quien lo afirma es
+    test_las_metas_muestran_su_dato_derivado_de_verdad.
+    """
     from apps.budget.engine.goals import BY_TARGET_DATE
     from tests.factories_budget import GoalFactory
 
@@ -643,3 +647,169 @@ def test_balance_sin_cierres_lo_dice_y_no_revienta(client, admin_con_hogar):
 
     assert respuesta.status_code == 200
     assert respuesta.context["cierres"] == []
+
+
+# --- metas con progreso (Tarea 21) -------------------------------------------
+
+
+def test_las_metas_muestran_su_dato_derivado_de_verdad(client, admin_con_hogar):
+    """La prueba vieja solo afirmaba que el NOMBRE aparecia en el HTML, no el
+    dato derivado que su nombre promete. Esta afirma el dato."""
+    from tests.factories_budget import GoalContributionFactory, GoalFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    meta = GoalFactory(
+        household=hogar, name="Viaje", contribution_mode="by_monthly_amount",
+        target_amount=Decimal("1200.00"), monthly_amount=Decimal("100.00"),
+    )
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("300.00"),
+                            date=date(2026, 3, 1))
+
+    respuesta = client.get(reverse("budget:metas", args=["household"]))
+
+    fila = respuesta.context["filas"][0]
+    assert fila["acumulado"] == Decimal("300.00")
+    assert fila["porcentaje"] == 25          # 300 de 1200
+    assert fila["fecha"] is not None         # el dato derivado, no el nombre
+
+
+def test_una_meta_sobrepasada_no_desborda_la_barra(client, admin_con_hogar):
+    """119% es un dato, no un error; una barra al 119% se sale de su caja."""
+    from tests.factories_budget import GoalContributionFactory, GoalFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    meta = GoalFactory(household=hogar, contribution_mode="by_monthly_amount",
+                       target_amount=Decimal("100.00"),
+                       monthly_amount=Decimal("50.00"))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("150.00"),
+                            date=date(2026, 3, 1))
+
+    fila = client.get(
+        reverse("budget:metas", args=["household"])
+    ).context["filas"][0]
+
+    assert fila["porcentaje"] == 150
+    assert fila["porcentaje_barra"] == 100
+
+
+def test_un_aporte_de_la_cascada_no_dice_que_lo_hizo_nadie(client, admin_con_hogar):
+    """member es anulable desde la Tarea 2: la plantilla tiene que tolerarlo."""
+    from apps.budget.models import GoalContribution
+    from tests.factories_budget import GoalFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    meta = GoalFactory(household=hogar)
+    GoalContribution.unscoped.create(
+        household=hogar, goal=meta, amount=Decimal("50.00"),
+        date=date(2026, 3, 1), member=None, origen="cascade",
+    )
+
+    respuesta = client.get(reverse("budget:metas", args=["household"]))
+
+    assert respuesta.status_code == 200
+
+
+# --- la mesada (Tarea 22) -----------------------------------------------------
+
+
+def test_la_mesada_ensena_el_libro_mayor_entero(client, admin_con_hogar):
+    from django.utils import timezone
+
+    from apps.budget.models import AllowanceLedger
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    # El mes CORRIENTE: la vista mira el que obtener_mes materializa hoy, no uno
+    # fijo. Anclarlo a 2026-03 dejaria la prueba pasando solo ese mes.
+    mes = __import__("apps.budget.services", fromlist=["services"]).obtener_mes(
+        hogar, hoy.year, hoy.month
+    )
+    AllowanceLedger.unscoped.create(
+        household=hogar, member=mia, budget_month=mes,
+        carried_in=Decimal("45.00"), granted=Decimal("100.00"),
+        adjustment=Decimal("-40.00"), spent=Decimal("60.00"),
+    )
+
+    respuesta = client.get(reverse("budget:mesada"))
+
+    assert respuesta.status_code == 200
+    libro = respuesta.context["libro"]
+    assert libro.carried_in == Decimal("45.00")
+    assert libro.adjustment == Decimal("-40.00")
+    assert libro.saldo() == Decimal("45.00")     # 45 + 100 - 40 - 60
+
+
+def test_la_mesada_explica_de_donde_sale_el_ajuste(client, admin_con_hogar):
+    """§4.5.3: el ajuste viene del cierre del mes anterior, y hay que decirlo."""
+    from django.utils import timezone
+
+    from apps.budget.models import AllowanceLedger
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    from tests.factories_budget import BudgetMonthFactory
+
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    mes = __import__("apps.budget.services", fromlist=["services"]).obtener_mes(
+        hogar, hoy.year, hoy.month
+    )
+    # La fila del mes ANTERIOR es lo que le da nombre al ajuste: mes_anterior()
+    # devuelve esa fila, o None si el hogar nunca la tuvo.
+    anterior_anio, anterior_mes = (
+        (hoy.year - 1, 12) if hoy.month == 1 else (hoy.year, hoy.month - 1)
+    )
+    BudgetMonthFactory(household=hogar, year=anterior_anio, month=anterior_mes,
+                       status="closed")
+    AllowanceLedger.unscoped.create(
+        household=hogar, member=mia, budget_month=mes,
+        granted=Decimal("100.00"), adjustment=Decimal("-40.00"),
+    )
+
+    respuesta = client.get(reverse("budget:mesada"))
+
+    assert respuesta.context["hay_ajuste"] is True
+    assert respuesta.context["mes_del_ajuste"] is not None
+
+
+def test_un_ajuste_sin_mes_anterior_sigue_explicandose(client, admin_con_hogar):
+    """mes_anterior() da None si el hogar nunca tuvo esa fila. Con una sola
+    redaccion la pantalla diria "None closed below what was planned"; hay una
+    generica para ese caso. No esta en el plan.
+    """
+    from django.utils import timezone
+
+    from apps.budget.models import AllowanceLedger
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    mes = __import__("apps.budget.services", fromlist=["services"]).obtener_mes(
+        hogar, hoy.year, hoy.month
+    )
+    AllowanceLedger.unscoped.create(
+        household=hogar, member=mia, budget_month=mes,
+        granted=Decimal("100.00"), adjustment=Decimal("-40.00"),
+    )
+
+    cuerpo = client.get(reverse("budget:mesada")).content.decode()
+
+    assert "None closed below" not in cuerpo
+    assert "closed below what was planned" in cuerpo
+
+
+def test_sin_mesada_la_pantalla_lo_dice_y_no_revienta(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:mesada"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["libro"] is None
+    assert respuesta.context["hay_ajuste"] is False

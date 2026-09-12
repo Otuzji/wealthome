@@ -72,6 +72,10 @@ def navegacion(request):
             "nombre": "personal", "url": reverse("budget:overview", args=["personal"]),
             "etiqueta": _("Personal"), "icono": "persona",
         })
+        entradas.append({
+            "nombre": "mesada", "url": reverse("budget:mesada"),
+            "etiqueta": _("My allowance"), "icono": "mesada",
+        })
     if _permiso(membresia, "can_add_transactions") and puede_escribir:
         # El [+] del §7.1: la accion mas frecuente, siempre a un toque, y
         # dependiendo SOLO de can_add_transactions. Es el camino del
@@ -84,6 +88,13 @@ def navegacion(request):
         entradas.append({
             "nombre": "metas", "url": reverse("budget:metas", args=["household"]),
             "etiqueta": _("Goals"), "icono": "meta",
+        })
+    if _permiso(membresia, "can_view_reports"):
+        # Bajo can_view_reports y no can_view_budget: Balance es un informe, y
+        # un enlace que da 403 al tocarlo seria correcto y grosero (§7).
+        entradas.append({
+            "nombre": "balance", "url": reverse("budget:balance", args=["household"]),
+            "etiqueta": _("Balance"), "icono": "balance",
         })
     entradas.append({
         "nombre": "ajustes", "url": reverse("households:ajustes"),

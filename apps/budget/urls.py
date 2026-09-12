@@ -15,6 +15,10 @@ urlpatterns = [
     path("spend/", views_month.registrar, name="registrar"),
     path("goals/new/", views_goals.meta_nueva, name="meta_nueva"),
     path("goals/contribute/", views_goals.aportar, name="aportar"),
+    # Antes de los patrones con <str:ambito>, o "personal" se comeria el
+    # patron generico. Y sin ambito: la mesada es de un miembro por
+    # definicion, y una "mesada del hogar" no significa nada.
+    path("personal/allowance/", views_month.mesada, name="mesada"),
 ]
 
 # Y estas si: son las cuatro del §7.1, en sus dos ambitos.

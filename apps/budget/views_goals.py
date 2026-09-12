@@ -21,12 +21,27 @@ from .views_setup import crear
 def metas(request, hogar, ambito):
     ambito = validar(ambito)
     membresia = membresia_actual(request)
+
+    # prefetch_related porque acumulado() agrega sobre esa relacion y la
+    # plantilla lista los aportes: sin el, una consulta por meta y otra por
+    # meta para la tabla.
+    consulta = acotar_por_dueno(
+        Goal.objects.for_household(hogar), ambito, membresia
+    ).prefetch_related("contributions__member__user")
+
     filas = []
-    for meta in acotar_por_dueno(Goal.objects.for_household(hogar), ambito, membresia):
+    for meta in consulta:
         acumulado = meta.acumulado()
         aporte, fecha = meta.derivar(acumulado=acumulado)
-        filas.append({"meta": meta, "aporte": aporte, "fecha": fecha,
-                      "acumulado": acumulado})
+        bruto = (acumulado / meta.target_amount * 100) if meta.target_amount else 0
+        filas.append({
+            "meta": meta, "aporte": aporte, "fecha": fecha,
+            "acumulado": acumulado,
+            # Dos numeros y no uno: el porcentaje real es un dato ("119%" no es
+            # un error), pero la barra se acota a 100 o se sale de su caja.
+            "porcentaje": int(bruto),
+            "porcentaje_barra": min(100, int(bruto)),
+        })
     return render(request, "budget/metas.html", {"filas": filas, "ambito": ambito})
 
 
