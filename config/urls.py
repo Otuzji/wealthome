@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.shortcuts import render
 from django.urls import include, path
+from django.views.generic import TemplateView
 
 from apps.households.permissions import SuscripcionVencida
 
@@ -9,6 +10,10 @@ urlpatterns = [
     path("household/", include("apps.households.urls")),
     path("budget/", include("apps.budget.urls")),
     path("subscription/", include("apps.subscriptions.urls")),
+    # Sin decorador de sesion a proposito: el service worker tiene que poder
+    # precargarla, y es una pagina sin datos.
+    path("offline/", TemplateView.as_view(template_name="sin-conexion.html"),
+         name="sin_conexion"),
     path("", include("apps.accounts.urls")),
 ]
 

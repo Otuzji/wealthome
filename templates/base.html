@@ -21,5 +21,17 @@
   <script src="{% static 'vendor/htmx.min.js' %}"></script>
   {# Alpine lleva defer porque asi lo exige su propia documentacion; htmx no. #}
   <script defer src="{% static 'vendor/alpine.min.js' %}"></script>
+  {% comment %} `debug` lo pone apps.core.context_processors.navegacion en sus TRES
+     salidas, no el context processor de Django: ese solo expone la variable si
+     DEBUG esta activo Y la IP esta en INTERNAL_IPS, asi que en la pagina de
+     login no existiria, este {% if not debug %} seria siempre verdadero, y el
+     service worker se registraria tambien en desarrollo. {% endcomment %}
+  {% if not debug %}
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("{% static 'js/sw.js' %}", { scope: "/" });
+    }
+  </script>
+  {% endif %}
 </body>
 </html>
