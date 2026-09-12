@@ -1209,3 +1209,27 @@ msgid "One day left in your trial."
 msgid_plural "%(dias)s days left in your trial."
 msgstr[0] "Il vous reste un jour d'essai."
 msgstr[1] "Il vous reste %(dias)s jours d'essai."
+
+#: apps/core/context_processors.py
+msgid "Add"
+msgstr "Ajouter"
+
+#: templates/_nav.html
+msgid "Main"
+msgstr "Principal"
+
+#: templates/_nav.html
+msgid "Your trial has ended"
+msgstr "Votre période d'essai est terminée"
+
+#: templates/budget/mes.html
+msgid "Not started"
+msgstr "Pas commencé"
+
+#: templates/subscriptions/estado.html
+msgid "Expired"
+msgstr "Expiré"
+
+#: templates/accounts/inicio.html
+msgid "Your budget lives in the menu. Start with this month."
+msgstr "Votre budget vit dans le menu. Commencez par ce mois-ci."
