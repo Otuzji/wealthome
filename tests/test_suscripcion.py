@@ -201,3 +201,104 @@ def test_un_get_a_pagar_no_revienta(client):
 
     assert respuesta.status_code == 302
     assert "checkout.stripe.com" not in respuesta["Location"]
+
+
+@pytest.mark.django_db
+def test_la_pantalla_de_suscripcion_dice_cuantos_dias_quedan(client):
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    respuesta = client.get(reverse("subscriptions:estado"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["suscripcion"].estado_visible == "trialing"
+
+
+@pytest.mark.django_db
+def test_un_403_por_suscripcion_ofrece_pagar(client):
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:ingreso_nuevo"), {})
+
+    assert respuesta.status_code == 403
+    assert reverse("subscriptions:estado") in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_un_get_a_pagar_lleva_a_la_pantalla_de_estado(client):
+    """Cierra el apano de la Tarea 9: ese redirect apuntaba a households:ajustes
+    porque subscriptions:estado no existia. Sin esta asercion, olvidarse de
+    cambiarlo no habria roto ninguna prueba — el redirect funcionaba igual.
+    """
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    respuesta = client.get(reverse("subscriptions:pagar"))
+
+    assert respuesta.status_code == 302
+    assert respuesta["Location"] == reverse("subscriptions:estado")
+
+
+@pytest.mark.django_db
+def test_un_hogar_expirado_ve_el_boton_de_pagar(client):
+    """La pantalla tiene que OFRECER pagar justo cuando hace falta."""
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    client.force_login(user)
+
+    cuerpo = client.get(reverse("subscriptions:estado")).content.decode()
+
+    assert respuesta_tiene_formulario_de_pago(cuerpo)
+
+
+@pytest.mark.django_db
+def test_un_hogar_ya_pagado_no_ve_el_boton_de_pagar(client):
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    hogar.subscription.status = Subscription.ACTIVE
+    hogar.subscription.paid_at = timezone.now()
+    hogar.subscription.save()
+    client.force_login(user)
+
+    cuerpo = client.get(reverse("subscriptions:estado")).content.decode()
+
+    assert not respuesta_tiene_formulario_de_pago(cuerpo)
+
+
+def respuesta_tiene_formulario_de_pago(cuerpo):
+    from django.urls import reverse
+
+    return f'action="{reverse("subscriptions:pagar")}"' in cuerpo

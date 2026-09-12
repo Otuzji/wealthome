@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import get_language
@@ -22,11 +23,7 @@ def pagar(request, hogar):
     de estarlo — que es justo el punto muerto que el §2.2 quiere evitar.
     """
     if request.method != "POST":
-        # Destino temporal: subscriptions:estado lo crea la Tarea 11, y hasta
-        # entonces este redirect reventaria con NoReverseMatch. Mismo apano y
-        # mismo motivo que el enlace de templates/403.html en la Tarea 7.
-        # LA TAREA 11 TIENE QUE CAMBIARLO a "subscriptions:estado".
-        return redirect("households:ajustes")
+        return redirect("subscriptions:estado")
     url = crear_sesion_de_pago(
         household=hogar,
         locale=get_language() or "en",
@@ -42,6 +39,15 @@ def retorno(request, hogar):
     Quien acredita el pago es el webhook, y solo el webhook."""
     return render(request, "subscriptions/retorno.html", {
         "suscripcion": getattr(hogar, "subscription", None),
+    })
+
+
+@con_hogar
+def estado(request, hogar):
+    """La pantalla del §5.4. Plana y fea a proposito: la Tarea 16 la viste."""
+    return render(request, "subscriptions/estado.html", {
+        "suscripcion": getattr(hogar, "subscription", None),
+        "precio": settings.STRIPE_PRECIO_CENTAVOS / 100,
     })
 
 

@@ -5,9 +5,7 @@
   <h1>{% translate "Not allowed" %}</h1>
   <p>{% translate "You do not have permission to see this page." %}</p>
   {% if es_suscripcion_vencida %}
-    {# El enlace apunta a households:ajustes hasta que la Tarea 11 cree #}
-    {# subscriptions:estado; ver Task 7 brief, Step 6. #}
-    <p><a class="btn btn--primary" href="{% url 'households:ajustes' %}">
+    <p><a class="btn btn--primary" href="{% url 'subscriptions:estado' %}">
       {% translate "See subscription" %}</a></p>
   {% endif %}
   <p><a class="btn btn--primary" href="{% url 'accounts:inicio' %}">{% translate "Back to home" %}</a></p>

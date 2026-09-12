@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate "Subscription" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Subscription" %}</h1>
+
+  {% if suscripcion.estado_visible == "active" %}
+    <p>{% translate "Wealthome is yours. Thank you." %}</p>
+  {% elif suscripcion.estado_visible == "trialing" %}
+    <p>{% blocktranslate count dias=suscripcion.dias_restantes %}One day left in your trial.{% plural %}{{ dias }} days left in your trial.{% endblocktranslate %}</p>
+  {% else %}
+    <p>{% translate "Your trial has ended. Your data is all here and always will be — you just cannot add anything new until you subscribe." %}</p>
+  {% endif %}
+
+  {% if suscripcion.estado_visible != "active" %}
+    <form method="post" action="{% url 'subscriptions:pagar' %}">
+      {% csrf_token %}
+      <button class="btn btn--primary" type="submit">
+        {% blocktranslate %}Subscribe once for ${{ precio }} CAD{% endblocktranslate %}
+      </button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}
