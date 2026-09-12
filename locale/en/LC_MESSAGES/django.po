@@ -1345,3 +1345,123 @@ msgstr "At this rate you get there in %(cuando)s."
 #: templates/budget/mesada.html
 msgid "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
 msgstr "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+
+#: templates/budget/_fragmentos/gasto_form.html
+msgid "Record it"
+msgstr "Record it"
+
+#: templates/budget/_fragmentos/aporte_form.html
+msgid "Add it"
+msgstr "Add it"
+
+#: templates/budget/overview.html
+msgid "Everything"
+msgstr "Everything"
+
+#: templates/budget/overview.html
+msgid "Money in"
+msgstr "Money in"
+
+#: templates/budget/overview.html
+msgid "Money out"
+msgstr "Money out"
+
+#: apps/budget/views_month.py
+msgid "One-off item this month"
+msgstr "One-off item this month"
+
+#: templates/wizards/planificar_2.html
+msgid "Add a one-off item"
+msgstr "Add a one-off item"
+
+#: apps/budget/wizards.py
+msgid "That step does not exist."
+msgstr "That step does not exist."
+
+#: templates/wizards/planificar_1.html
+msgid "Next"
+msgstr "Next"
+
+#: templates/wizards/planificar_2.html
+msgid "Back"
+msgstr "Back"
+
+#: templates/wizards/incorporacion.html
+msgid "Finish"
+msgstr "Finish"
+
+#: templates/wizards/incorporacion.html
+msgid "Skip for now"
+msgstr "Skip for now"
+
+#: templates/wizards/incorporacion.html
+msgid "Set this up"
+msgstr "Set this up"
+
+#: templates/wizards/planificar_1.html
+msgid "Edit income"
+msgstr "Edit income"
+
+#: templates/wizards/planificar_1.html
+msgid "What is coming in"
+msgstr "What is coming in"
+
+#: templates/wizards/planificar_2.html
+msgid "What is going out"
+msgstr "What is going out"
+
+#: templates/wizards/planificar_1.html
+msgid "No income set up yet."
+msgstr "No income set up yet."
+
+#: templates/wizards/planificar_2.html
+msgid "No fixed expenses set up yet."
+msgstr "No fixed expenses set up yet."
+
+#: templates/wizards/planificar_3.html
+msgid "How the leftover gets split"
+msgstr "How the leftover gets split"
+
+#: templates/wizards/planificar_3.html
+msgid "Your rules, in order"
+msgstr "Your rules, in order"
+
+#: templates/wizards/planificar_3.html
+msgid "What each person gets"
+msgstr "What each person gets"
+
+#: templates/wizards/planificar_1.html
+msgid "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month."
+msgstr "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month."
+
+#: templates/wizards/planificar_3.html
+msgid "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list."
+msgstr "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list."
+
+#: apps/budget/wizards.py
+msgid "Who else lives here"
+msgstr "Who else lives here"
+
+#: apps/budget/wizards.py
+msgid "What comes in"
+msgstr "What comes in"
+
+#: apps/budget/wizards.py
+msgid "What goes out every month"
+msgstr "What goes out every month"
+
+#: apps/budget/wizards.py
+msgid "What you are saving for"
+msgstr "What you are saving for"
+
+#: templates/wizards/incorporacion.html
+msgid "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it."
+msgstr "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it."
+
+#: templates/wizards/planificar_1.html
+msgid "Step %(paso)s of 3"
+msgstr "Step %(paso)s of 3"
+
+#: templates/wizards/incorporacion.html
+msgid "Step %(paso)s of %(total)s"
+msgstr "Step %(paso)s of %(total)s"
