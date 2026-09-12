@@ -21,23 +21,7 @@
   {% endif %}
 
   <h3>{% translate "Contributions" %}</h3>
-  <div class="tabla__envoltura">
-    <table class="tabla">
-      {% for aporte in fila.meta.contributions.all %}
-        <tr>
-          <td>{{ aporte.date }}</td>
-          <td>
-            {% comment %} Consecuencia visible de la Tarea 2: un ahorro del hogar ya no
-               lleva el nombre de nadie, y aqui se dice con todas sus letras en
-               vez de dejar un hueco. {% endcomment %}
-            {% if aporte.member %}{{ aporte.member.user }}
-            {% else %}{% translate "The household" %}{% endif %}
-          </td>
-          <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
-        </tr>
-      {% endfor %}
-    </table>
-  </div>
+  {% include "budget/_fragmentos/aportes.html" with meta=fila.meta aportes=fila.meta.contributions.all %}
 </section>
 {% empty %}
 <section class="card"><p>{% translate "No goals yet." %}</p></section>

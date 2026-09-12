@@ -157,6 +157,8 @@ Vendorizadas en `static/vendor/`, servidas por el propio proyecto:
 | Archivo | Version |
 |---|---|
 | `chart.umd.min.js` | Chart.js 4.4.7 |
+| `htmx.min.js` | htmx 2.0.4 |
+| `alpine.min.js` | Alpine.js 3.14.8 |
 
 **No hay build step; estos archivos se actualizan a mano y a proposito.** Se
 sirven desde el proyecto y no desde un CDN porque la PWA de la tanda 6 tiene que

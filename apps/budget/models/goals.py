@@ -54,6 +54,17 @@ class Goal(HouseholdScoped):
             raise ValidationError({"monthly_amount": _("Say how much you will put in each month.")})
 
     def acumulado(self):
+        """Lo aportado a esta meta hasta hoy.
+
+        Si `contributions` ya viene prefetched, suma en PYTHON. `.aggregate()`
+        va siempre a la base y no mira el prefetch, asi que en una pantalla que
+        liste metas era una consulta por meta — un N+1 que el tope de consultas
+        de la Tarea 4 no vio porque se fijo con cinco metas y solo comprobaba
+        que no creciera con las TRANSACCIONES, no con las metas. Con 20 metas se
+        iban 26 consultas donde ahora van 11.
+        """
+        if "contributions" in getattr(self, "_prefetched_objects_cache", {}):
+            return sum((c.amount for c in self.contributions.all()), Decimal("0.00"))
         total = self.contributions.aggregate(total=models.Sum("amount"))["total"]
         return total if total is not None else Decimal("0.00")
 

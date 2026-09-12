@@ -23,10 +23,34 @@ from .scopes import acotar, acotar_por_dueno, validar
 # PositiveSmallIntegerField del modelo y en el que un presupuesto tiene sentido.
 ANIO_MINIMO, ANIO_MAXIMO = 2000, 2100
 
+MOVIMIENTOS_RECIENTES = 8
+
+
+def _recientes(hogar):
+    """Los ultimos movimientos del hogar, para el intercambio de htmx."""
+    hoy = timezone.localdate()
+    mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
+    if isinstance(mes_actual, services.ProyeccionDeMes):
+        return []
+    return list(
+        Transaction.objects.for_household(hogar)
+        .filter(budget_month=mes_actual)
+        .select_related("category")
+        .order_by("-date", "-pk")[:MOVIMIENTOS_RECIENTES]
+    )
+
 
 @requiere_permiso("can_add_transactions")
 def registrar(request, hogar):
-    """La acción más frecuente de la aplicación (§7.1)."""
+    """La acción más frecuente de la aplicación (§7.1).
+
+    Devuelve un FRAGMENTO cuando la peticion trae HX-Request, y la pagina entera
+    si no. La misma vista sirve las dos cosas a proposito: un endpoint aparte
+    solo para htmx seria una segunda ruta que puede divergir de la primera, y la
+    guardia de suscripcion del §2.2 —que es por METODO y no por vista— dejaria de
+    cubrirla sin que nadie se diera cuenta.
+    """
+    es_htmx = request.headers.get("HX-Request") == "true"
     hoy = timezone.localdate()
     form = TransactionForm(request.POST or None, household=hogar,
                            initial={"date": hoy})
@@ -47,8 +71,16 @@ def registrar(request, hogar):
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
+            if es_htmx:
+                # Los movimientos al dia, no un redirect: htmx los intercambia
+                # en su sitio y el usuario no pierde la pantalla.
+                return render(request, "budget/_fragmentos/recientes.html", {
+                    "recientes": _recientes(hogar),
+                })
             return redirect("budget:registrar")
-    return render(request, "budget/gasto.html", {"form": form})
+
+    plantilla = "budget/_fragmentos/gasto_form.html" if es_htmx else "budget/gasto.html"
+    return render(request, plantilla, {"form": form})
 
 
 @requiere_permiso("can_view_budget")

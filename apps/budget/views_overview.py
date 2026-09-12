@@ -67,12 +67,26 @@ def overview(request, hogar, ambito):
         "balance": [str(c.balance) for c in cierres],
     }
 
-    return render(request, "budget/overview.html", {
+    contexto = {
         "ambito": ambito, "resultado": resultado, "es_proyeccion": es_proyeccion,
         "recientes": recientes,
         "series_categorias": series_categorias,
         "series_balance": series_balance,
-    })
+    }
+
+    # Los filtros del §7.2. Se leen de la query string y NO forman parte de la
+    # ruta: el ambito si define que pagina es esta —y por eso va en la ruta, que
+    # es lo que el service worker cachea—, pero un filtro es una vista de la
+    # misma pagina. Cachear cada combinacion seria llenar el disco del navegador
+    # de variantes de lo mismo.
+    filtro_kind = request.GET.get("kind") or ""
+    if filtro_kind in ("income", "expense"):
+        contexto["recientes"] = [
+            tx for tx in recientes if tx.category.kind == filtro_kind
+        ]
+    contexto["filtro_kind"] = filtro_kind
+
+    return render(request, "budget/overview.html", contexto)
 
 
 # `can_view_reports` y no `can_view_budget`, que es lo que decia el Step 3 del

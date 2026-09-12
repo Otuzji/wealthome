@@ -12,5 +12,8 @@
 <body>
   {% include "_nav.html" %}
   <main class="shell">{% block content %}{% endblock %}</main>
+  <script src="{% static 'vendor/htmx.min.js' %}"></script>
+  {# Alpine lleva defer porque asi lo exige su propia documentacion; htmx no. #}
+  <script defer src="{% static 'vendor/alpine.min.js' %}"></script>
 </body>
 </html>

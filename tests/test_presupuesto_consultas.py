@@ -31,7 +31,16 @@ from tests.factories_budget import (
 # select_related, y ahora la suscripcion viaja con el hogar: el del mes VUELVE
 # a 17, y el de metas se queda en 10 con el menu ya contado.
 CONSULTAS_MES = 17
-CONSULTAS_METAS = 10
+# BAJADO de 10 a 6 en la Tarea 21, y la historia importa porque es un N+1 que
+# habia sobrevivido a la tarea que vino a quitar los N+1.
+#
+# La Tarea 4 fijo este tope en 10 con CINCO metas, y solo comprobo que no creciera
+# con las TRANSACCIONES. Con veinte metas eran 26 consultas: Goal.acumulado()
+# usaba .aggregate(), que va siempre a la base y no mira el prefetch, o sea una
+# consulta por meta. Ahora acumulado() suma en Python cuando las aportaciones
+# vienen prefetched, y el numero NO crece con las metas: 6 con cinco y 6 con
+# veinte. Medido las dos veces.
+CONSULTAS_METAS = 6
 # Fijado en la Tarea 19, midiendo. El Overview agrega en Python sobre los
 # mismos dos querysets que ya trae el mes, mas los ultimos cierres para la
 # grafica del balance: el tope no debe crecer con el numero de movimientos.

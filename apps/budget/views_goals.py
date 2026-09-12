@@ -53,6 +53,8 @@ def meta_nueva(request, hogar):
 
 @requiere_permiso("can_edit_budget")
 def aportar(request, hogar):
+    """Mismo patron que `registrar`, para no inventar un segundo."""
+    es_htmx = request.headers.get("HX-Request") == "true"
     form = GoalContributionForm(request.POST or None, household=hogar)
     if request.method == "POST" and form.is_valid():
         aporte = form.save(commit=False)
@@ -65,6 +67,13 @@ def aportar(request, hogar):
         except MesCerrado:
             form.add_error(None, _("This month is already closed."))
         else:
+            if es_htmx:
+                return render(request, "budget/_fragmentos/aportes.html", {
+                    "meta": aporte.goal,
+                    "aportes": aporte.goal.contributions.select_related("member__user"),
+                })
             return redirect("budget:metas", "household")
-    return render(request, "budget/formulario.html",
-                  {"form": form, "titulo": _("Add to a goal")})
+
+    plantilla = ("budget/_fragmentos/aporte_form.html" if es_htmx
+                 else "budget/formulario.html")
+    return render(request, plantilla, {"form": form, "titulo": _("Add to a goal")})

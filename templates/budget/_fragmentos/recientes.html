@@ -1,0 +1,11 @@
+{% load i18n money %}
+<div id="recientes" class="tabla__envoltura">
+  <table class="tabla">
+    {% for tx in recientes %}
+      <tr><td>{{ tx.date }}</td><td>{{ tx.category.etiqueta }}</td>
+          <td class="numero">{{ tx.amount|money:hogar.currency }}</td></tr>
+    {% empty %}
+      <tr><td>{% translate "Nothing recorded yet." %}</td></tr>
+    {% endfor %}
+  </table>
+</div>

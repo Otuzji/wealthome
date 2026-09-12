@@ -1,0 +1,7 @@
+{% load i18n %}
+<form class="formulario" hx-post="{% url 'budget:aportar' %}"
+      hx-target="closest .card" hx-swap="beforeend">
+  {% csrf_token %}
+  {{ form.as_div }}
+  <button class="btn btn--primary" type="submit">{% translate "Add it" %}</button>
+</form>
