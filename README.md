@@ -150,6 +150,24 @@ en corto:
 5. **`receipt_image` entra anulable y sin usar**, como pide el spec, aunque
    su destino real (Supabase Storage) siga sin decidirse.
 
+## Stripe
+
+La suite **nunca** llama a Stripe y corre sin claves. Para ejercitar el pago a
+mano hacen falta, en `.env` y en modo de prueba:
+
+    STRIPE_SECRET_KEY=sk_test_...
+    STRIPE_PUBLISHABLE_KEY=pk_test_...
+    STRIPE_WEBHOOK_SECRET=whsec_...
+
+El `whsec_` lo entrega la CLI de Stripe al reenviar los webhooks al servidor
+local, que es la única forma de probarlos sin desplegar:
+
+    stripe listen --forward-to localhost:8000/subscription/webhook/
+
+Sin esa CLI corriendo, un pago de prueba se completa en la pasarela y la
+suscripción **no** se acredita — y eso es correcto: el webhook es la única
+fuente de verdad (§5.2), y la URL de retorno no concede nada.
+
 ## Internacionalización
 
 Los idiomas soportados son `en` (por defecto) y `fr`. Cada cadena visible en

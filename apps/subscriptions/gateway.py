@@ -32,3 +32,20 @@ def crear_sesion_de_pago(*, household, locale, url_exito, url_cancelacion):
         cancel_url=url_cancelacion,
     )
     return sesion.url
+
+
+def leer_evento(cuerpo, firma):
+    """Verifica la firma de Stripe y devuelve el evento como dict.
+
+    Lanza ValueError si la firma falta, no cuadra, o el cuerpo no es JSON. El
+    webhook traduce eso a un 400 sin escribir nada: un cuerpo que no podemos
+    verificar no es de Stripe, venga de donde venga.
+    """
+    try:
+        evento = stripe.Webhook.construct_event(
+            payload=cuerpo, sig_header=firma,
+            secret=settings.STRIPE_WEBHOOK_SECRET,
+        )
+    except Exception as exc:            # SignatureVerificationError, ValueError
+        raise ValueError(str(exc)) from exc
+    return dict(evento)

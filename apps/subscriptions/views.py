@@ -1,9 +1,13 @@
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import get_language
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from apps.households.permissions import con_hogar, sin_guardia_de_suscripcion, solo_admin
 
-from .gateway import crear_sesion_de_pago
+from .gateway import crear_sesion_de_pago, leer_evento
+from .services import procesar_evento
 
 
 @solo_admin
@@ -39,3 +43,25 @@ def retorno(request, hogar):
     return render(request, "subscriptions/retorno.html", {
         "suscripcion": getattr(hogar, "subscription", None),
     })
+
+
+@csrf_exempt
+@require_POST
+def webhook(request):
+    """La UNICA fuente de verdad del pago (§5.2).
+
+    Publico y sin autenticar por definicion: quien llama es Stripe, no un
+    usuario. Sin decoradores de hogar, porque no hay sesion. Su unica defensa
+    es la firma, y por eso se prueba hostil.
+    """
+    firma = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+    try:
+        evento = leer_evento(request.body, firma)
+    except ValueError:
+        return HttpResponse(status=400)
+
+    procesar_evento(evento)
+    # 200 siempre que la firma cuadre, aunque no hubiera nada que hacer: un
+    # error por un evento que no nos interesa hace que Stripe lo reintente
+    # para siempre.
+    return HttpResponse(status=200)

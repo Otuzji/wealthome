@@ -7,4 +7,5 @@ app_name = "subscriptions"
 urlpatterns = [
     path("pay/", views.pagar, name="pagar"),
     path("return/", views.retorno, name="retorno"),
+    path("webhook/", views.webhook, name="webhook"),
 ]
