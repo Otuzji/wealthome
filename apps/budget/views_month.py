@@ -14,9 +14,8 @@ from django.utils.translation import gettext_lazy as _
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services
-from .engine.cascade import repartir
 from .forms import BudgetLineForm, TransactionForm
-from .models import AllocationRule, AllowanceLedger, MesCerrado, Transaction
+from .models import AllowanceLedger, MesCerrado, Transaction
 from .scopes import acotar, acotar_por_dueno, validar
 
 # El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
@@ -114,56 +113,6 @@ def mes(request, hogar, ambito, anio=None, numero=None):
             resultado.transacciones.select_related("category"), ambito, membresia
         )
     return render(request, "budget/mes.html", contexto)
-
-
-@requiere_permiso("can_edit_budget")
-def planificar(request, hogar, ambito):
-    """El asistente del §4.5.6, en una sola pantalla.
-
-    Los tres pasos del spec —ingresos, salidas, reparto— se presentan juntos
-    porque el Plan 3 rehará la navegación; lo que importa aquí es que el
-    cálculo y la escritura sean los definitivos.
-    """
-    ambito = validar(ambito)
-    hoy = timezone.localdate()
-    mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
-    # obtener_mes devuelve una fila (mes corriente materializado) o una
-    # ProyeccionDeMes. Solo en el primer caso hace falta proyectar aparte,
-    # porque planificar reparte sobre el sobrante proyectado del mes.
-    proyeccion = (
-        mes_actual if isinstance(mes_actual, services.ProyeccionDeMes)
-        else services.proyectar(hogar, hoy.year, hoy.month)
-    )
-
-    if request.method == "POST":
-        services.planificar_mes(hogar, mes_actual, proyeccion.sobrante)
-        return redirect("budget:mes", ambito)
-
-    reglas_orm = {
-        r.order: r
-        for r in AllocationRule.objects.for_household(hogar).filter(is_active=True)
-    }
-    reglas = [
-        r.a_regla_de_reparto(services.miembros_activos(hogar))
-        for r in reglas_orm.values()
-    ]
-    # Con nombre y destino, no solo importes: §13.5 dice que cada uno sepa
-    # cuánta mesada tiene, y un número suelto en una lista no dice de quién es.
-    miembros = {m.pk: m for m in hogar.active_memberships()}
-    asignaciones = [
-        {
-            "importe": a.importe,
-            "miembro": miembros.get(a.miembro_id),
-            "regla": reglas_orm[a.orden],
-        }
-        for a in repartir(proyeccion.sobrante, reglas)
-    ]
-    return render(request, "budget/planificar.html", {
-        "proyeccion": proyeccion,
-        "asignaciones": asignaciones,
-        "mes": mes_actual,
-        "ambito": ambito,
-    })
 
 
 @requiere_permiso("can_edit_budget")

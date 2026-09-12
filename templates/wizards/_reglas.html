@@ -1,0 +1,25 @@
+{% load i18n %}
+<ul id="reglas" class="reglas"
+    x-data="{
+      arrastrada: null,
+      soltar(destino) {
+        if (this.arrastrada === null || this.arrastrada === destino) return;
+        const lista = this.$el;
+        const nodos = Array.from(lista.children);
+        lista.insertBefore(nodos[this.arrastrada], nodos[destino]);
+        htmx.ajax('POST', lista.dataset.url, {
+          values: { orden: Array.from(lista.children).map(n => n.dataset.pk) },
+          target: '#reglas', swap: 'outerHTML'
+        });
+      }
+    }"
+    data-url="{% url 'budget:reordenar_reglas' %}">
+  {% for regla in reglas %}
+    <li class="reglas__item" draggable="true" data-pk="{{ regla.pk }}"
+        @dragstart="arrastrada = {{ forloop.counter0 }}"
+        @dragover.prevent
+        @drop.prevent="soltar({{ forloop.counter0 }})">
+      {{ regla.order }}. {{ regla.get_target_type_display }}
+    </li>
+  {% endfor %}
+</ul>

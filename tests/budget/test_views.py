@@ -878,3 +878,96 @@ def test_la_partida_excepcional_no_ofrece_miembros_de_otro_hogar(client, admin_c
 
     assert duenos == set(hogar.active_memberships())
     assert not duenos & set(ajeno.active_memberships())
+
+
+# --- el asistente de planificar (Tarea 26) ------------------------------------
+
+
+def test_el_asistente_tiene_tres_pasos(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    for paso in (1, 2, 3):
+        respuesta = client.get(
+            reverse("budget:planificar_paso", args=["household", paso])
+        )
+        assert respuesta.status_code == 200
+        assert respuesta.context["paso"] == paso
+
+
+def test_solo_el_paso_tres_escribe_el_reparto(client, admin_con_hogar):
+    from apps.budget.models import MonthlyAllocation
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+
+    client.post(reverse("budget:planificar_paso", args=["household", 1]))
+    client.post(reverse("budget:planificar_paso", args=["household", 2]))
+    assert not MonthlyAllocation.objects.for_household(hogar).exists()
+
+    client.post(reverse("budget:planificar_paso", args=["household", 3]))
+    # Sin reglas de reparto no hay filas, pero el mes queda planificado.
+    assert client.session.get("plan_confirmado") is True
+
+
+def test_los_dos_primeros_pasos_solo_avanzan(client, admin_con_hogar):
+    """No esta en el plan: afirma el DESTINO del avance, no solo que no escriba.
+    Sin esto, un paso 1 que redirigiera al paso 3 pasaria la prueba de arriba."""
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    uno = client.post(reverse("budget:planificar_paso", args=["household", 1]))
+    dos = client.post(reverse("budget:planificar_paso", args=["household", 2]))
+
+    assert uno["Location"] == reverse("budget:planificar_paso", args=["household", 2])
+    assert dos["Location"] == reverse("budget:planificar_paso", args=["household", 3])
+
+
+def test_reordenar_reglas_cambia_su_prioridad(client, admin_con_hogar):
+    from apps.budget.models import AllocationRule
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    a = AllocationRuleFactory(household=hogar, order=1)
+    b = AllocationRuleFactory(household=hogar, order=2)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(b.pk), str(a.pk)]},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 200
+    assert AllocationRule.objects.for_household(hogar).get(pk=b.pk).order == 1
+    assert AllocationRule.objects.for_household(hogar).get(pk=a.pk).order == 2
+
+
+def test_no_se_reordenan_reglas_de_otro_hogar(client, admin_con_hogar):
+    """Entrada hostil: los pks llegan del navegador. Reordenar a medias dejaria
+    el orden inconsistente, asi que se rechaza entero."""
+    from apps.budget.models import AllocationRule
+    from apps.households.services import crear_hogar
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = AllocationRuleFactory(household=hogar, order=1)
+    ajeno = crear_hogar(UserFactory(), "Los Otros", family_size=2)
+    suya = AllocationRuleFactory(household=ajeno, order=1)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(suya.pk), str(mia.pk)]},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 400
+    assert AllocationRule.objects.for_household(hogar).get(pk=mia.pk).order == 1
+    assert AllocationRule.unscoped.get(pk=suya.pk).order == 1
+
+
+def test_un_paso_inventado_da_404(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+    assert client.get("/budget/household/plan/9/").status_code == 404

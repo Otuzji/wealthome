@@ -87,3 +87,22 @@
 .formulario label { display: block; margin-bottom: 6px; color: var(--text-muted); }
 .formulario .errorlist { margin: 6px 0 0; padding-left: 18px; color: var(--danger); }
 .formulario .helptext { display: block; margin-top: 6px; color: var(--text-muted); font-size: 0.875em; }
+
+/* ---------- reglas de reparto, arrastrables ----------
+   El unico arrastre del plan (§4.5.6). El cursor y el realce tienen que decir
+   que se puede agarrar, o nadie descubre que se reordena arrastrando. */
+.reglas { margin: 0; padding: 0; list-style: none; }
+.reglas__item {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  margin-bottom: 8px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raised);
+  cursor: grab;
+  font-weight: var(--font-weight-strong);
+}
+.reglas__item:active { cursor: grabbing; box-shadow: var(--shadow-inset); }
