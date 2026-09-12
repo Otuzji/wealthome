@@ -108,3 +108,96 @@ def test_un_hogar_en_prueba_escribe_sin_problema(client):
     assert client.get(reverse("budget:configurar")).status_code == 200
     # 200 porque el formulario vacio se re-renderiza con errores, no 403.
     assert client.post(reverse("budget:ingreso_nuevo"), {}).status_code == 200
+
+
+@pytest.mark.django_db
+def test_pagar_manda_a_stripe_con_el_idioma_y_el_hogar(client, monkeypatch):
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    capturado = {}
+
+    def falso_crear(*, household, locale, url_exito, url_cancelacion):
+        capturado["household"] = household
+        capturado["locale"] = locale
+        return "https://checkout.stripe.com/c/pay/fake"
+
+    monkeypatch.setattr("apps.subscriptions.views.crear_sesion_de_pago", falso_crear)
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    respuesta = client.post(reverse("subscriptions:pagar"))
+
+    assert respuesta.status_code == 302
+    assert respuesta["Location"].startswith("https://checkout.stripe.com/")
+    assert capturado["household"] == hogar
+    assert capturado["locale"] == "en"
+
+
+@pytest.mark.django_db
+def test_un_hogar_expirado_si_puede_pagar(client, monkeypatch):
+    """La exencion del §2.2: si la guardia cubriera esto, un hogar expirado no
+    podria pagar para dejar de estarlo."""
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    monkeypatch.setattr(
+        "apps.subscriptions.views.crear_sesion_de_pago",
+        lambda **kw: "https://checkout.stripe.com/c/pay/fake",
+    )
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    client.force_login(user)
+
+    assert client.post(reverse("subscriptions:pagar")).status_code == 302
+
+
+@pytest.mark.django_db
+def test_el_retorno_no_concede_nada(client):
+    """§5.2: cualquiera puede visitar la URL de exito sin haber pagado."""
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    respuesta = client.get(reverse("subscriptions:retorno"))
+
+    assert respuesta.status_code == 200
+    hogar.refresh_from_db()
+    assert hogar.subscription.status == "trialing"
+    assert hogar.subscription.paid_at is None
+
+
+@pytest.mark.django_db
+def test_un_get_a_pagar_no_revienta(client):
+    """El plan mandaba a subscriptions:estado, que no existe hasta la Tarea 11.
+
+    Sin esta prueba, un GET a esa ruta se iba en la rama como un 500 latente:
+    ninguna otra prueba de la tarea entra por ahi.
+    """
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    respuesta = client.get(reverse("subscriptions:pagar"))
+
+    assert respuesta.status_code == 302
+    assert "checkout.stripe.com" not in respuesta["Location"]

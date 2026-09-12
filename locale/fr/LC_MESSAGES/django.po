@@ -1175,3 +1175,15 @@ msgstr "Événement Stripe"
 #: apps/subscriptions/models.py
 msgid "Stripe events"
 msgstr "Événements Stripe"
+
+#: templates/subscriptions/retorno.html
+msgid "Thank you"
+msgstr "Merci"
+
+#: templates/subscriptions/retorno.html
+msgid "We are confirming your payment. This page will not change until Stripe tells us it went through."
+msgstr "Nous confirmons votre paiement. Cette page ne changera pas avant que Stripe ne nous confirme qu'il a abouti."
+
+#: templates/subscriptions/retorno.html
+msgid "Back to Wealthome"
+msgstr "Retour à Wealthome"
