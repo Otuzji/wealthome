@@ -1,8 +1,9 @@
 {% extends "base.html" %}{% load i18n %}
+{% block title %}Wealthome{% endblock %}
 {% block content %}
+<section class="card">
   <h1>{% translate "Welcome" %}</h1>
-  {% if perms_presupuesto %}
-    <p><a href="{% url 'budget:configurar' %}">{% translate "Set up the budget" %}</a></p>
-  {% endif %}
-  <p><a href="{% url 'households:ajustes' %}">{% translate "Household settings" %}</a></p>
+  <p>{% translate "Your budget lives in the menu. Start with this month." %}</p>
+  <p><a class="btn btn--primary" href="{% url 'budget:mes' %}">{% translate "This month" %}</a></p>
+</section>
 {% endblock %}

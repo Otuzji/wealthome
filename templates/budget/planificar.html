@@ -4,30 +4,45 @@
 <section class="card">
   <h1>{% translate "Plan the month" %}</h1>
 
-  <p>{% translate "Income" %}: {{ proyeccion.total_ingresos|money:hogar.currency }}</p>
-  <p>{% translate "Fixed expenses" %}: {{ proyeccion.total_egresos|money:hogar.currency }}</p>
-  <p><strong>{% translate "Left over" %}: {{ proyeccion.sobrante|money:hogar.currency }}</strong></p>
+  <div class="cifras">
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Income" %}</div>
+      <div class="cifra__valor">{{ proyeccion.total_ingresos|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Fixed expenses" %}</div>
+      <div class="cifra__valor">{{ proyeccion.total_egresos|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+      <div class="cifra__valor">{{ proyeccion.sobrante|money:hogar.currency }}</div>
+    </div>
+  </div>
 
   <h2>{% translate "How it gets split" %}</h2>
-  <ol>
-    {% for asignacion in asignaciones %}
-      <li>
-        {% if asignacion.miembro %}
-          {% translate "Allowance" %} · {{ asignacion.miembro.user }}
-        {% else %}
-          {{ asignacion.regla.get_target_type_display }}
-        {% endif %}
-        — {{ asignacion.importe|money:hogar.currency }}
-      </li>
-    {% empty %}
-      <li>{% translate "No split rules yet." %}</li>
-    {% endfor %}
-  </ol>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      {% for asignacion in asignaciones %}
+        <tr>
+          <td>
+            {% if asignacion.miembro %}
+              {% translate "Allowance" %} · {{ asignacion.miembro.user }}
+            {% else %}
+              {{ asignacion.regla.get_target_type_display }}
+            {% endif %}
+          </td>
+          <td class="numero">{{ asignacion.importe|money:hogar.currency }}</td>
+        </tr>
+      {% empty %}
+        <tr><td>{% translate "No split rules yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
 
   <form method="post">
     {% csrf_token %}
-    <button class="btn btn--primary" type="submit">{% translate "Confirm the plan" %}</button>
-    <a href="{% url 'budget:mes' %}">{% translate "Cancel" %}</a>
+    <button class="btn btn--primary btn--bloque" type="submit">{% translate "Confirm the plan" %}</button>
+    <a class="btn btn--sutil" href="{% url 'budget:mes' %}">{% translate "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

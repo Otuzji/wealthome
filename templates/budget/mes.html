@@ -4,32 +4,52 @@
 <section class="card">
   <h1>{{ anio }}-{{ numero }}</h1>
   {% if es_proyeccion %}
+    <p><span class="pildora">{% translate "Not started" %}</span></p>
     <p>{% translate "This month has not started yet — these numbers come from your rules." %}</p>
-    <table>
-      {% for linea in resultado.lineas %}
-        <tr><td>{{ linea.nombre }}</td><td>{{ linea.importe|money:hogar.currency }}</td></tr>
-      {% endfor %}
-    </table>
-    <p>{% translate "Left over" %}: {{ resultado.sobrante|money:hogar.currency }}</p>
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        {% for linea in resultado.lineas %}
+          <tr>
+            <td>{{ linea.nombre }}</td>
+            <td class="numero">{{ linea.importe|money:hogar.currency }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="cifras">
+      <div class="cifra">
+        <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+        <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
+      </div>
+    </div>
   {% else %}
-    <table>
-      <tr><th>{% translate "Category" %}</th><th>{% translate "Planned" %}</th></tr>
-      {% for linea in lineas %}
-        <tr>
-          <td>{{ linea.category.etiqueta }}</td>
-          <td>{{ linea.planned_amount|money:hogar.currency }}</td>
-        </tr>
-      {% endfor %}
-    </table>
+    <p><span class="pildora {% if resultado.status == 'closed' %}pildora--bien{% endif %}">
+      {{ resultado.get_status_display }}</span></p>
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        <tr><th>{% translate "Category" %}</th><th class="numero">{% translate "Planned" %}</th></tr>
+        {% for linea in lineas %}
+          <tr>
+            <td>{{ linea.category.etiqueta }}</td>
+            <td class="numero">{{ linea.planned_amount|money:hogar.currency }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
     <h2>{% translate "What actually happened" %}</h2>
-    <table>
-      {% for tx in transacciones %}
-        <tr><td>{{ tx.date }}</td><td>{{ tx.category.etiqueta }}</td>
-            <td>{{ tx.amount|money:hogar.currency }}</td></tr>
-      {% empty %}
-        <tr><td>{% translate "Nothing recorded yet." %}</td></tr>
-      {% endfor %}
-    </table>
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        {% for tx in transacciones %}
+          <tr>
+            <td>{{ tx.date }}</td>
+            <td>{{ tx.category.etiqueta }}</td>
+            <td class="numero">{{ tx.amount|money:hogar.currency }}</td>
+          </tr>
+        {% empty %}
+          <tr><td>{% translate "Nothing recorded yet." %}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
   {% endif %}
 </section>
 {% endblock %}

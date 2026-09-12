@@ -1,13 +1,13 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{{ titulo }} · Wealthome{% endblock %}
 {% block content %}
-<section class="card">
+<section class="card formulario">
   <h1>{{ titulo }}</h1>
   <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
+    {{ form.as_div }}
     <button class="btn btn--primary" type="submit">{% translate "Save" %}</button>
-    <a href="{% url 'budget:configurar' %}">{% translate "Cancel" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:configurar' %}">{% translate "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

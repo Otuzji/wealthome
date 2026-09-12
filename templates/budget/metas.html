@@ -3,26 +3,28 @@
 {% block content %}
 <section class="card">
   <h1>{% translate "Goals" %}</h1>
-  <table>
-    <tr>
-      <th>{% translate "Goal" %}</th>
-      <th>{% translate "Saved so far" %}</th>
-      <th>{% translate "Target" %}</th>
-      <th>{% translate "Per month" %}</th>
-      <th>{% translate "Reached by" %}</th>
-    </tr>
-    {% for fila in filas %}
+  <div class="tabla__envoltura">
+    <table class="tabla">
       <tr>
-        <td>{{ fila.meta.name }}</td>
-        <td>{{ fila.acumulado|money:hogar.currency }}</td>
-        <td>{{ fila.meta.target_amount|money:hogar.currency }}</td>
-        <td>{{ fila.aporte|money:hogar.currency }}</td>
-        <td>{{ fila.fecha }}</td>
+        <th>{% translate "Goal" %}</th>
+        <th class="numero">{% translate "Saved so far" %}</th>
+        <th class="numero">{% translate "Target" %}</th>
+        <th class="numero">{% translate "Per month" %}</th>
+        <th>{% translate "Reached by" %}</th>
       </tr>
-    {% empty %}
-      <tr><td>{% translate "No goals yet." %}</td></tr>
-    {% endfor %}
-  </table>
+      {% for fila in filas %}
+        <tr>
+          <td>{{ fila.meta.name }}</td>
+          <td class="numero">{{ fila.acumulado|money:hogar.currency }}</td>
+          <td class="numero">{{ fila.meta.target_amount|money:hogar.currency }}</td>
+          <td class="numero">{{ fila.aporte|money:hogar.currency }}</td>
+          <td>{{ fila.fecha }}</td>
+        </tr>
+      {% empty %}
+        <tr><td>{% translate "No goals yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
   <a class="btn" href="{% url 'budget:meta_nueva' %}">{% translate "Add a goal" %}</a>
   <a class="btn" href="{% url 'budget:aportar' %}">{% translate "Add to a goal" %}</a>
 </section>

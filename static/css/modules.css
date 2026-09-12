@@ -58,3 +58,32 @@
   .nav__enlace { justify-content: flex-start; padding: 0 20px; }
   .shell { margin-left: 220px; padding-bottom: 24px; }
 }
+
+/* ---------- formularios ----------
+   Se pintan con {{ form.as_div }}: el estilo se aplica por elemento dentro de
+   .formulario, para no tener que tocar cada widget en Python ni repetir
+   class="campo" en cada plantilla. */
+.formulario input[type="text"],
+.formulario input[type="email"],
+.formulario input[type="number"],
+.formulario input[type="date"],
+.formulario input[type="password"],
+.formulario select,
+.formulario textarea {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-inset);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+}
+.formulario textarea { min-height: calc(var(--touch-target) * 2); padding: 12px 14px; }
+.formulario div { margin-bottom: 16px; }
+.formulario label { display: block; margin-bottom: 6px; color: var(--text-muted); }
+.formulario .errorlist { margin: 6px 0 0; padding-left: 18px; color: var(--danger); }
+.formulario .helptext { display: block; margin-top: 6px; color: var(--text-muted); font-size: 0.875em; }

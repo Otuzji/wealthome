@@ -4,6 +4,17 @@
 <section class="card">
   <h1>{% translate "Subscription" %}</h1>
 
+  {# El estado, con etiqueta traducida y no con el slug crudo: estado_visible
+     devuelve "active"/"trialing"/"expired", que son valores, no texto de cara
+     al usuario, y este producto es bilingue por requisito legal. #}
+  {% if suscripcion.estado_visible == "active" %}
+    <p><span class="pildora pildora--bien">{% translate "Active" %}</span></p>
+  {% elif suscripcion.estado_visible == "trialing" %}
+    <p><span class="pildora">{% translate "Trial" %}</span></p>
+  {% else %}
+    <p><span class="pildora pildora--mal">{% translate "Expired" %}</span></p>
+  {% endif %}
+
   {% if suscripcion.estado_visible == "active" %}
     <p>{% translate "Wealthome is yours. Thank you." %}</p>
   {% elif suscripcion.estado_visible == "trialing" %}
@@ -15,7 +26,7 @@
   {% if suscripcion.estado_visible != "active" %}
     <form method="post" action="{% url 'subscriptions:pagar' %}">
       {% csrf_token %}
-      <button class="btn btn--primary" type="submit">
+      <button class="btn btn--primary btn--bloque" type="submit">
         {% blocktranslate %}Subscribe once for ${{ precio }} CAD{% endblocktranslate %}
       </button>
     </form>
