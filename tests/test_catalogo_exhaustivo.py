@@ -44,7 +44,11 @@ from pathlib import Path
 import pytest
 from django.conf import settings
 
-from tests.test_traducciones import _ENTRADA_RE, _texto_de_cadenas
+from tests.test_traducciones import (
+    _ENTRADA_PLURAL_RE,
+    _ENTRADA_RE,
+    _texto_de_cadenas,
+)
 
 CATALOGO_FR = Path(settings.BASE_DIR) / "locale/fr/LC_MESSAGES/django.po"
 
@@ -69,6 +73,12 @@ _BLOCKTRANS_RE = re.compile(
 
 _VARIABLE_RE = re.compile(r"\{\{\s*(\w+)(?:\|[^}]*)?\s*\}\}")
 
+# gettext parte un blocktranslate con plural en DOS literales: el msgid y el
+# msgid_plural. Sin esto, el cuerpo entero —con el {% plural %} dentro— se
+# buscaba como un msgid unico, que ningun catalogo correcto puede contener: la
+# Tarea 12 del Plan 3 no podia pasar ni escribiendo bien el .po.
+_PLURAL_RE = re.compile(r"\{%-?\s*plural\s*-?%\}")
+
 
 def _cadenas_python(texto):
     return [m.group("cad") for m in _LLAMADA_PYTHON_RE.finditer(texto)]
@@ -79,7 +89,7 @@ def _cadenas_plantilla(texto):
     for m in _BLOCKTRANS_RE.finditer(texto):
         cuerpo = " ".join(m.group("cuerpo").split())
         cuerpo = _VARIABLE_RE.sub(lambda mm: "%(" + mm.group(1) + ")s", cuerpo)
-        cadenas.append(cuerpo)
+        cadenas.extend(trozo.strip() for trozo in _PLURAL_RE.split(cuerpo))
     return cadenas
 
 
@@ -96,7 +106,12 @@ def _literales_traducibles_en_el_codigo(raiz_apps, raiz_templates):
 
 
 def _msgids_del_catalogo(texto_po):
-    return {_texto_de_cadenas(m.group("msgid")) for m in _ENTRADA_RE.finditer(texto_po)} - {""}
+    """Los msgid del catalogo, contando las DOS mitades de una entrada plural."""
+    ids = {_texto_de_cadenas(m.group("msgid")) for m in _ENTRADA_RE.finditer(texto_po)}
+    for m in _ENTRADA_PLURAL_RE.finditer(texto_po):
+        ids.add(_texto_de_cadenas(m.group("msgid")))
+        ids.add(_texto_de_cadenas(m.group("msgid_plural")))
+    return ids - {""}
 
 
 def _cadenas_faltantes(raiz_apps, raiz_templates, texto_po):
