@@ -1481,3 +1481,15 @@ msgstr "Étape %(paso)s sur 3"
 #: templates/wizards/incorporacion.html
 msgid "Step %(paso)s of %(total)s"
 msgstr "Étape %(paso)s sur %(total)s"
+
+#: templates/sin-conexion.html
+msgid "No connection"
+msgstr "Pas de connexion"
+
+#: templates/households/ajustes.html
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+#: templates/sin-conexion.html
+msgid "You are offline and this page was not saved on this device. Anything you have already opened is still here."
+msgstr "Vous êtes hors ligne et cette page n'a pas été enregistrée sur cet appareil. Tout ce que vous avez déjà ouvert est toujours là."

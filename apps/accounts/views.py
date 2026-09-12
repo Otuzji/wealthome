@@ -44,6 +44,22 @@ class Login(LoginView):
 class Logout(LogoutView):
     next_page = reverse_lazy("accounts:login")
 
+    def dispatch(self, request, *args, **kwargs):
+        """Purga la cache del navegador al salir.
+
+        La PWA cachea las paginas financieras que el miembro haya abierto para
+        que pueda consultarlas sin senal (§10). En un dispositivo compartido,
+        dejarlas ahi despues de cerrar sesion seria entregarle el presupuesto de
+        una familia a la siguiente persona que lo use.
+
+        Dos mecanismos, porque ninguno basta solo: Clear-Site-Data lo hace el
+        navegador, y el mensaje al service worker (ver base.html) cubre a los
+        navegadores que no la implementan.
+        """
+        respuesta = super().dispatch(request, *args, **kwargs)
+        respuesta.headers["Clear-Site-Data"] = '"cache", "storage"'
+        return respuesta
+
 
 @login_required
 def inicio(request):

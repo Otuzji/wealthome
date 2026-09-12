@@ -1465,3 +1465,15 @@ msgstr "Step %(paso)s of 3"
 #: templates/wizards/incorporacion.html
 msgid "Step %(paso)s of %(total)s"
 msgstr "Step %(paso)s of %(total)s"
+
+#: templates/sin-conexion.html
+msgid "No connection"
+msgstr "No connection"
+
+#: templates/households/ajustes.html
+msgid "Sign out"
+msgstr "Sign out"
+
+#: templates/sin-conexion.html
+msgid "You are offline and this page was not saved on this device. Anything you have already opened is still here."
+msgstr "You are offline and this page was not saved on this device. Anything you have already opened is still here."

@@ -1,5 +1,14 @@
 /* El service worker de Wealthome (§10).
  *
+ * SE SIRVE DESDE LA RAIZ (/sw.js) y no desde /static/, y no es un capricho: el
+ * alcance maximo de un service worker es su PROPIO directorio. Desde
+ * /static/js/sw.js, registrarlo con scope "/" lo rechaza el navegador con un
+ * SecurityError salvo que la respuesta lleve la cabecera Service-Worker-Allowed,
+ * que los ficheros estaticos no llevan y que en produccion habria que configurar
+ * en el servidor web. Servirlo por una vista de Django funciona igual en
+ * desarrollo y en produccion, sin tocar la configuracion de nadie.
+ * Lo encontro la prueba de navegador de la Tarea 31.
+ *
  * Cachea el armazon Y las paginas financieras que el miembro haya abierto, para
  * que pueda consultarlas sin senal. Eso significa que la cache contiene las
  * finanzas de una familia en un dispositivo que puede ser compartido, asi que

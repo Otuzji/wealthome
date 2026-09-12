@@ -7,3 +7,4 @@ pytest-django==4.9.*
 factory-boy==3.3.*
 Pillow==12.3.*
 stripe==11.*
+pytest-playwright==0.5.*

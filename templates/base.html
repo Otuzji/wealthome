@@ -29,8 +29,16 @@
   {% if not debug %}
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("{% static 'js/sw.js' %}", { scope: "/" });
+      navigator.serviceWorker.register("{% url 'service_worker' %}", { scope: "/" });
     }
+    // El segundo mecanismo de la purga: Clear-Site-Data lo hace el navegador, y
+    // esto cubre a los que no la implementan.
+    document.addEventListener("submit", function (evento) {
+      var accion = evento.target.getAttribute("action") || "";
+      if (accion.indexOf("logout") !== -1 && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage("purgar");
+      }
+    });
   </script>
   {% endif %}
 </body>

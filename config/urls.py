@@ -14,6 +14,12 @@ urlpatterns = [
     # precargarla, y es una pagina sin datos.
     path("offline/", TemplateView.as_view(template_name="sin-conexion.html"),
          name="sin_conexion"),
+    # Desde la raiz y no desde /static/: el alcance de un service worker es su
+    # propio directorio, asi que uno servido en /static/js/ no puede controlar
+    # el sitio entero. Ver el comentario de templates/sw.js.
+    path("sw.js", TemplateView.as_view(
+        template_name="sw.js", content_type="application/javascript",
+    ), name="service_worker"),
     path("", include("apps.accounts.urls")),
 ]
 
