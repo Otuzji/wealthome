@@ -535,3 +535,111 @@ def test_las_dos_pantallas_nuevas_resuelven_en_los_dos_ambitos(client, admin_con
     for ambito in ("household", "personal"):
         assert client.get(reverse("budget:overview", args=[ambito])).status_code == 200
         assert client.get(reverse("budget:balance", args=[ambito])).status_code == 200
+
+
+# --- el Overview (Tarea 19) ---------------------------------------------------
+
+
+def test_el_overview_da_las_series_ya_serializadas(client, admin_con_hogar):
+    import json
+
+    from django.utils import timezone
+    from tests.factories_budget import (
+        BudgetLineFactory, BudgetMonthFactory, TransactionFactory,
+    )
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=cat,
+                      kind="expense", planned_amount=Decimal("400.00"))
+    TransactionFactory(household=hogar, budget_month=mes, category=cat,
+                       amount=Decimal("350.00"), date=date(hoy.year, hoy.month, 4))
+
+    respuesta = client.get(reverse("budget:overview", args=["household"]))
+
+    assert respuesta.status_code == 200
+    series = respuesta.context["series_categorias"]
+    # etiqueta() es un metodo, no una property: en plantilla Django lo llama
+    # solo, en Python hay que llamarlo.
+    assert cat.etiqueta() in series["etiquetas"]
+    # Serializable de verdad: ni un Decimal suelto, que es lo que json_script
+    # no sabe convertir.
+    assert json.dumps(series)
+    assert json.dumps(respuesta.context["series_balance"])
+
+
+def test_el_overview_personal_no_cuenta_lo_del_hogar(client, admin_con_hogar):
+    """Las series tambien pasan por el filtro de ambito, no solo las tablas."""
+    from django.utils import timezone
+    from tests.factories_budget import BudgetMonthFactory, TransactionFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
+    TransactionFactory(household=hogar, budget_month=mes, category=cat, member=mia,
+                       scope="household", amount=Decimal("500.00"),
+                       date=date(hoy.year, hoy.month, 5))
+
+    series = client.get(
+        reverse("budget:overview", args=["personal"])
+    ).context["series_categorias"]
+
+    assert "500.00" not in series["real"]
+
+
+# --- el Balance (Tarea 20) ----------------------------------------------------
+
+
+def test_balance_ensena_la_varianza_por_categoria(client, admin_con_hogar):
+    from apps.budget.models import MonthlyClose
+    from tests.factories_budget import BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=2, status="closed")
+    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
+    MonthlyClose.unscoped.create(
+        household=hogar, budget_month=mes,
+        ingresos_presupuestados=Decimal("3000.00"), ingresos_reales=Decimal("3000.00"),
+        egresos_presupuestados=Decimal("400.00"), egresos_reales=Decimal("475.00"),
+        varianza_por_categoria={str(cat.pk): "-75.00"},
+        balance=Decimal("2525.00"), arrastre=Decimal("2525.00"),
+    )
+
+    respuesta = client.get(reverse("budget:balance", args=["household"]))
+
+    assert respuesta.status_code == 200
+    fila = respuesta.context["cierres"][0]
+    assert fila["cierre"].balance == Decimal("2525.00")
+    varianzas = {v["categoria"].pk: v["importe"] for v in fila["varianza"]}
+    # Decimal reconstruido al leer, no el str que guarda el JSON (§1 del spec).
+    assert varianzas[cat.pk] == Decimal("-75.00")
+    assert isinstance(varianzas[cat.pk], Decimal)
+
+
+def test_balance_exige_can_view_reports(client, admin_con_hogar):
+    """El plan decia can_view_budget para esta vista. Balance ES un informe, y
+    can_view_reports existe en el §6.2 para eso: con can_view_budget, un miembro
+    al que se le nego ver informes los veria igual.
+    """
+    _user, hogar = admin_con_hogar
+    solo_presupuesto = _miembro(hogar, can_view_budget=True, can_view_reports=False)
+    client.force_login(solo_presupuesto.user)
+
+    assert client.get(reverse("budget:balance", args=["household"])).status_code == 403
+
+
+def test_balance_sin_cierres_lo_dice_y_no_revienta(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:balance", args=["household"]))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["cierres"] == []

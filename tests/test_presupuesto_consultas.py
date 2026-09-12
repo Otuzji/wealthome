@@ -32,6 +32,10 @@ from tests.factories_budget import (
 # a 17, y el de metas se queda en 10 con el menu ya contado.
 CONSULTAS_MES = 17
 CONSULTAS_METAS = 10
+# Fijado en la Tarea 19, midiendo. El Overview agrega en Python sobre los
+# mismos dos querysets que ya trae el mes, mas los ultimos cierres para la
+# grafica del balance: el tope no debe crecer con el numero de movimientos.
+CONSULTAS_OVERVIEW = 19
 
 
 @pytest.fixture
@@ -77,4 +81,15 @@ def test_metas_no_calcula_el_acumulado_dos_veces(
     client.force_login(user)
     with django_assert_num_queries(CONSULTAS_METAS):
         respuesta = client.get(reverse("budget:metas", args=["household"]))
+    assert respuesta.status_code == 200
+
+
+@pytest.mark.django_db
+def test_el_overview_no_hace_una_consulta_por_movimiento(
+    client, django_assert_num_queries, hogar_con_movimiento
+):
+    _hogar, user, _mes = hogar_con_movimiento
+    client.force_login(user)
+    with django_assert_num_queries(CONSULTAS_OVERVIEW):
+        respuesta = client.get(reverse("budget:overview", args=["household"]))
     assert respuesta.status_code == 200

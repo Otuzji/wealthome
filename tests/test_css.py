@@ -69,3 +69,48 @@ def test_ningun_componente_lleva_un_color_literal():
             f"{nombre} lleva colores literales {encontrados}: van en "
             f"tokens.css, o el componente no cambia con el tema."
         )
+
+
+def test_las_graficas_no_llevan_colores_literales():
+    """Un color en el JS es ilegible en Nocturno y pierde el 14:1 en Accesible.
+
+    Vive aqui y no en las pruebas de vistas: es una guardia de estilo, no de
+    comportamiento, y no necesita base de datos.
+    """
+    js = (RAIZ / "static" / "js" / "graficas.js").read_text(encoding="utf-8")
+
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", js)
+    assert not re.search(r"\brgba?\s*\(", js)
+    assert "getPropertyValue" in js, (
+        "graficas.js tiene que LEER las variables CSS en tiempo de ejecucion: "
+        "el tema puede cambiar sin recargar."
+    )
+
+
+def test_las_graficas_no_llevan_cadenas_visibles():
+    """Las etiquetas de las series salen de atributos data- del <canvas>, para
+    que las traduzca Django. Una cadena dentro del JS no pasa por gettext y se
+    queda en ingles bajo fr, que es un requisito legal del producto.
+
+    No esta en el plan: la guardia de colores no habria visto una etiqueta
+    escrita a mano, y es el mismo fallo por el mismo motivo.
+    """
+    js = (RAIZ / "static" / "js" / "graficas.js").read_text(encoding="utf-8")
+    sin_comentarios = re.sub(r"/\*.*?\*/", "", js, flags=re.DOTALL)
+    sin_comentarios = re.sub(r"//.*", "", sin_comentarios)
+
+    literales = re.findall(r'"([^"]*)"', sin_comentarios)
+    # Heuristica: una frase de cara al usuario lleva espacios o empieza en
+    # mayuscula. Los nombres de variable CSS, los ids del DOM y los tipos de
+    # grafica no. MAQUINARIA es la lista explicita de lo que si cumple la forma
+    # de una frase y aun asi no lo es; que sea explicita es el punto — anadir
+    # una entrada aqui es una decision visible en la revision.
+    MAQUINARIA = {"use strict", "DOMContentLoaded", "MutationObserver"}
+    sospechosos = [
+        s for s in literales
+        if s not in MAQUINARIA and (" " in s or s[:1].isupper())
+    ]
+    assert not sospechosos, (
+        f"graficas.js lleva texto que parece visible: {sospechosos}. Va en un "
+        f"atributo data- del canvas, traducido por Django."
+    )
