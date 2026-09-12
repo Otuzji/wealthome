@@ -101,7 +101,12 @@ def membresia_actual(request):
 
     membresia = (
         Membership.objects.filter(user=request.user, is_active=True)
-        .select_related("household")
+        # La suscripcion viaja con el hogar porque ahora TODA pagina la mira:
+        # la guardia del §5.2 pregunta hogar.puede_escribir en cada escritura, y
+        # desde la Tarea 14 el menu la pregunta en cada render. Sin esto era una
+        # consulta por pagina; con esto, cero. Reverse OneToOne, asi que si el
+        # hogar no tuviera fila, el getattr de puede_escribir sigue dando None.
+        .select_related("household", "household__subscription")
         # joined_at antes que pk: si dos hogares se crearan en la misma
         # transacción, el id de fila no dice cuál llegó primero.
         .order_by("joined_at", "pk")

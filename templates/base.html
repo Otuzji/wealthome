@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="{% static 'css/modules.css' %}">
 </head>
 <body>
+  {% include "_nav.html" %}
   <main class="shell">{% block content %}{% endblock %}</main>
 </body>
 </html>

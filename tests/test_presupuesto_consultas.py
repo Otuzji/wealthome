@@ -18,18 +18,19 @@ from tests.factories_budget import (
     BudgetMonthFactory, CategoryFactory, GoalFactory, TransactionFactory,
 )
 
-# Subido de 17 a 18 en la Tarea 8, a proposito y con razon. La guardia del
-# §5.2 hace que `obtener_mes` pregunte `hogar.puede_escribir`, y eso busca la
-# fila de Subscription. Es UNA consulta y es constante: `puede_escribir` es
-# cached_property, asi que no crece con las transacciones ni con nada, que es
-# lo unico que este tope vigila. `CONSULTAS_METAS` no se mueve porque la vista
-# de metas no entra al ciclo del mes.
+# Historia de estos dos numeros, porque explica por que estan donde estan:
 #
-# Se puede recuperar esa consulta cuando alguien toque `membresia_actual`:
-# un select_related("household__subscription") alli la dejaria en cero para
-# TODA vista, no solo para esta. No se hace aqui porque es un cambio que
-# afecta a todas las vistas y esta tarea no las verifica.
-CONSULTAS_MES = 18
+# La Tarea 8 subio el del mes de 17 a 18, porque la guardia del §5.2 hizo que
+# `obtener_mes` preguntara `hogar.puede_escribir` y eso buscaba la fila de
+# Subscription. Quedo apuntado que un select_related en `membresia_actual` la
+# dejaria en cero para TODA vista, y se dejo para quien tocara esa funcion.
+#
+# La Tarea 14 lo hizo necesario: el menu pregunta `puede_escribir` en CADA
+# render, asi que la consulta dejo de ser de una pantalla y paso a ser de todas
+# — el tope de metas se fue a 11. En vez de subir dos topes se hizo el
+# select_related, y ahora la suscripcion viaja con el hogar: el del mes VUELVE
+# a 17, y el de metas se queda en 10 con el menu ya contado.
+CONSULTAS_MES = 17
 CONSULTAS_METAS = 10
 
 

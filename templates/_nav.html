@@ -1,0 +1,19 @@
+{% load i18n %}
+{% if nav_entradas %}
+<nav class="nav" aria-label="{% translate 'Main' %}">
+  <ul class="nav__lista">
+    {% for entrada in nav_entradas %}
+      <li class="nav__item nav__item--{{ entrada.icono }}">
+        <a class="nav__enlace" href="{{ entrada.url }}">{{ entrada.etiqueta }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+  {% if not nav_puede_escribir %}
+    {# Sustituye al [+], que el context processor ya no incluye para un hogar
+       expirado: un [+] que da 403 al tocarlo seria correcto y grosero (§7). #}
+    <p class="nav__aviso">
+      <a href="{% url 'subscriptions:estado' %}">{% translate "Your trial has ended" %}</a>
+    </p>
+  {% endif %}
+</nav>
+{% endif %}
