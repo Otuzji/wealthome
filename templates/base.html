@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Wealthome{% endblock %}</title>
+  {% comment %} El manifiesto lo lee el sistema operativo antes de que exista
+     ninguna hoja de estilo, asi que sus colores van literales: son los de
+     Sereno, el tema por defecto. {% endcomment %}
+  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <meta name="theme-color" content="#3f8f6f">
+  <link rel="apple-touch-icon" href="{% static 'icons/icono-192.png' %}">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
