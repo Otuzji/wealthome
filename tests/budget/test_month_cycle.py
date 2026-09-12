@@ -8,7 +8,7 @@ Celery en el stack, y un comando programado como único disparador no correría
 en desarrollo.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -17,9 +17,11 @@ from django.utils import timezone
 from apps.budget import services
 from apps.budget.engine.periodicity import MONTHLY
 from apps.budget.models import BudgetMonth, MonthlyClose
+from apps.budget.seeds import sembrar
 from apps.households.services import crear_hogar
-from tests.factories import UserFactory
+from tests.factories import HouseholdFactory, UserFactory
 from tests.factories_budget import (
+    BudgetMonthFactory,
     CategoryFactory,
     ExpenseRuleFactory,
     IncomeSourceFactory,
@@ -295,3 +297,89 @@ def test_el_arrastre_no_toma_el_saldo_de_un_mes_posterior(hogar_con_reglas):
     cierre_marzo = services.cerrar_mes(marzo)
 
     assert cierre_marzo.arrastre == Decimal("0.00")
+
+
+def test_un_hogar_expirado_no_materializa_el_mes_corriente():
+    hogar = HouseholdFactory()
+    sembrar(hogar)
+    hoy = timezone.localdate()
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    hogar = type(hogar).objects.get(pk=hogar.pk)   # limpia la cached_property
+
+    resultado = services.obtener_mes(hogar, hoy.year, hoy.month)
+
+    assert isinstance(resultado, services.ProyeccionDeMes)
+    assert not BudgetMonth.objects.for_household(hogar).exists()
+
+
+def test_un_hogar_expirado_ve_su_historia_pero_no_cierra_nada():
+    hogar = HouseholdFactory()
+    sembrar(hogar)
+    viejo = BudgetMonthFactory(household=hogar, year=2020, month=1, status="open")
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    hogar = type(hogar).objects.get(pk=hogar.pk)
+
+    resultado = services.obtener_mes(hogar, 2020, 1)
+
+    assert resultado.pk == viejo.pk
+    # Vencido de sobra, y aun asi sigue abierto: no se cerro en cadena.
+    assert BudgetMonth.objects.for_household(hogar).get(pk=viejo.pk).status == "open"
+    assert not MonthlyClose.objects.for_household(hogar).exists()
+
+
+def test_al_pagar_la_cadena_de_cierres_se_pone_al_dia():
+    """El caso del §4 del documento de estado: expira, pasan meses, paga.
+
+    El mes abierto se ancla al ANTERIOR, no a uno fijo de hace anios, y no es
+    cosmetico: `cerrar_vencidos` cierra en cadena mes a mes, asi que con 2020
+    esta prueba hacia ~80 cierres contra el pooler —241 s ella sola— y crecia
+    otra vuelta cada mes que pasaba en el mundo real. Lo que se comprueba es
+    que la cadena ARRANCA al pagar; su longitud no aporta nada.
+    """
+    from apps.subscriptions.models import Subscription
+
+    hogar = HouseholdFactory()
+    sembrar(hogar)
+    hoy = timezone.localdate()
+    anterior = date(hoy.year, hoy.month, 1) - timedelta(days=1)
+    BudgetMonthFactory(
+        household=hogar, year=anterior.year, month=anterior.month, status="open"
+    )
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+
+    hogar.subscription.status = Subscription.ACTIVE
+    hogar.subscription.paid_at = timezone.now()
+    hogar.subscription.save()
+    hogar = type(hogar).objects.get(pk=hogar.pk)
+
+    services.obtener_mes(hogar, anterior.year, anterior.month)
+
+    cerrado = BudgetMonth.objects.for_household(hogar).get(
+        year=anterior.year, month=anterior.month
+    )
+    assert cerrado.status == "closed"
+
+
+def test_un_hogar_expirado_puede_mirar_su_mes(client):
+    """El sintoma del §5.2 tal y como lo vive el usuario: entrar no escribe.
+
+    Vive aqui y no en test_views.py a proposito: la llamada 2 de la particion va
+    ya por 360 s y el plan pide vigilarla; esta tiene mas holgura.
+    """
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    sembrar(hogar)
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    client.force_login(user)
+
+    assert client.get(reverse("budget:mes")).status_code == 200
+    assert not BudgetMonth.objects.for_household(hogar).exists()

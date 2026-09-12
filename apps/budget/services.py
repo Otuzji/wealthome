@@ -313,6 +313,10 @@ def obtener_mes(hogar, anio, mes, hoy=None):
 
     Cierra los vencidos, materializa el corriente y proyecta todo lo demás.
 
+    **Salvo si el hogar no puede escribir** (§5.2): entonces no hace ninguna de
+    las tres cosas. Devuelve la fila que ya hubiera, o una proyección si no la
+    hay, y no persiste nada. Ver el comentario del cuerpo.
+
     **Solo el mes corriente se materializa.** Un mes pasado sin fila es un mes
     que el hogar no vivió, y fabricarlo tenía consecuencias que no se pueden
     deshacer: la fila quedaba abierta en el pasado, la siguiente petición la
@@ -322,6 +326,23 @@ def obtener_mes(hogar, anio, mes, hoy=None):
     `cerrar_vencidos`, que es quien conoce la cadena.
     """
     hoy = hoy or timezone.localdate()
+
+    if not hogar.puede_escribir:
+        # §5.2: expirar no destruye datos, pero tampoco crea ninguno. El ciclo
+        # se dispara al ENTRAR, asi que sin esto un hogar expirado que solo
+        # mira su presupuesto provocaria escrituras — y materializar un mes es
+        # registrar algo nuevo, que es justo lo prohibido. Se le da lo que ya
+        # existe, y el mes corriente se trata como uno futuro: proyectado, sin
+        # persistir. Al pagar, cerrar_vencidos se pone al dia solo.
+        #
+        # Este return se salta a proposito la rama de abajo que re-materializa
+        # una fila abierta y vacia: materializar escribe, y aqui no se escribe.
+        existente = (
+            BudgetMonth.objects.for_household(hogar)
+            .filter(year=anio, month=mes).first()
+        )
+        return existente if existente is not None else proyectar(hogar, anio, mes)
+
     cerrar_vencidos(hogar, hoy)
 
     existente = BudgetMonth.objects.for_household(hogar).filter(year=anio, month=mes).first()
