@@ -25,6 +25,23 @@ _ENTRADA_RE = re.compile(
 )
 
 
+# Una entrada plural es msgid / msgid_plural / msgstr[0] / msgstr[1], y por eso
+# _ENTRADA_RE (que exige msgstr pegado al msgid) NO la reconoce. Sin esto, un
+# plural sin traducir no lo veria ninguna de las dos guardias del catalogo: ni
+# esta ni la de exhaustividad. El agujero se abrio con el primer plural del
+# arbol (los dias de prueba que quedan, Tarea 11 del Plan 3).
+_ENTRADA_PLURAL_RE = re.compile(
+    r"(?P<comentarios>(?:^#.*\n)*)"
+    r"^msgid(?P<msgid>(?:[ \t]*" + _CADENA + r"[ \t]*\n?)+)"
+    r"^msgid_plural(?P<msgid_plural>(?:[ \t]*" + _CADENA + r"[ \t]*\n?)+)"
+    r"(?P<formas>(?:^msgstr\[\d+\](?:[ \t]*" + _CADENA + r"[ \t]*\n?)+)+)",
+    re.MULTILINE,
+)
+
+_FORMA_RE = re.compile(r"^msgstr\[(?P<n>\d+)\](?P<cad>(?:[ \t]*" + _CADENA + r"[ \t]*\n?)+)",
+                       re.MULTILINE)
+
+
 def _texto_de_cadenas(bloque):
     """Concatena el contenido de 'a' "b" "c"... de un grupo msgid o msgstr."""
     return "".join(trozo[1:-1] for trozo in re.findall(_CADENA, bloque))
@@ -47,6 +64,18 @@ def _entradas_sin_traducir_o_fuzzy(texto_po):
             problemas.append(f'sin traducir: msgid "{msgid}"')
         elif es_fuzzy:
             problemas.append(f'fuzzy (compilemessages la descarta): msgid "{msgid}"')
+
+    for m in _ENTRADA_PLURAL_RE.finditer(texto_po):
+        msgid = _texto_de_cadenas(m.group("msgid"))
+        es_fuzzy = "#, fuzzy" in m.group("comentarios")
+        formas = {
+            int(f.group("n")): _texto_de_cadenas(f.group("cad"))
+            for f in _FORMA_RE.finditer(m.group("formas"))
+        }
+        if not formas or any(v == "" for v in formas.values()):
+            problemas.append(f'plural sin traducir: msgid "{msgid}"')
+        elif es_fuzzy:
+            problemas.append(f'plural fuzzy (compilemessages la descarta): msgid "{msgid}"')
     return problemas
 
 

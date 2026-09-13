@@ -524,3 +524,96 @@ def test_borrar_un_hogar_con_metas_reparto_y_mesada_no_falla():
     assert AllocationRule.unscoped.filter(household_id=hogar_id).count() == 0
     assert MonthlyAllocation.unscoped.filter(household_id=hogar_id).count() == 0
     assert AllowanceLedger.unscoped.filter(household_id=hogar_id).count() == 0
+
+
+# --- hogares creados antes del Plan 2 (Tarea 5) ------------------------------
+
+
+def test_un_hogar_sin_arbol_sembrado_no_puede_proyectar():
+    """El fallo que la migracion 0008 arregla, escrito como prueba.
+
+    HouseholdFactory crea el hogar sin pasar por crear_hogar, que es
+    exactamente lo que le pasa a un hogar creado antes del Plan 2.
+    """
+    from apps.budget import services
+
+    hogar = HouseholdFactory()
+    with pytest.raises(LookupError):
+        services.proyectar(hogar, 2026, 3)
+
+
+def test_sembrar_arregla_un_hogar_sin_arbol():
+    from apps.budget import services
+    from apps.budget.seeds import sembrar
+
+    hogar = HouseholdFactory()
+    sembrar(hogar)
+    proyeccion = services.proyectar(hogar, 2026, 3)
+    assert proyeccion.total_ingresos == Decimal("0.00")
+
+
+def test_la_migracion_0008_solo_siembra_los_hogares_que_no_tienen_arbol():
+    """La lógica de `_sembrar_los_que_falten`, no la maquinaria de `migrate`.
+
+    --create-db ya ejercita en cada corrida de la suite que la migración
+    corra sin reventar; lo que no prueba es su lógica: que se salte los
+    hogares que ya tienen árbol, que arme bien la jerarquía de padres, y que
+    deje `name` vacío. Eso es lo que se verifica aquí, llamando a la función
+    de la migración directamente.
+    """
+    import importlib
+
+    from apps.households.models import Household
+
+    modulo = importlib.import_module(
+        "apps.budget.migrations.0008_sembrar_catalogo_en_hogares_previos"
+    )
+
+    class _CategoriaSinBarrera:
+        # `HouseholdScopedManager` (scoping.py) hace que `Category.objects`
+        # lance RuntimeError a propósito salvo por `.for_household(hogar)`;
+        # `Category.unscoped` es la salida de emergencia explícita para
+        # justo esto. Dentro de una migración real hace falta el envoltorio
+        # porque el modelo histórico que entrega `apps.get_model()` no lleva
+        # el manager estricto del proyecto —es una clase generada sobre la
+        # marcha a partir del estado de esa migración—, así que
+        # `Category.objects.create(...)` ahí funciona sin más. Pero esta
+        # prueba llama a `_sembrar_los_que_falten` con el modelo REAL para
+        # ejercitar su lógica de verdad, y ese modelo sí lleva la barrera:
+        # sin este envoltorio, la propia función lanzaría RuntimeError en su
+        # primer `Category.objects.filter(...)`.
+        objects = Category.unscoped
+
+    class _RegistroDeModelosDePega:
+        """`apps` de pega: solo sabe resolver los dos modelos que usa la
+        migración, con `Category` sustituido por el envoltorio de arriba."""
+
+        def get_model(self, app_label, nombre):
+            if (app_label, nombre) == ("budget", "Category"):
+                return _CategoriaSinBarrera
+            if (app_label, nombre) == ("households", "Household"):
+                # Household no tiene ámbito de hogar —es el hogar—, así que
+                # su manager normal no necesita envoltorio.
+                return Household
+            raise LookupError(f"{app_label}.{nombre} no está cableado en esta prueba")
+
+    sin_arbol = HouseholdFactory()
+    con_arbol = HouseholdFactory()
+    sembrar(con_arbol)
+
+    modulo._sembrar_los_que_falten(_RegistroDeModelosDePega(), None)
+
+    sembradas = Category.objects.for_household(sin_arbol)
+    assert sembradas.count() == len(ARBOL)
+
+    alquiler = sembradas.get(slug="rent")
+    assert alquiler.parent.slug == "housing"
+    salario = sembradas.get(slug="salary")
+    assert salario.parent is None
+
+    for categoria in sembradas:
+        assert categoria.is_system is True
+        assert categoria.name == ""
+
+    # el hogar que ya tenía árbol no se toca: ni se duplica ni se le añade
+    assert Category.objects.for_household(con_arbol).count() == len(ARBOL)

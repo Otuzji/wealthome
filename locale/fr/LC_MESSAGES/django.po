@@ -236,6 +236,10 @@ msgstr "invitations"
 msgid "You do not have permission to do that in this household."
 msgstr "Vous n'avez pas la permission de faire cela dans ce foyer."
 
+#: apps/households/permissions.py
+msgid "Your trial has ended. Subscribe to keep adding to your budget."
+msgstr "Votre période d'essai est terminée. Abonnez-vous pour continuer à alimenter votre budget."
+
 #: apps/households/services.py
 msgid "Only the administrator can invite members."
 msgstr "Seul l'administrateur peut inviter des membres."
@@ -359,6 +363,10 @@ msgstr "Accès refusé"
 #: templates/403.html
 msgid "You do not have permission to see this page."
 msgstr "Vous n'avez pas l'autorisation de voir cette page."
+
+#: templates/403.html
+msgid "See subscription"
+msgstr "Voir l'abonnement"
 
 #: templates/404.html
 msgid "Page not found"
@@ -820,6 +828,14 @@ msgstr "contribution"
 msgid "contributions"
 msgstr "contributions"
 
+#: apps/budget/models/goals.py
+msgid "Nulo si la fecha cae en un mes que el hogar no ha vivido."
+msgstr "Nul si la date tombe dans un mois que le foyer n'a pas encore vécu."
+
+#: apps/budget/models/goals.py
+msgid "Nulo cuando el aporte viene del reparto: ahorra el hogar, no una persona."
+msgstr "Nul quand l'apport vient de la répartition : c'est le foyer qui épargne, pas une personne."
+
 #: apps/budget/models/allocation.py
 msgid "A savings goal"
 msgstr "Un objectif d'épargne"
@@ -1131,3 +1147,349 @@ msgstr "Ce mois n'existe pas au calendrier."
 #: apps/budget/views.py
 msgid "This month is already closed."
 msgstr "Ce mois est déjà clôturé."
+
+#: apps/subscriptions/models.py
+msgid "Trial"
+msgstr "Essai"
+
+#: apps/subscriptions/models.py
+msgid "trial ends at"
+msgstr "fin de la période d'essai"
+
+#: apps/subscriptions/models.py
+msgid "paid at"
+msgstr "payé le"
+
+#: apps/subscriptions/models.py
+msgid "subscription"
+msgstr "abonnement"
+
+#: apps/subscriptions/models.py
+msgid "subscriptions"
+msgstr "abonnements"
+
+#: apps/subscriptions/models.py
+msgid "Stripe event"
+msgstr "Événement Stripe"
+
+#: apps/subscriptions/models.py
+msgid "Stripe events"
+msgstr "Événements Stripe"
+
+#: templates/subscriptions/retorno.html
+msgid "Thank you"
+msgstr "Merci"
+
+#: templates/subscriptions/retorno.html
+msgid "We are confirming your payment. This page will not change until Stripe tells us it went through."
+msgstr "Nous confirmons votre paiement. Cette page ne changera pas avant que Stripe ne nous confirme qu'il a abouti."
+
+#: templates/subscriptions/retorno.html
+msgid "Back to Wealthome"
+msgstr "Retour à Wealthome"
+
+#: templates/subscriptions/estado.html
+msgid "Subscription"
+msgstr "Abonnement"
+
+#: templates/subscriptions/estado.html
+msgid "Wealthome is yours. Thank you."
+msgstr "Wealthome est à vous. Merci."
+
+#: templates/subscriptions/estado.html
+msgid "Your trial has ended. Your data is all here and always will be — you just cannot add anything new until you subscribe."
+msgstr "Votre période d'essai est terminée. Toutes vos données sont là et y resteront — vous ne pouvez simplement plus rien ajouter avant de vous abonner."
+
+#: templates/subscriptions/estado.html
+msgid "Subscribe once for $%(precio)s CAD"
+msgstr "Abonnez-vous une seule fois pour %(precio)s $ CAD"
+
+#: templates/subscriptions/estado.html
+msgid "One day left in your trial."
+msgid_plural "%(dias)s days left in your trial."
+msgstr[0] "Il vous reste un jour d'essai."
+msgstr[1] "Il vous reste %(dias)s jours d'essai."
+
+#: apps/core/context_processors.py
+msgid "Add"
+msgstr "Ajouter"
+
+#: templates/_nav.html
+msgid "Main"
+msgstr "Principal"
+
+#: templates/_nav.html
+msgid "Your trial has ended"
+msgstr "Votre période d'essai est terminée"
+
+#: templates/budget/mes.html
+msgid "Not started"
+msgstr "Pas commencé"
+
+#: templates/subscriptions/estado.html
+msgid "Expired"
+msgstr "Expiré"
+
+#: templates/accounts/inicio.html
+msgid "Your budget lives in the menu. Start with this month."
+msgstr "Votre budget vit dans le menu. Commencez par ce mois-ci."
+
+#: apps/budget/scopes.py
+msgid "That view does not exist."
+msgstr "Cette vue n'existe pas."
+
+#: templates/budget/overview.html
+msgid "Overview"
+msgstr "Vue d'ensemble"
+
+#: templates/budget/overview.html
+msgid "Planned against real"
+msgstr "Prévu par rapport au réel"
+
+#: templates/budget/overview.html
+msgid "Real"
+msgstr "Réel"
+
+#: templates/budget/overview.html
+msgid "How the balance moved"
+msgstr "Évolution du solde"
+
+#: templates/budget/overview.html
+msgid "Recent activity"
+msgstr "Activité récente"
+
+#: templates/budget/balance.html
+msgid "Balance"
+msgstr "Solde"
+
+#: templates/budget/balance.html
+msgid "Income, planned"
+msgstr "Revenus, prévus"
+
+#: templates/budget/balance.html
+msgid "Income, real"
+msgstr "Revenus, réels"
+
+#: templates/budget/balance.html
+msgid "Spending, planned"
+msgstr "Dépenses, prévues"
+
+#: templates/budget/balance.html
+msgid "Spending, real"
+msgstr "Dépenses, réelles"
+
+#: templates/budget/balance.html
+msgid "Where it went off plan"
+msgstr "Où cela s'est écarté du plan"
+
+#: templates/budget/balance.html
+msgid "Difference"
+msgstr "Écart"
+
+#: templates/budget/balance.html
+msgid "Everything landed on plan."
+msgstr "Tout est tombé comme prévu."
+
+#: templates/budget/balance.html
+msgid "No month has been closed yet. Your first balance appears when you close a month."
+msgstr "Aucun mois n'a encore été fermé. Votre premier solde apparaîtra à la fermeture d'un mois."
+
+#: templates/budget/metas.html
+msgid "Contributions"
+msgstr "Versements"
+
+#: templates/budget/metas.html
+msgid "The household"
+msgstr "Le foyer"
+
+#: templates/budget/mesada.html
+msgid "My allowance"
+msgstr "Mon argent de poche"
+
+#: templates/budget/mesada.html
+msgid "Left to spend"
+msgstr "Reste à dépenser"
+
+#: templates/budget/mesada.html
+msgid "How that number is made"
+msgstr "Comment ce chiffre est calculé"
+
+#: templates/budget/mesada.html
+msgid "Carried in from last month"
+msgstr "Report du mois dernier"
+
+#: templates/budget/mesada.html
+msgid "Granted this month"
+msgstr "Accordé ce mois-ci"
+
+#: templates/budget/mesada.html
+msgid "Adjustment"
+msgstr "Ajustement"
+
+#: templates/budget/mesada.html
+msgid "Spent"
+msgstr "Dépensé"
+
+#: templates/budget/mesada.html
+msgid "Where it went"
+msgstr "Où c'est parti"
+
+#: templates/budget/mesada.html
+msgid "Nothing spent yet this month."
+msgstr "Rien de dépensé ce mois-ci pour l'instant."
+
+#: templates/budget/mesada.html
+msgid "You have no allowance this month yet. It appears once the month is planned."
+msgstr "Vous n'avez pas encore d'argent de poche ce mois-ci. Il apparaîtra une fois le mois planifié."
+
+#: templates/budget/mesada.html
+msgid "A previous month closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+msgstr "Un mois précédent a fermé en dessous de ce qui était prévu. Rien de ce que vous aviez déjà dépensé ne vous a été retiré — le manque a été pris sur ce mois-ci."
+
+#: templates/budget/metas.html
+msgid "%(hecho)s of %(objetivo)s — %(pct)s%%"
+msgstr "%(hecho)s sur %(objetivo)s — %(pct)s %%"
+
+#: templates/budget/metas.html
+msgid "Put in %(importe)s a month to get there on time."
+msgstr "Versez %(importe)s par mois pour y arriver à temps."
+
+#: templates/budget/metas.html
+msgid "At this rate you get there in %(cuando)s."
+msgstr "À ce rythme, vous y arriverez en %(cuando)s."
+
+#: templates/budget/mesada.html
+msgid "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+msgstr "%(cuando)s a fermé en dessous de ce qui était prévu. Rien de ce que vous aviez déjà dépensé ne vous a été retiré — le manque a été pris sur ce mois-ci."
+
+#: templates/budget/_fragmentos/gasto_form.html
+msgid "Record it"
+msgstr "Enregistrer"
+
+#: templates/budget/_fragmentos/aporte_form.html
+msgid "Add it"
+msgstr "Ajouter"
+
+#: templates/budget/overview.html
+msgid "Everything"
+msgstr "Tout"
+
+#: templates/budget/overview.html
+msgid "Money in"
+msgstr "Entrées"
+
+#: templates/budget/overview.html
+msgid "Money out"
+msgstr "Sorties"
+
+#: apps/budget/views_month.py
+msgid "One-off item this month"
+msgstr "Poste exceptionnel ce mois-ci"
+
+#: templates/wizards/planificar_2.html
+msgid "Add a one-off item"
+msgstr "Ajouter un poste exceptionnel"
+
+#: apps/budget/wizards.py
+msgid "That step does not exist."
+msgstr "Cette étape n'existe pas."
+
+#: templates/wizards/planificar_1.html
+msgid "Next"
+msgstr "Suivant"
+
+#: templates/wizards/planificar_2.html
+msgid "Back"
+msgstr "Retour"
+
+#: templates/wizards/incorporacion.html
+msgid "Finish"
+msgstr "Terminer"
+
+#: templates/wizards/incorporacion.html
+msgid "Skip for now"
+msgstr "Passer pour l'instant"
+
+#: templates/wizards/incorporacion.html
+msgid "Set this up"
+msgstr "Configurer"
+
+#: templates/wizards/planificar_1.html
+msgid "Edit income"
+msgstr "Modifier les revenus"
+
+#: templates/wizards/planificar_1.html
+msgid "What is coming in"
+msgstr "Ce qui rentre"
+
+#: templates/wizards/planificar_2.html
+msgid "What is going out"
+msgstr "Ce qui sort"
+
+#: templates/wizards/planificar_1.html
+msgid "No income set up yet."
+msgstr "Aucun revenu configuré pour l'instant."
+
+#: templates/wizards/planificar_2.html
+msgid "No fixed expenses set up yet."
+msgstr "Aucune dépense fixe configurée pour l'instant."
+
+#: templates/wizards/planificar_3.html
+msgid "How the leftover gets split"
+msgstr "Comment le reste est réparti"
+
+#: templates/wizards/planificar_3.html
+msgid "Your rules, in order"
+msgstr "Vos règles, dans l'ordre"
+
+#: templates/wizards/planificar_3.html
+msgid "What each person gets"
+msgstr "Ce que chacun reçoit"
+
+#: templates/wizards/planificar_1.html
+msgid "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month."
+msgstr "Les fixes sont déjà là. Confirmez ou ajustez ce qui varie — c'est le seul chiffre à saisir chaque mois."
+
+#: templates/wizards/planificar_3.html
+msgid "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list."
+msgstr "Glissez pour réordonner. Ce qui est en haut est servi en premier, donc un mois maigre entame le bas de la liste."
+
+#: apps/budget/wizards.py
+msgid "Who else lives here"
+msgstr "Qui d'autre vit ici"
+
+#: apps/budget/wizards.py
+msgid "What comes in"
+msgstr "Ce qui rentre chaque mois"
+
+#: apps/budget/wizards.py
+msgid "What goes out every month"
+msgstr "Ce qui sort chaque mois"
+
+#: apps/budget/wizards.py
+msgid "What you are saving for"
+msgstr "Pour quoi vous épargnez"
+
+#: templates/wizards/incorporacion.html
+msgid "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it."
+msgstr "Vous pouvez fermer à tout moment. Tout ce que vous avez configuré est déjà enregistré, et le reste se trouve dans les Paramètres quand vous voudrez."
+
+#: templates/wizards/planificar_1.html
+msgid "Step %(paso)s of 3"
+msgstr "Étape %(paso)s sur 3"
+
+#: templates/wizards/incorporacion.html
+msgid "Step %(paso)s of %(total)s"
+msgstr "Étape %(paso)s sur %(total)s"
+
+#: templates/sin-conexion.html
+msgid "No connection"
+msgstr "Pas de connexion"
+
+#: templates/households/ajustes.html
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+#: templates/sin-conexion.html
+msgid "You are offline and this page was not saved on this device. Anything you have already opened is still here."
+msgstr "Vous êtes hors ligne et cette page n'a pas été enregistrée sur cet appareil. Tout ce que vous avez déjà ouvert est toujours là."

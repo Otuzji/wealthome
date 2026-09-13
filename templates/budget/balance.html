@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Balance" %} · Wealthome{% endblock %}
+{% block content %}
+<h1>{% translate "Balance" %}</h1>
+
+{% for fila in cierres %}
+<section class="card">
+  <h2>{{ fila.mes }} <span class="pildora pildora--bien">{% translate "Closed" %}</span></h2>
+
+  <div class="cifras">
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Income, planned" %}</div>
+      <div class="cifra__valor">{{ fila.cierre.ingresos_presupuestados|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Income, real" %}</div>
+      <div class="cifra__valor">{{ fila.cierre.ingresos_reales|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Spending, planned" %}</div>
+      <div class="cifra__valor">{{ fila.cierre.egresos_presupuestados|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Spending, real" %}</div>
+      <div class="cifra__valor">{{ fila.cierre.egresos_reales|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Balance" %}</div>
+      <div class="cifra__valor">{{ fila.cierre.balance|money:hogar.currency }}</div>
+    </div>
+  </div>
+
+  <h3>{% translate "Where it went off plan" %}</h3>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      <tr><th>{% translate "Category" %}</th><th class="numero">{% translate "Difference" %}</th></tr>
+      {% for v in fila.varianza %}
+        <tr>
+          <td>{{ v.categoria.etiqueta }}</td>
+          <td class="numero {% if v.importe < 0 %}cifra__valor--mal{% endif %}">
+            {{ v.importe|money:hogar.currency }}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="2">{% translate "Everything landed on plan." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+{% empty %}
+<section class="card">
+  <p>{% translate "No month has been closed yet. Your first balance appears when you close a month." %}</p>
+</section>
+{% endfor %}
+{% endblock %}

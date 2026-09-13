@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "My allowance" %} · Wealthome{% endblock %}
+{% block content %}
+<h1>{% translate "My allowance" %}</h1>
+
+{% if libro %}
+<section class="card">
+  <div class="cifras">
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Left to spend" %}</div>
+      <div class="cifra__valor">{{ libro.saldo|money:hogar.currency }}</div>
+    </div>
+  </div>
+
+  <h2>{% translate "How that number is made" %}</h2>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      <tr><td>{% translate "Carried in from last month" %}</td>
+          <td class="numero">{{ libro.carried_in|money:hogar.currency }}</td></tr>
+      <tr><td>{% translate "Granted this month" %}</td>
+          <td class="numero">{{ libro.granted|money:hogar.currency }}</td></tr>
+      <tr><td>{% translate "Adjustment" %}</td>
+          <td class="numero {% if libro.adjustment < 0 %}cifra__valor--mal{% endif %}">
+            {{ libro.adjustment|money:hogar.currency }}</td></tr>
+      <tr><td>{% translate "Spent" %}</td>
+          <td class="numero">{{ libro.spent|money:hogar.currency }}</td></tr>
+    </table>
+  </div>
+
+  {% if hay_ajuste %}
+    {% comment %} El corazon de la pantalla: dice QUE paso, CUANDO, y que no se le quito
+       nada de lo ya gastado, que es la promesa del §4.5.3.
+
+       Dos redacciones porque mes_anterior() devuelve la FILA del mes anterior o
+       None, y un hogar puede tener ajuste sin que exista esa fila. Con una sola
+       redaccion, la pantalla diria "None closed below what was planned". {% endcomment %}
+    <p class="campo__ayuda">
+      {% if mes_del_ajuste %}
+        {% blocktranslate with cuando=mes_del_ajuste %}{{ cuando }} closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead.{% endblocktranslate %}
+      {% else %}
+        {% translate "A previous month closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead." %}
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>{% translate "Where it went" %}</h2>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      {% for gasto in gastos %}
+        <tr><td>{{ gasto.date }}</td><td>{{ gasto.category.etiqueta }}</td>
+            <td class="numero">{{ gasto.amount|money:hogar.currency }}</td></tr>
+      {% empty %}
+        <tr><td>{% translate "Nothing spent yet this month." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+{% else %}
+<section class="card">
+  <p>{% translate "You have no allowance this month yet. It appears once the month is planned." %}</p>
+</section>
+{% endif %}
+{% endblock %}

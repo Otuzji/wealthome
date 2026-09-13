@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Plan the month" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %}</p>
+  <h1>{% translate "What is going out" %}</h1>
+
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      {% for linea in egresos %}
+        <tr><td>{{ linea.nombre }}</td>
+            <td class="numero">{{ linea.importe|money:hogar.currency }}</td></tr>
+      {% empty %}
+        <tr><td>{% translate "No fixed expenses set up yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% comment %} El paso 2 del §4.5.6: "mas las partidas excepcionales de ese mes".
+     Es la razon por la que el formulario de linea excepcional vuelve en la
+     Tarea 25. {% endcomment %}
+  <p><a class="btn" href="{% url 'budget:linea_nueva' %}">{% translate "Add a one-off item" %}</a></p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn--primary" type="submit">{% translate "Next" %}</button>
+    <a class="btn btn--sutil" href="{% url 'budget:planificar_paso' ambito 1 %}">{% translate "Back" %}</a>
+  </form>
+</section>
+{% endblock %}

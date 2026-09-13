@@ -77,7 +77,7 @@ def test_criterio_1_un_mes_futuro_se_calcula_desde_las_reglas_sin_persistir(
     admin, hogar = hogar_configurado
     client.force_login(admin)
 
-    html = client.get(reverse("budget:mes", args=[2030, 5])).content.decode()
+    html = client.get(reverse("budget:mes", args=["household", 2030, 5])).content.decode()
 
     assert "3,000.00" in html          # el ingreso proyectado desde la regla
     assert "1,200.00" in html          # el sobrante
@@ -114,14 +114,36 @@ def test_criterio_2_un_ingreso_range_presupuesta_el_minimo_y_el_exceso_es_supera
 
 
 def test_criterio_3_la_pareja_planifica_y_cada_uno_sabe_su_mesada(client, hogar_configurado):
-    """§13.5: el sobrante repartido según sus reglas, y la mesada desde el día 1."""
+    """§13.5: el sobrante repartido según sus reglas, y la mesada desde el día 1.
+
+    En TRES PASOS desde la Tarea 26, que es lo que el criterio de aceptación 3 del
+    Plan 3 pide de verdad: el Plan 2 lo dio por bueno sobre una pantalla única. El
+    sobrante se ve en el paso 3, y solo el paso 3 escribe.
+    """
     admin, hogar = hogar_configurado
     client.force_login(admin)
 
-    html = client.get(reverse("budget:planificar")).content.decode()
+    # Paso 1 y 2: se recorren, y no escriben nada.
+    assert client.get(
+        reverse("budget:planificar_paso", args=["household", 1])
+    ).status_code == 200
+    assert client.post(
+        reverse("budget:planificar_paso", args=["household", 1])
+    ).status_code == 302
+    assert client.post(
+        reverse("budget:planificar_paso", args=["household", 2])
+    ).status_code == 302
+    assert not AllowanceLedger.objects.for_household(hogar).exists()
+
+    # Paso 3: aquí se ve el sobrante y aquí se confirma.
+    html = client.get(
+        reverse("budget:planificar_paso", args=["household", 3])
+    ).content.decode()
     assert "1,200.00" in html          # el sobrante que van a repartir
 
-    assert client.post(reverse("budget:planificar")).status_code == 302
+    assert client.post(
+        reverse("budget:planificar_paso", args=["household", 3])
+    ).status_code == 302
 
     mesadas = AllowanceLedger.objects.for_household(hogar).order_by("member_id")
     assert [m.granted for m in mesadas] == [Decimal("300.00"), Decimal("300.00")]
@@ -305,7 +327,7 @@ def test_criterio_10_la_aplicacion_entera_funciona_en_frances(client, hogar_conf
     admin.profile.save()
     client.force_login(admin)
 
-    html = _normalizar(client.get(reverse("budget:mes", args=[2030, 5])).content.decode())
+    html = _normalizar(client.get(reverse("budget:mes", args=["household", 2030, 5])).content.decode())
 
     assert "2 847,50 $" in html
     assert "Ce mois-ci" in html

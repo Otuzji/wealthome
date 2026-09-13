@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% load i18n money static %}
+{% block title %}{% translate "Overview" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% translate "Overview" %}</h1>
+
+  <div class="cifras">
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Income" %}</div>
+      <div class="cifra__valor">{{ resultado.total_ingresos|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Fixed expenses" %}</div>
+      <div class="cifra__valor">{{ resultado.total_egresos|money:hogar.currency }}</div>
+    </div>
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+      <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>{% translate "Planned against real" %}</h2>
+  <canvas id="grafica-categorias"
+          data-etiqueta-planeado="{% translate 'Planned' %}"
+          data-etiqueta-real="{% translate 'Real' %}"></canvas>
+</section>
+
+<section class="card">
+  <h2>{% translate "How the balance moved" %}</h2>
+  <canvas id="grafica-balance"
+          data-etiqueta-balance="{% translate 'Balance' %}"></canvas>
+</section>
+
+<section class="card">
+  <h2>{% translate "Record a spend" %}</h2>
+  <div hx-get="{% url 'budget:registrar' %}" hx-trigger="load"></div>
+</section>
+
+<section class="card">
+  <h2>{% translate "Recent activity" %}</h2>
+  {% comment %} hx-select hace que htmx pida la PAGINA ENTERA y se quede solo con
+     ese trozo. Es deliberado: la URL con el filtro sigue siendo una pagina real
+     que el service worker puede cachear y que se puede recargar o marcar, en vez
+     de un endpoint de fragmento que solo existe para htmx (§2.6). {% endcomment %}
+  <form class="filtros" hx-get="{% url 'budget:overview' ambito %}"
+        hx-target="#recientes" hx-swap="outerHTML"
+        hx-select="#recientes" hx-trigger="change">
+    <select class="campo" name="kind">
+      <option value="">{% translate "Everything" %}</option>
+      <option value="income" {% if filtro_kind == "income" %}selected{% endif %}>{% translate "Money in" %}</option>
+      <option value="expense" {% if filtro_kind == "expense" %}selected{% endif %}>{% translate "Money out" %}</option>
+    </select>
+  </form>
+  {% include "budget/_fragmentos/recientes.html" %}
+</section>
+
+{{ series_categorias|json_script:"series-categorias" }}
+{{ series_balance|json_script:"series-balance" }}
+<script src="{% static 'vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/graficas.js' %}"></script>
+{% endblock %}

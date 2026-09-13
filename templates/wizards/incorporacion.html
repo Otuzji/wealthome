@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{{ titulo }} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="pildora">{% blocktranslate %}Step {{ paso }} of {{ total }}{% endblocktranslate %}</p>
+  <h1>{{ titulo }}</h1>
+
+  <p><a class="btn btn--primary" href="{% url ruta_del_formulario %}">{% translate "Set this up" %}</a></p>
+
+  <p>
+    {% if siguiente %}
+      <a class="btn btn--sutil" href="{% url 'budget:incorporacion' siguiente %}">{% translate "Skip for now" %}</a>
+    {% else %}
+      <a class="btn btn--sutil" href="{% url 'budget:mes' 'household' %}">{% translate "Finish" %}</a>
+    {% endif %}
+  </p>
+
+  <p class="campo__ayuda">{% translate "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it." %}</p>
+</section>
+{% endblock %}

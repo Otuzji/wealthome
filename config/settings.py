@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.households",
     "apps.budget",
+    "apps.subscriptions",
 ]
 
 MIDDLEWARE = [
@@ -77,6 +78,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.i18n",
                 "apps.core.context_processors.hogar",
+                "apps.core.context_processors.navegacion",
             ],
         },
     },
@@ -140,3 +142,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # producción, así que se registra únicamente cuando pytest está cargado.
 if "pytest" in sys.modules:
     INSTALLED_APPS += ["tests"]
+
+# Stripe (§5). Vacias en desarrollo y en pruebas: la suite NUNCA llama a Stripe.
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRECIO_CENTAVOS = 2500      # CAD $25, pago unico (§5.1)
+DIAS_DE_PRUEBA = 14

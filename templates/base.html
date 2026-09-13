@@ -4,12 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Wealthome{% endblock %}</title>
+  {% comment %} El manifiesto lo lee el sistema operativo antes de que exista
+     ninguna hoja de estilo, asi que sus colores van literales: son los de
+     Sereno, el tema por defecto. {% endcomment %}
+  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <meta name="theme-color" content="#3f8f6f">
+  <link rel="apple-touch-icon" href="{% static 'icons/icono-192.png' %}">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
   <link rel="stylesheet" href="{% static 'css/modules.css' %}">
 </head>
 <body>
+  {% include "_nav.html" %}
   <main class="shell">{% block content %}{% endblock %}</main>
+  <script src="{% static 'vendor/htmx.min.js' %}"></script>
+  {# Alpine lleva defer porque asi lo exige su propia documentacion; htmx no. #}
+  <script defer src="{% static 'vendor/alpine.min.js' %}"></script>
+  {% comment %} `debug` lo pone apps.core.context_processors.navegacion en sus TRES
+     salidas, no el context processor de Django: ese solo expone la variable si
+     DEBUG esta activo Y la IP esta en INTERNAL_IPS, asi que en la pagina de
+     login no existiria, este {% if not debug %} seria siempre verdadero, y el
+     service worker se registraria tambien en desarrollo. {% endcomment %}
+  {% if not debug %}
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("{% url 'service_worker' %}", { scope: "/" });
+    }
+    // El segundo mecanismo de la purga: Clear-Site-Data lo hace el navegador, y
+    // esto cubre a los que no la implementan.
+    document.addEventListener("submit", function (evento) {
+      var accion = evento.target.getAttribute("action") || "";
+      if (accion.indexOf("logout") !== -1 && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage("purgar");
+      }
+    });
+  </script>
+  {% endif %}
 </body>
 </html>

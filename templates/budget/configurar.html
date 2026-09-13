@@ -15,13 +15,19 @@
   <a class="btn" href="{% url 'budget:ingreso_nuevo' %}">{% translate "Add income" %}</a>
 
   <h2>{% translate "Fixed expenses" %}</h2>
-  <ul>
-    {% for gasto in gastos %}
-      <li>{{ gasto.name }} — {{ gasto.amount|money:hogar.currency }} · {{ gasto.get_periodicity_display }}</li>
-    {% empty %}
-      <li>{% translate "No fixed expenses yet." %}</li>
-    {% endfor %}
-  </ul>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      {% for gasto in gastos %}
+        <tr>
+          <td>{{ gasto.name }}</td>
+          <td>{{ gasto.get_periodicity_display }}</td>
+          <td class="numero">{{ gasto.amount|money:hogar.currency }}</td>
+        </tr>
+      {% empty %}
+        <tr><td>{% translate "No fixed expenses yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
   <a class="btn" href="{% url 'budget:gasto_nuevo' %}">{% translate "Add a fixed expense" %}</a>
 
   <h2>{% translate "How the leftover is split" %}</h2>

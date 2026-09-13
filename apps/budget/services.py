@@ -182,6 +182,10 @@ def _categoria_de_ingreso(hogar):
 @transaction.atomic
 def cerrar_mes(mes):
     """Escribe el MonthlyClose y congela el mes (§4.2)."""
+    # El §6 del diseño del Plan 2 lo exige para materializar y para cerrar;
+    # materializar ya lo hacia. Sin el, dos peticiones pueden cerrar el mismo
+    # mes a la vez y escribir dos MonthlyClose, que son inmutables.
+    mes = BudgetMonth.unscoped.select_for_update().get(pk=mes.pk)
     if mes.esta_cerrado:
         raise MesCerrado(f"El mes {mes} ya está cerrado.")
 
@@ -309,6 +313,10 @@ def obtener_mes(hogar, anio, mes, hoy=None):
 
     Cierra los vencidos, materializa el corriente y proyecta todo lo demás.
 
+    **Salvo si el hogar no puede escribir** (§5.2): entonces no hace ninguna de
+    las tres cosas. Devuelve la fila que ya hubiera, o una proyección si no la
+    hay, y no persiste nada. Ver el comentario del cuerpo.
+
     **Solo el mes corriente se materializa.** Un mes pasado sin fila es un mes
     que el hogar no vivió, y fabricarlo tenía consecuencias que no se pueden
     deshacer: la fila quedaba abierta en el pasado, la siguiente petición la
@@ -318,6 +326,23 @@ def obtener_mes(hogar, anio, mes, hoy=None):
     `cerrar_vencidos`, que es quien conoce la cadena.
     """
     hoy = hoy or timezone.localdate()
+
+    if not hogar.puede_escribir:
+        # §5.2: expirar no destruye datos, pero tampoco crea ninguno. El ciclo
+        # se dispara al ENTRAR, asi que sin esto un hogar expirado que solo
+        # mira su presupuesto provocaria escrituras — y materializar un mes es
+        # registrar algo nuevo, que es justo lo prohibido. Se le da lo que ya
+        # existe, y el mes corriente se trata como uno futuro: proyectado, sin
+        # persistir. Al pagar, cerrar_vencidos se pone al dia solo.
+        #
+        # Este return se salta a proposito la rama de abajo que re-materializa
+        # una fila abierta y vacia: materializar escribe, y aqui no se escribe.
+        existente = (
+            BudgetMonth.objects.for_household(hogar)
+            .filter(year=anio, month=mes).first()
+        )
+        return existente if existente is not None else proyectar(hogar, anio, mes)
+
     cerrar_vencidos(hogar, hoy)
 
     existente = BudgetMonth.objects.for_household(hogar).filter(year=anio, month=mes).first()
@@ -375,11 +400,26 @@ def _reglas_del_motor(hogar):
     ]
 
 
-def _mes_anterior(mes):
+def mes_anterior(mes):
     anio, numero = (mes.year - 1, 12) if mes.month == 1 else (mes.year, mes.month - 1)
     return BudgetMonth.objects.for_household(mes.household).filter(
         year=anio, month=numero
     ).first()
+
+
+def mes_de_fecha(hogar, fecha):
+    """La fila del mes que contiene esa fecha, o None. NO la crea.
+
+    Resolver sin crear es deliberado: quien escribe un aporte con fecha de un
+    mes que el hogar nunca vivió no debe fabricar ese mes por el camino. Un
+    mes sin fila tampoco puede estar cerrado, así que devolver None deja pasar
+    la escritura, que es lo correcto.
+    """
+    return (
+        BudgetMonth.objects.for_household(hogar)
+        .filter(year=fecha.year, month=fecha.month)
+        .first()
+    )
 
 
 def _fila_del_mes_siguiente(mes):
@@ -409,7 +449,7 @@ def mesada_de(membresia, mes):
 
 
 def _carried_in(hogar, membresia_id, mes):
-    anterior = _mes_anterior(mes)
+    anterior = mes_anterior(mes)
     if anterior is None:
         return Decimal("0.00")
     libro = AllowanceLedger.objects.for_household(hogar).filter(
@@ -440,8 +480,16 @@ def planificar_mes(hogar, mes, sobrante_proyectado):
     Al confirmar la planificación, cada miembro sabe desde el día 1 cuánta
     mesada tiene, y esa cifra ya no se mueve durante el mes.
     """
-    if MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes).exists():
-        return list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
+    # Bloquea la fila del mes antes de mirar si ya hay reparto: sin esto, dos
+    # envios del boton "Confirmar el plan" pasan los dos por el exists() antes
+    # de que ninguno escriba, y el hogar acaba con las mesadas por duplicado.
+    # El bloqueo es sobre BudgetMonth y no sobre MonthlyAllocation porque no se
+    # puede bloquear una fila que aun no existe.
+    BudgetMonth.unscoped.select_for_update().get(pk=mes.pk)
+
+    ya = list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
+    if ya:
+        return ya
 
     reglas_orm = {
         r.order: r
@@ -497,7 +545,11 @@ def aplicar_cascada_al_cierre(mes, sobrante_real):
             aporte = GoalContribution(
                 household=hogar, goal=fila.rule.target_goal,
                 amount=fila.actual_amount, date=_ultimo_dia(mes.year, mes.month),
-                member=hogar.active_memberships().order_by("pk").first(),
+                # Ahorra el hogar entero, no una persona. Atribuirlo al pk mas
+                # bajo era un dato falso en el historial de la meta, y con cero
+                # membresias activas reventaba el cierre con IntegrityError.
+                member=None,
+                budget_month=mes,
                 origen="cascade",
             )
             aporte.save()

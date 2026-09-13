@@ -222,7 +222,13 @@ def test_todo_modelo_con_hogar_hereda_de_household_scoped():
     from apps.households.models import Household
 
     # Relacionan usuarios con el hogar; no son datos del hogar.
-    EXCEPCIONES = {"Membership", "Invitation"}
+    # Subscription es distinto: es titularidad, no aislamiento. La Tarea 7 pone
+    # la guardia de suscripcion dentro de HouseholdScoped.save(). Si Subscription
+    # heredara de ahi, escribir la suscripcion de un hogar expirado quedaria
+    # bloqueada por la guardia que lee esa misma fila -y un hogar expirado no
+    # podria reactivarse pagando nunca. Punto muerto que Membership e
+    # Invitation no corren porque su guardia no depende de su propio estado.
+    EXCEPCIONES = {"Membership", "Invitation", "Subscription"}
 
     infractores = []
     for modelo in django_apps.get_models():

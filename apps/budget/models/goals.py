@@ -10,6 +10,7 @@ from apps.core.fields import MoneyField
 from apps.households.scoping import HouseholdScoped
 
 from .catalog import HOUSEHOLD, SCOPE_CHOICES
+from .months import BudgetMonth, EscrituraAcotadaAlMes
 
 CONTRIBUTION_MODE_CHOICES = [
     (motor_goals.BY_TARGET_DATE, _("By a target date")),
@@ -53,27 +54,50 @@ class Goal(HouseholdScoped):
             raise ValidationError({"monthly_amount": _("Say how much you will put in each month.")})
 
     def acumulado(self):
+        """Lo aportado a esta meta hasta hoy.
+
+        Si `contributions` ya viene prefetched, suma en PYTHON. `.aggregate()`
+        va siempre a la base y no mira el prefetch, asi que en una pantalla que
+        liste metas era una consulta por meta — un N+1 que el tope de consultas
+        de la Tarea 4 no vio porque se fijo con cinco metas y solo comprobaba
+        que no creciera con las TRANSACCIONES, no con las metas. Con 20 metas se
+        iban 26 consultas donde ahora van 11.
+        """
+        if "contributions" in getattr(self, "_prefetched_objects_cache", {}):
+            return sum((c.amount for c in self.contributions.all()), Decimal("0.00"))
         total = self.contributions.aggregate(total=models.Sum("amount"))["total"]
         return total if total is not None else Decimal("0.00")
 
-    def derivar(self, desde=None):
-        """El dato que falta: el aporte mensual o la fecha de llegada."""
+    def derivar(self, desde=None, acumulado=None):
+        """El dato que falta: el aporte mensual o la fecha de llegada.
+
+        `acumulado` se puede pasar ya calculado: quien pinta una lista de metas
+        lo necesita tambien para la barra de progreso, y calcularlo dos veces
+        es una consulta por meta y por pantalla.
+        """
         return motor_goals.derivar(
             self.contribution_mode,
             objetivo=self.target_amount,
-            acumulado=self.acumulado(),
+            acumulado=self.acumulado() if acumulado is None else acumulado,
             desde=desde or timezone.localdate(),
             fecha_objetivo=self.target_date,
             aporte_mensual=self.monthly_amount,
         )
 
 
-class GoalContribution(HouseholdScoped):
+class GoalContribution(EscrituraAcotadaAlMes, HouseholdScoped):
     goal = models.ForeignKey(Goal, on_delete=models.CASCADE, related_name="contributions")
     amount = MoneyField(_("amount"))
     date = models.DateField(_("date"))
+    budget_month = models.ForeignKey(
+        BudgetMonth, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="aportes",
+        help_text=_("Nulo si la fecha cae en un mes que el hogar no ha vivido."),
+    )
     member = models.ForeignKey(
-        "households.Membership", on_delete=models.RESTRICT, related_name="goal_contributions"
+        "households.Membership", on_delete=models.RESTRICT,
+        null=True, blank=True, related_name="goal_contributions",
+        help_text=_("Nulo cuando el aporte viene del reparto: ahorra el hogar, no una persona."),
     )
     origen = models.CharField(max_length=10, choices=ORIGEN_CHOICES, default="manual")
 

@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Plan the month" %} · Wealthome{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %}</p>
+  <h1>{% translate "How the leftover gets split" %}</h1>
+
+  <div class="cifras">
+    <div class="cifra">
+      <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+      <div class="cifra__valor">{{ proyeccion.sobrante|money:hogar.currency }}</div>
+    </div>
+  </div>
+
+  <h2>{% translate "Your rules, in order" %}</h2>
+  <p class="campo__ayuda">{% translate "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list." %}</p>
+  {% include "wizards/_reglas.html" %}
+
+  <h2>{% translate "What each person gets" %}</h2>
+  <div class="tabla__envoltura">
+    <table class="tabla">
+      {% for asignacion in asignaciones %}
+        <tr>
+          <td>
+            {% if asignacion.miembro %}{{ asignacion.miembro.user }}
+            {% else %}{{ asignacion.regla.get_target_type_display }}{% endif %}
+          </td>
+          <td class="numero">{{ asignacion.importe|money:hogar.currency }}</td>
+        </tr>
+      {% empty %}
+        <tr><td>{% translate "No split rules yet." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn--primary" type="submit">{% translate "Confirm the plan" %}</button>
+    <a class="btn btn--sutil" href="{% url 'budget:planificar_paso' ambito 2 %}">{% translate "Back" %}</a>
+  </form>
+</section>
+{% endblock %}

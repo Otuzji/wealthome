@@ -40,16 +40,116 @@ Propias de este plan:
 
 ## Cómo correr las pruebas en esta máquina
 
+**El límite de una llamada de herramienta son 600 s, y `tests/budget` entera tarda ~692 s.**
+No cabe. Se corre en **ocho** llamadas, todas en primer plano, ninguna cerca del
+límite. Los tiempos son los medidos al cerrar la tanda 2 (458 pruebas):
+
 ```bash
-.venv/Scripts/python.exe -m pytest tests/budget/engine -q     # el motor: bajo un segundo
-.venv/Scripts/python.exe -m pytest tests/budget -q            # ~11-15 min
-.venv/Scripts/python.exe -m pytest -q --ignore=tests/budget   # ~5-7 min
-.venv/Scripts/python.exe -m pytest -q --create-db             # OBLIGATORIO tras una migración nueva
+# 1 · el motor puro: 128 pruebas, bajo un segundo
+.venv/Scripts/python.exe -m pytest tests/budget/engine -q
+
+# 2 · modelos del presupuesto: 36 pruebas, ~1,5 min
+.venv/Scripts/python.exe -m pytest tests/budget/test_models.py -q
+
+# 2b · vistas del presupuesto: 57 pruebas, ~8,5 min. SE PARTIO de la 2 al cerrar
+# la tanda 4; es la llamada mas gorda y la proxima en romperse.
+.venv/Scripts/python.exe -m pytest tests/budget/test_views.py -q
+
+# 3 · el ciclo del mes y los servicios: 35 pruebas, ~6 min
+.venv/Scripts/python.exe -m pytest -q \
+    tests/budget/test_month_cycle.py tests/budget/test_services.py
+
+# 4 · el resto del presupuesto: 51 pruebas, ~5 min
+.venv/Scripts/python.exe -m pytest tests/budget -q \
+    --ignore=tests/budget/engine \
+    --ignore=tests/budget/test_models.py --ignore=tests/budget/test_views.py \
+    --ignore=tests/budget/test_month_cycle.py --ignore=tests/budget/test_services.py
+
+# 5 · la fundación: 77 pruebas, ~3,5 min
+.venv/Scripts/python.exe -m pytest -q tests/test_scoping.py tests/test_permisos.py \
+    tests/test_settings_views.py tests/test_money_field.py
+
+# 6 · cuentas e invitaciones: 32 pruebas, ~3 min
+.venv/Scripts/python.exe -m pytest -q tests/test_invitations.py \
+    tests/test_auth_flow.py tests/test_accounts.py
+
+# 7 · suscripción y webhook: 28 pruebas, ~1,5 min
+.venv/Scripts/python.exe -m pytest -q tests/test_suscripcion.py tests/test_webhook.py
+
+# 8 · todo lo demás: 42 pruebas, ~5 min
+.venv/Scripts/python.exe -m pytest -q --ignore=tests/budget \
+    --ignore=tests/test_scoping.py --ignore=tests/test_permisos.py \
+    --ignore=tests/test_settings_views.py --ignore=tests/test_money_field.py \
+    --ignore=tests/test_suscripcion.py --ignore=tests/test_webhook.py \
+    --ignore=tests/test_invitations.py --ignore=tests/test_auth_flow.py \
+    --ignore=tests/test_accounts.py
 ```
+
+**El modelo de coste, medido, para que el próximo reparto no sea a ciegas.** El
+tiempo de una llamada es `suma de los tiempos de ejecución + ~3,2 s por prueba`.
+Ese segundo término es el montaje y desmontaje de cada prueba contra el pooler y
+**domina**: en la llamada 8 original, 74 pruebas daban 223 s de ejecución y 234 s
+de puro montaje. Por eso una llamada con muchas pruebas rápidas puede costar más
+que una con pocas lentas, y por eso repartir por número de pruebas desequilibra.
+Para medir por archivo:
+
+```bash
+.venv/Scripts/python.exe -m pytest -q <selección> --durations=0 2>&1 \
+  | grep -E "^[0-9]+\.[0-9]+s call" \
+  | awk '{split($3,a,"::"); t[a[1]]+=$1} END {for (f in t) printf "%7.1fs  %s\n", t[f], f}' \
+  | sort -rn
+```
+
+**`test_views.py` es la llamada mas gorda** (~510 s con 57 pruebas) y la proxima
+en romperse. Partirla por tema —mes, metas, asistentes, configuracion— es trabajo
+de una hora que la siguiente tanda va a necesitar.
+
+**EL POOLER DE SUPABASE SE DEGRADA DE FORMA BRUTAL, y hay que saberlo antes de
+investigar un fallo.** No es una variacion del 20 %: la misma seleccion de
+`test_views.py` tardo **20 h 34 min** una vez y 8,5 min otra. Una de 43 pruebas
+tardo 3 h y otra de 3 pruebas, 40 min. Los sintomas son
+`OperationalError: server closed the connection unexpectedly` y fallos o errores
+en pruebas que pasan solas en segundos. **Reintenta la seleccion pequena antes de
+tocar el codigo**: en este plan, cinco "fallos" de tres corridas distintas fueron
+todos el pooler.
+
+**`--create-db` NO se puede correr**: falla con `DuplicateDatabase` /
+`ObjectInUse` porque el pooler mantiene sesiones abiertas contra `test_postgres`.
+Si acabas de anadir una migracion y necesitas el esquema nuevo, no hay forma
+limpia desde aqui; comprueba antes con `git log -- "*/migrations/*"` si de verdad
+se anadio alguna.
+
+Añade `--create-db` **a la primera llamada que toque la base** (la 2) tras una migración
+nueva; las siguientes reutilizan ya el esquema nuevo.
 
 **Trampas del entorno — leer antes de la primera tarea:**
 
-- **La suite completa tarda ~19 minutos y NO cabe en una sola llamada de herramienta** (límite 600 s). Córrela **en dos mitades y en primer plano**, con los dos comandos de arriba. Lanzarlas en segundo plano y esperar un aviso cuelga al agente: pasó tres veces en el Plan 1.
+- **Las llamadas 1 a 4 cubren exactamente las mismas pruebas que `tests/budget` entera,
+  y la 8 autorecoge todo lo que no nombren las otras.** Un archivo de pruebas nuevo
+  fuera de `tests/budget/` cae solo en la 8; uno dentro, en la 4.
+  La partición es por tiempo, no por tema: las pruebas de base de datos van a ~5-10 s cada
+  una contra el pooler de Supabase, y las 128 del motor puro a menos de un segundo las 128
+  juntas. Si añades un archivo de pruebas nuevo bajo `tests/budget/`, la llamada 4 lo
+  recoge sola; si lo añades a `test_models.py` o `test_views.py`, vigila que la llamada 2
+  siga por debajo de 600 s.
+- **Nunca lances las pruebas en segundo plano esperando un aviso: cuelga al agente.** Pasó
+  tres veces en el Plan 1 y cuatro veces en este plan, hasta que se vio que la causa no era
+  desobediencia sino que la suite no cabía en una llamada.
+- **El tiempo del pooler varía, y la partición se queda corta sola.** La llamada de
+  todo lo que no es presupuesto empezó el plan siendo una sola de ~5-7 min y hubo
+  que partirla en dos en la Tarea 6, porque contra el pooler de Supabase el mismo
+  conjunto de pruebas tarda distinto según el día.
+  En la Tarea 7 le tocó al resto del presupuesto: 565 s de 600, y salieron de ahí las
+  llamadas 3 y 4 de ahora. **El coste por prueba no es uniforme entre archivos**, así que
+  repartir por número de pruebas desequilibra: el primer corte dio 433 s contra 151 s, y
+  hubo que mover `test_aceptacion.py` al otro lado para dejarlas en 315 s y 261 s. Mide
+  cada mitad antes de escribirla aquí; no la estimes.
+  **Si una llamada se acerca a los 600 s, pártela y actualiza esta sección** — no la dejes
+  al borde para la siguiente persona. La regla es que cada llamada quede holgadamente por
+  debajo, no justo por debajo.
+- **Correr `tests/budget` en una sola llamada, además de no caber, provoca deadlocks del
+  pooler** y errores de `sqlflush` en el desmontaje. Partida no pasa. Son dos razones
+  independientes para la misma partición.
 - **Tras añadir una migración hay que correr una vez con `--create-db`**, o la base reutilizada conserva el esquema viejo y las pruebas mienten. Este plan añade **seis** migraciones.
 - El pooler de Supabase deja sesiones abiertas: dos corridas seguidas pueden dar un error de arranque espurio (`There is 1 other session using the database`) que un reintento limpia.
 - La base `test_postgres` **no es basura**: es la que reutiliza `--reuse-db`.

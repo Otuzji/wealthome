@@ -1,1 +1,108 @@
 /* Se llena en un plan posterior (Task 8: sistema de temas). */
+
+/* ---------- navegacion ----------
+   Un solo bloque de HTML, dos presentaciones (§7.1). En movil, barra inferior
+   fija con la accion mas frecuente en el centro; en escritorio, barra lateral.
+   El mismo HTML, distinta hoja: nunca dos menus que puedan divergir. */
+
+.nav__lista {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nav__enlace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target);
+  padding: 0 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: var(--font-weight-strong);
+}
+.nav__item--mas .nav__enlace {
+  min-width: var(--touch-target);
+  border-radius: 999px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-raised);
+  color: var(--accent-strong);
+}
+.nav__aviso { margin: 0; padding: 6px 12px; text-align: center; font-size: 0.875em; }
+.nav__aviso a { color: var(--danger); }
+
+/* movil: barra inferior fija */
+.nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-top: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-raised);
+}
+
+/* escritorio: barra lateral */
+@media (min-width: 900px) {
+  .nav {
+    position: fixed;
+    top: 0; bottom: 0; left: 0; right: auto;
+    width: 220px;
+    border-top: 0;
+    border-right: var(--border-width) solid var(--border-color);
+    padding-top: 24px;
+  }
+  .nav__lista { flex-direction: column; align-items: stretch; }
+  .nav__enlace { justify-content: flex-start; padding: 0 20px; }
+  .shell { margin-left: 220px; padding-bottom: 24px; }
+}
+
+/* ---------- formularios ----------
+   Se pintan con {{ form.as_div }}: el estilo se aplica por elemento dentro de
+   .formulario, para no tener que tocar cada widget en Python ni repetir
+   class="campo" en cada plantilla. */
+.formulario input[type="text"],
+.formulario input[type="email"],
+.formulario input[type="number"],
+.formulario input[type="date"],
+.formulario input[type="password"],
+.formulario select,
+.formulario textarea {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-inset);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+}
+.formulario textarea { min-height: calc(var(--touch-target) * 2); padding: 12px 14px; }
+.formulario div { margin-bottom: 16px; }
+.formulario label { display: block; margin-bottom: 6px; color: var(--text-muted); }
+.formulario .errorlist { margin: 6px 0 0; padding-left: 18px; color: var(--danger); }
+.formulario .helptext { display: block; margin-top: 6px; color: var(--text-muted); font-size: 0.875em; }
+
+/* ---------- reglas de reparto, arrastrables ----------
+   El unico arrastre del plan (§4.5.6). El cursor y el realce tienen que decir
+   que se puede agarrar, o nadie descubre que se reordena arrastrando. */
+.reglas { margin: 0; padding: 0; list-style: none; }
+.reglas__item {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  margin-bottom: 8px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raised);
+  cursor: grab;
+  font-weight: var(--font-weight-strong);
+}
+.reglas__item:active { cursor: grabbing; box-shadow: var(--shadow-inset); }

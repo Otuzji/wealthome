@@ -171,7 +171,7 @@ def test_el_adolescente_registra_su_gasto_sin_ver_la_hipoteca(client, admin_con_
     client.force_login(adolescente.user)
 
     assert client.get(reverse("budget:registrar")).status_code == 200
-    assert client.get(reverse("budget:mes")).status_code == 403
+    assert client.get(reverse("budget:mes", args=["household"])).status_code == 403
 
 
 def test_registrar_un_gasto_lo_guarda_en_el_mes_corriente(client, admin_con_hogar):
@@ -208,7 +208,7 @@ def test_el_mes_exige_can_view_budget(client, admin_con_hogar):
     _, hogar = admin_con_hogar
     client.force_login(_miembro(hogar, can_add_transactions=True).user)
 
-    assert client.get(reverse("budget:mes")).status_code == 403
+    assert client.get(reverse("budget:mes", args=["household"])).status_code == 403
 
 
 def test_el_mes_muestra_lo_planeado_y_lo_real(client, admin_con_hogar):
@@ -220,7 +220,7 @@ def test_el_mes_muestra_lo_planeado_y_lo_real(client, admin_con_hogar):
                        amount=Decimal("1800.00"))
     client.force_login(admin)
 
-    html = client.get(reverse("budget:mes")).content.decode()
+    html = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
     assert "1,800.00" in html or "1 800,00" in html
 
@@ -231,7 +231,7 @@ def test_un_mes_futuro_se_puede_consultar_y_no_persiste(client, admin_con_hogar)
     admin, hogar = admin_con_hogar
     client.force_login(admin)
 
-    respuesta = client.get(reverse("budget:mes", args=[2030, 5]))
+    respuesta = client.get(reverse("budget:mes", args=["household", 2030, 5]))
 
     assert respuesta.status_code == 200
     assert not BudgetMonth.objects.for_household(hogar).filter(year=2030).exists()
@@ -332,22 +332,34 @@ def hogar_listo_para_planificar(admin_con_hogar):
 
 
 def test_planificar_muestra_el_sobrante_y_la_mesada(client, hogar_listo_para_planificar):
-    """§13.5: la pareja ve su sobrante repartido y cada uno sabe su mesada."""
+    """§13.5: la pareja ve su sobrante repartido y cada uno sabe su mesada.
+
+    Desde la Tarea 26 eso vive en el PASO 3 del asistente, no en la primera
+    pantalla: el paso 1 son los ingresos. La promesa del §13.5 no cambia, cambia
+    donde se cumple.
+    """
     admin, hogar = hogar_listo_para_planificar
     client.force_login(admin)
 
-    html = client.get(reverse("budget:planificar")).content.decode()
+    html = client.get(
+        reverse("budget:planificar_paso", args=["household", 3])
+    ).content.decode()
 
     assert "1,200.00" in html or "1 200,00" in html   # el sobrante proyectado
 
 
 def test_confirmar_la_planificacion_escribe_las_mesadas(client, hogar_listo_para_planificar):
+    """Solo el paso 3 escribe. Confirmar en el 1 o el 2 no puede tocar nada."""
     from apps.budget.models import AllowanceLedger
 
     admin, hogar = hogar_listo_para_planificar
     client.force_login(admin)
 
-    respuesta = client.post(reverse("budget:planificar"))
+    client.post(reverse("budget:planificar_paso", args=["household", 1]))
+    client.post(reverse("budget:planificar_paso", args=["household", 2]))
+    assert not AllowanceLedger.objects.for_household(hogar).exists()
+
+    respuesta = client.post(reverse("budget:planificar_paso", args=["household", 3]))
 
     assert respuesta.status_code == 302
     assert AllowanceLedger.objects.for_household(hogar).exists()
@@ -357,7 +369,7 @@ def test_planificar_exige_can_edit_budget(client, hogar_listo_para_planificar):
     _, hogar = hogar_listo_para_planificar
     client.force_login(_miembro(hogar, can_view_budget=True).user)
 
-    assert client.get(reverse("budget:planificar")).status_code == 403
+    assert client.get(reverse("budget:planificar", args=["household"])).status_code == 403
 
 
 # --- cerrar el mes ------------------------------------------------------------
@@ -368,9 +380,9 @@ def test_cerrar_el_mes_escribe_el_cierre(client, hogar_listo_para_planificar):
 
     admin, hogar = hogar_listo_para_planificar
     client.force_login(admin)
-    client.post(reverse("budget:planificar"))
+    client.post(reverse("budget:planificar", args=["household"]))
 
-    respuesta = client.post(reverse("budget:cerrar"))
+    respuesta = client.post(reverse("budget:cerrar", args=["household"]))
 
     assert respuesta.status_code == 302
     assert MonthlyClose.objects.for_household(hogar).exists()
@@ -380,10 +392,10 @@ def test_un_mes_cerrado_es_de_solo_lectura(client, hogar_listo_para_planificar):
     """§4.3: un mes cerrado no admite nada."""
     admin, hogar = hogar_listo_para_planificar
     client.force_login(admin)
-    client.post(reverse("budget:planificar"))
-    client.post(reverse("budget:cerrar"))
+    client.post(reverse("budget:planificar", args=["household"]))
+    client.post(reverse("budget:cerrar", args=["household"]))
 
-    respuesta = client.post(reverse("budget:cerrar"))
+    respuesta = client.post(reverse("budget:cerrar", args=["household"]))
 
     assert respuesta.status_code in (302, 409)
     from apps.budget.models import MonthlyClose
@@ -394,7 +406,11 @@ def test_un_mes_cerrado_es_de_solo_lectura(client, hogar_listo_para_planificar):
 # --- metas --------------------------------------------------------------------
 
 
-def test_las_metas_muestran_su_dato_derivado(client, admin_con_hogar):
+def test_la_pantalla_de_metas_lista_las_metas_del_hogar(client, admin_con_hogar):
+    """Nombre corregido en la Tarea 21: esta prueba solo afirma que la meta
+    APARECE, no su dato derivado. Quien lo afirma es
+    test_las_metas_muestran_su_dato_derivado_de_verdad.
+    """
     from apps.budget.engine.goals import BY_TARGET_DATE
     from tests.factories_budget import GoalFactory
 
@@ -405,7 +421,7 @@ def test_las_metas_muestran_su_dato_derivado(client, admin_con_hogar):
                 target_date=date(2027, 6, 30))
     client.force_login(admin)
 
-    html = client.get(reverse("budget:metas")).content.decode()
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
 
     assert "Vacaciones" in html
 
@@ -457,3 +473,559 @@ def test_registrar_en_un_mes_cerrado_avisa_en_vez_de_reventar(client, admin_con_
     assert respuesta.status_code == 200
     assert respuesta.context["form"].errors
     assert not Transaction.objects.for_household(hogar).exists()
+
+
+# --- el eje Hogar/Personal (Tarea 18) ----------------------------------------
+
+
+def test_el_ambito_va_en_la_ruta():
+    """§2.4: en la RUTA y no en un parametro de consulta ni en la sesion, porque
+    el service worker de la tanda 6 cachea por URL."""
+    assert reverse("budget:mes", args=["household"]).startswith("/budget/household/")
+    assert reverse("budget:mes", args=["personal"]).startswith("/budget/personal/")
+
+
+def test_un_ambito_inventado_da_404(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+    assert client.get("/budget/marciano/month/").status_code == 404
+
+
+def test_personal_solo_ensena_lo_del_miembro(client, admin_con_hogar):
+    """§2.4: Hogar y Personal son la misma vista con un filtro, no dos vistas."""
+    from tests.factories_budget import BudgetMonthFactory, TransactionFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    otra = MembershipFactory(household=hogar)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3)
+    cat = CategoryFactory(household=hogar)
+
+    TransactionFactory(household=hogar, budget_month=mes, category=cat,
+                       member=mia, scope="personal", amount=Decimal("10.00"),
+                       date=date(2026, 3, 2))
+    TransactionFactory(household=hogar, budget_month=mes, category=cat,
+                       member=otra, scope="personal", amount=Decimal("99.00"),
+                       date=date(2026, 3, 3))
+
+    respuesta = client.get(reverse("budget:mes", args=["personal", 2026, 3]))
+    importes = [tx.amount for tx in respuesta.context["transacciones"]]
+
+    assert Decimal("10.00") in importes
+    assert Decimal("99.00") not in importes
+
+
+def test_el_ambito_del_hogar_no_ensena_lo_personal_de_nadie(client, admin_con_hogar):
+    """El otro lado del filtro, que el plan no pedia. Sin esta, `acotar` podria
+    devolver el queryset sin filtrar en Hogar y nadie lo notaria: la prueba de
+    arriba solo mira Personal.
+    """
+    from tests.factories_budget import BudgetMonthFactory, TransactionFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=4)
+    cat = CategoryFactory(household=hogar)
+
+    TransactionFactory(household=hogar, budget_month=mes, category=cat,
+                       member=mia, scope="personal", amount=Decimal("77.00"),
+                       date=date(2026, 4, 2))
+    TransactionFactory(household=hogar, budget_month=mes, category=cat,
+                       member=mia, scope="household", amount=Decimal("55.00"),
+                       date=date(2026, 4, 3))
+
+    respuesta = client.get(reverse("budget:mes", args=["household", 2026, 4]))
+    importes = [tx.amount for tx in respuesta.context["transacciones"]]
+
+    assert Decimal("55.00") in importes
+    assert Decimal("77.00") not in importes
+
+
+def test_las_dos_pantallas_nuevas_resuelven_en_los_dos_ambitos(client, admin_con_hogar):
+    """Overview y Balance estan vacias hasta las Tareas 19 y 20, pero sus rutas
+    tienen que resolver ya: el menu de la Tarea 18 enlaza a Overview."""
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+    for ambito in ("household", "personal"):
+        assert client.get(reverse("budget:overview", args=[ambito])).status_code == 200
+        assert client.get(reverse("budget:balance", args=[ambito])).status_code == 200
+
+
+# --- el Overview (Tarea 19) ---------------------------------------------------
+
+
+def test_el_overview_da_las_series_ya_serializadas(client, admin_con_hogar):
+    import json
+
+    from django.utils import timezone
+    from tests.factories_budget import (
+        BudgetLineFactory, BudgetMonthFactory, TransactionFactory,
+    )
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=cat,
+                      kind="expense", planned_amount=Decimal("400.00"))
+    TransactionFactory(household=hogar, budget_month=mes, category=cat,
+                       amount=Decimal("350.00"), date=date(hoy.year, hoy.month, 4))
+
+    respuesta = client.get(reverse("budget:overview", args=["household"]))
+
+    assert respuesta.status_code == 200
+    series = respuesta.context["series_categorias"]
+    # etiqueta() es un metodo, no una property: en plantilla Django lo llama
+    # solo, en Python hay que llamarlo.
+    assert cat.etiqueta() in series["etiquetas"]
+    # Serializable de verdad: ni un Decimal suelto, que es lo que json_script
+    # no sabe convertir.
+    assert json.dumps(series)
+    assert json.dumps(respuesta.context["series_balance"])
+
+
+def test_el_overview_personal_no_cuenta_lo_del_hogar(client, admin_con_hogar):
+    """Las series tambien pasan por el filtro de ambito, no solo las tablas."""
+    from django.utils import timezone
+    from tests.factories_budget import BudgetMonthFactory, TransactionFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
+    TransactionFactory(household=hogar, budget_month=mes, category=cat, member=mia,
+                       scope="household", amount=Decimal("500.00"),
+                       date=date(hoy.year, hoy.month, 5))
+
+    series = client.get(
+        reverse("budget:overview", args=["personal"])
+    ).context["series_categorias"]
+
+    assert "500.00" not in series["real"]
+
+
+# --- el Balance (Tarea 20) ----------------------------------------------------
+
+
+def test_balance_ensena_la_varianza_por_categoria(client, admin_con_hogar):
+    from apps.budget.models import MonthlyClose
+    from tests.factories_budget import BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=2, status="closed")
+    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
+    MonthlyClose.unscoped.create(
+        household=hogar, budget_month=mes,
+        ingresos_presupuestados=Decimal("3000.00"), ingresos_reales=Decimal("3000.00"),
+        egresos_presupuestados=Decimal("400.00"), egresos_reales=Decimal("475.00"),
+        varianza_por_categoria={str(cat.pk): "-75.00"},
+        balance=Decimal("2525.00"), arrastre=Decimal("2525.00"),
+    )
+
+    respuesta = client.get(reverse("budget:balance", args=["household"]))
+
+    assert respuesta.status_code == 200
+    fila = respuesta.context["cierres"][0]
+    assert fila["cierre"].balance == Decimal("2525.00")
+    varianzas = {v["categoria"].pk: v["importe"] for v in fila["varianza"]}
+    # Decimal reconstruido al leer, no el str que guarda el JSON (§1 del spec).
+    assert varianzas[cat.pk] == Decimal("-75.00")
+    assert isinstance(varianzas[cat.pk], Decimal)
+
+
+def test_balance_exige_can_view_reports(client, admin_con_hogar):
+    """El plan decia can_view_budget para esta vista. Balance ES un informe, y
+    can_view_reports existe en el §6.2 para eso: con can_view_budget, un miembro
+    al que se le nego ver informes los veria igual.
+    """
+    _user, hogar = admin_con_hogar
+    solo_presupuesto = _miembro(hogar, can_view_budget=True, can_view_reports=False)
+    client.force_login(solo_presupuesto.user)
+
+    assert client.get(reverse("budget:balance", args=["household"])).status_code == 403
+
+
+def test_balance_sin_cierres_lo_dice_y_no_revienta(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:balance", args=["household"]))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["cierres"] == []
+
+
+# --- metas con progreso (Tarea 21) -------------------------------------------
+
+
+def test_las_metas_muestran_su_dato_derivado_de_verdad(client, admin_con_hogar):
+    """La prueba vieja solo afirmaba que el NOMBRE aparecia en el HTML, no el
+    dato derivado que su nombre promete. Esta afirma el dato."""
+    from tests.factories_budget import GoalContributionFactory, GoalFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    meta = GoalFactory(
+        household=hogar, name="Viaje", contribution_mode="by_monthly_amount",
+        target_amount=Decimal("1200.00"), monthly_amount=Decimal("100.00"),
+    )
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("300.00"),
+                            date=date(2026, 3, 1))
+
+    respuesta = client.get(reverse("budget:metas", args=["household"]))
+
+    fila = respuesta.context["filas"][0]
+    assert fila["acumulado"] == Decimal("300.00")
+    assert fila["porcentaje"] == 25          # 300 de 1200
+    assert fila["fecha"] is not None         # el dato derivado, no el nombre
+
+
+def test_una_meta_sobrepasada_no_desborda_la_barra(client, admin_con_hogar):
+    """119% es un dato, no un error; una barra al 119% se sale de su caja."""
+    from tests.factories_budget import GoalContributionFactory, GoalFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    meta = GoalFactory(household=hogar, contribution_mode="by_monthly_amount",
+                       target_amount=Decimal("100.00"),
+                       monthly_amount=Decimal("50.00"))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("150.00"),
+                            date=date(2026, 3, 1))
+
+    fila = client.get(
+        reverse("budget:metas", args=["household"])
+    ).context["filas"][0]
+
+    assert fila["porcentaje"] == 150
+    assert fila["porcentaje_barra"] == 100
+
+
+def test_un_aporte_de_la_cascada_no_dice_que_lo_hizo_nadie(client, admin_con_hogar):
+    """member es anulable desde la Tarea 2: la plantilla tiene que tolerarlo."""
+    from apps.budget.models import GoalContribution
+    from tests.factories_budget import GoalFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    meta = GoalFactory(household=hogar)
+    GoalContribution.unscoped.create(
+        household=hogar, goal=meta, amount=Decimal("50.00"),
+        date=date(2026, 3, 1), member=None, origen="cascade",
+    )
+
+    respuesta = client.get(reverse("budget:metas", args=["household"]))
+
+    assert respuesta.status_code == 200
+
+
+# --- la mesada (Tarea 22) -----------------------------------------------------
+
+
+def test_la_mesada_ensena_el_libro_mayor_entero(client, admin_con_hogar):
+    from django.utils import timezone
+
+    from apps.budget.models import AllowanceLedger
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    # El mes CORRIENTE: la vista mira el que obtener_mes materializa hoy, no uno
+    # fijo. Anclarlo a 2026-03 dejaria la prueba pasando solo ese mes.
+    mes = __import__("apps.budget.services", fromlist=["services"]).obtener_mes(
+        hogar, hoy.year, hoy.month
+    )
+    AllowanceLedger.unscoped.create(
+        household=hogar, member=mia, budget_month=mes,
+        carried_in=Decimal("45.00"), granted=Decimal("100.00"),
+        adjustment=Decimal("-40.00"), spent=Decimal("60.00"),
+    )
+
+    respuesta = client.get(reverse("budget:mesada"))
+
+    assert respuesta.status_code == 200
+    libro = respuesta.context["libro"]
+    assert libro.carried_in == Decimal("45.00")
+    assert libro.adjustment == Decimal("-40.00")
+    assert libro.saldo() == Decimal("45.00")     # 45 + 100 - 40 - 60
+
+
+def test_la_mesada_explica_de_donde_sale_el_ajuste(client, admin_con_hogar):
+    """§4.5.3: el ajuste viene del cierre del mes anterior, y hay que decirlo."""
+    from django.utils import timezone
+
+    from apps.budget.models import AllowanceLedger
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    from tests.factories_budget import BudgetMonthFactory
+
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    mes = __import__("apps.budget.services", fromlist=["services"]).obtener_mes(
+        hogar, hoy.year, hoy.month
+    )
+    # La fila del mes ANTERIOR es lo que le da nombre al ajuste: mes_anterior()
+    # devuelve esa fila, o None si el hogar nunca la tuvo.
+    anterior_anio, anterior_mes = (
+        (hoy.year - 1, 12) if hoy.month == 1 else (hoy.year, hoy.month - 1)
+    )
+    BudgetMonthFactory(household=hogar, year=anterior_anio, month=anterior_mes,
+                       status="closed")
+    AllowanceLedger.unscoped.create(
+        household=hogar, member=mia, budget_month=mes,
+        granted=Decimal("100.00"), adjustment=Decimal("-40.00"),
+    )
+
+    respuesta = client.get(reverse("budget:mesada"))
+
+    assert respuesta.context["hay_ajuste"] is True
+    assert respuesta.context["mes_del_ajuste"] is not None
+
+
+def test_un_ajuste_sin_mes_anterior_sigue_explicandose(client, admin_con_hogar):
+    """mes_anterior() da None si el hogar nunca tuvo esa fila. Con una sola
+    redaccion la pantalla diria "None closed below what was planned"; hay una
+    generica para ese caso. No esta en el plan.
+    """
+    from django.utils import timezone
+
+    from apps.budget.models import AllowanceLedger
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = hogar.memberships.get(user=user)
+    hoy = timezone.localdate()
+    mes = __import__("apps.budget.services", fromlist=["services"]).obtener_mes(
+        hogar, hoy.year, hoy.month
+    )
+    AllowanceLedger.unscoped.create(
+        household=hogar, member=mia, budget_month=mes,
+        granted=Decimal("100.00"), adjustment=Decimal("-40.00"),
+    )
+
+    cuerpo = client.get(reverse("budget:mesada")).content.decode()
+
+    assert "None closed below" not in cuerpo
+    assert "closed below what was planned" in cuerpo
+
+
+def test_sin_mesada_la_pantalla_lo_dice_y_no_revienta(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:mesada"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["libro"] is None
+    assert respuesta.context["hay_ajuste"] is False
+
+
+# --- la linea excepcional (Tarea 25) ------------------------------------------
+
+
+def test_se_puede_anadir_una_partida_excepcional_al_mes(client, admin_con_hogar):
+    from apps.budget.models import BudgetLine
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    categoria = CategoryFactory(household=hogar, slug="campamento", kind="expense")
+
+    respuesta = client.post(reverse("budget:linea_nueva"), {
+        "category": categoria.pk, "kind": "expense",
+        "planned_amount": "320.00", "scope": "household",
+        "note": "Inscripcion del campamento",
+    })
+
+    assert respuesta.status_code == 302
+    linea = BudgetLine.objects.for_household(hogar).get(
+        note="Inscripcion del campamento"
+    )
+    assert linea.planned_amount == Decimal("320.00")
+    # Sin regla detras: eso ES una linea excepcional (§5.3 del Plan 2).
+    assert linea.source_income_id is None
+    assert linea.source_expense_rule_id is None
+    assert linea.is_exceptional is True
+
+
+def test_no_se_anade_una_partida_a_un_mes_cerrado(client, admin_con_hogar):
+    from django.utils import timezone
+
+    from tests.factories_budget import BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    categoria = CategoryFactory(household=hogar, slug="tarde", kind="expense")
+    hoy = timezone.localdate()
+    BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month,
+                       status="closed")
+
+    respuesta = client.post(reverse("budget:linea_nueva"), {
+        "category": categoria.pk, "kind": "expense",
+        "planned_amount": "320.00", "scope": "household", "note": "Tarde",
+    })
+
+    assert respuesta.status_code == 200      # el formulario, con su error
+    assert b"closed" in respuesta.content.lower()
+
+
+def test_la_partida_excepcional_no_ofrece_miembros_de_otro_hogar(client, admin_con_hogar):
+    """owner es una Membership, que no hereda de HouseholdScoped: la base no la
+    acota sola. Sin el queryset explicito, el <select> traeria a las demas
+    familias — el mismo agujero que IncomeSourceForm ya tenia tapado."""
+    from apps.budget.forms import BudgetLineForm
+    from apps.households.services import crear_hogar
+
+    _user, hogar = admin_con_hogar
+    ajeno = crear_hogar(UserFactory(), "Los Otros", family_size=2)
+
+    form = BudgetLineForm(household=hogar)
+    duenos = set(form.fields["owner"].queryset)
+
+    assert duenos == set(hogar.active_memberships())
+    assert not duenos & set(ajeno.active_memberships())
+
+
+# --- el asistente de planificar (Tarea 26) ------------------------------------
+
+
+def test_el_asistente_tiene_tres_pasos(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    for paso in (1, 2, 3):
+        respuesta = client.get(
+            reverse("budget:planificar_paso", args=["household", paso])
+        )
+        assert respuesta.status_code == 200
+        assert respuesta.context["paso"] == paso
+
+
+def test_solo_el_paso_tres_escribe_el_reparto(client, admin_con_hogar):
+    from apps.budget.models import MonthlyAllocation
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+
+    client.post(reverse("budget:planificar_paso", args=["household", 1]))
+    client.post(reverse("budget:planificar_paso", args=["household", 2]))
+    assert not MonthlyAllocation.objects.for_household(hogar).exists()
+
+    client.post(reverse("budget:planificar_paso", args=["household", 3]))
+    # Sin reglas de reparto no hay filas, pero el mes queda planificado.
+    assert client.session.get("plan_confirmado") is True
+
+
+def test_los_dos_primeros_pasos_solo_avanzan(client, admin_con_hogar):
+    """No esta en el plan: afirma el DESTINO del avance, no solo que no escriba.
+    Sin esto, un paso 1 que redirigiera al paso 3 pasaria la prueba de arriba."""
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    uno = client.post(reverse("budget:planificar_paso", args=["household", 1]))
+    dos = client.post(reverse("budget:planificar_paso", args=["household", 2]))
+
+    assert uno["Location"] == reverse("budget:planificar_paso", args=["household", 2])
+    assert dos["Location"] == reverse("budget:planificar_paso", args=["household", 3])
+
+
+def test_reordenar_reglas_cambia_su_prioridad(client, admin_con_hogar):
+    from apps.budget.models import AllocationRule
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    a = AllocationRuleFactory(household=hogar, order=1)
+    b = AllocationRuleFactory(household=hogar, order=2)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(b.pk), str(a.pk)]},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 200
+    assert AllocationRule.objects.for_household(hogar).get(pk=b.pk).order == 1
+    assert AllocationRule.objects.for_household(hogar).get(pk=a.pk).order == 2
+
+
+def test_no_se_reordenan_reglas_de_otro_hogar(client, admin_con_hogar):
+    """Entrada hostil: los pks llegan del navegador. Reordenar a medias dejaria
+    el orden inconsistente, asi que se rechaza entero."""
+    from apps.budget.models import AllocationRule
+    from apps.households.services import crear_hogar
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    mia = AllocationRuleFactory(household=hogar, order=1)
+    ajeno = crear_hogar(UserFactory(), "Los Otros", family_size=2)
+    suya = AllocationRuleFactory(household=ajeno, order=1)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(suya.pk), str(mia.pk)]},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 400
+    assert AllocationRule.objects.for_household(hogar).get(pk=mia.pk).order == 1
+    assert AllocationRule.unscoped.get(pk=suya.pk).order == 1
+
+
+def test_un_paso_inventado_da_404(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+    assert client.get("/budget/household/plan/9/").status_code == 404
+
+
+def test_no_se_reordenan_las_reglas_con_una_lista_parcial(client, admin_con_hogar):
+    """Lo encontro la revision final, y era un 500.
+
+    Con reglas 1, 2 y 3 y una lista [3, 2], la 3 pide el orden 1 que la 1 todavia
+    ocupa: UniqueConstraint(household, order) lo tumba con un IntegrityError. La
+    interfaz manda siempre la lista entera, asi que solo se llega por otro camino
+    — pero un 500 en un POST es justo lo que el resto de este plan evita.
+    """
+    from apps.budget.models import AllocationRule
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    a = AllocationRuleFactory(household=hogar, order=1)
+    b = AllocationRuleFactory(household=hogar, order=2)
+    AllocationRuleFactory(household=hogar, order=3)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(b.pk), str(a.pk)]},      # falta la tercera
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 400
+    assert AllocationRule.objects.for_household(hogar).get(pk=a.pk).order == 1
+    assert AllocationRule.objects.for_household(hogar).get(pk=b.pk).order == 2
+
+
+def test_no_se_reordenan_las_reglas_con_un_pk_repetido(client, admin_con_hogar):
+    """Dos veces el mismo pk dejaria dos reglas pidiendo el mismo orden."""
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    a = AllocationRuleFactory(household=hogar, order=1)
+    AllocationRuleFactory(household=hogar, order=2)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(a.pk), str(a.pk)]},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 400

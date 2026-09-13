@@ -150,6 +150,39 @@ en corto:
 5. **`receipt_image` entra anulable y sin usar**, como pide el spec, aunque
    su destino real (Supabase Storage) siga sin decidirse.
 
+## Dependencias del navegador
+
+Vendorizadas en `static/vendor/`, servidas por el propio proyecto:
+
+| Archivo | Version |
+|---|---|
+| `chart.umd.min.js` | Chart.js 4.4.7 |
+| `htmx.min.js` | htmx 2.0.4 |
+| `alpine.min.js` | Alpine.js 3.14.8 |
+
+**No hay build step; estos archivos se actualizan a mano y a proposito.** Se
+sirven desde el proyecto y no desde un CDN porque la PWA de la tanda 6 tiene que
+funcionar sin red, y porque una dependencia que cambia sola bajo los pies no es
+una dependencia, es una sorpresa.
+
+## Stripe
+
+La suite **nunca** llama a Stripe y corre sin claves. Para ejercitar el pago a
+mano hacen falta, en `.env` y en modo de prueba:
+
+    STRIPE_SECRET_KEY=sk_test_...
+    STRIPE_PUBLISHABLE_KEY=pk_test_...
+    STRIPE_WEBHOOK_SECRET=whsec_...
+
+El `whsec_` lo entrega la CLI de Stripe al reenviar los webhooks al servidor
+local, que es la única forma de probarlos sin desplegar:
+
+    stripe listen --forward-to localhost:8000/subscription/webhook/
+
+Sin esa CLI corriendo, un pago de prueba se completa en la pasarela y la
+suscripción **no** se acredita — y eso es correcto: el webhook es la única
+fuente de verdad (§5.2), y la URL de retorno no concede nada.
+
 ## Internacionalización
 
 Los idiomas soportados son `en` (por defecto) y `fr`. Cada cadena visible en

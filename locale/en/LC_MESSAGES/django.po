@@ -228,6 +228,10 @@ msgstr "invitations"
 msgid "You do not have permission to do that in this household."
 msgstr "You do not have permission to do that in this household."
 
+#: apps/households/permissions.py
+msgid "Your trial has ended. Subscribe to keep adding to your budget."
+msgstr "Your trial has ended. Subscribe to keep adding to your budget."
+
 #: apps/households/services.py
 msgid "Only the administrator can invite members."
 msgstr "Only the administrator can invite members."
@@ -343,6 +347,10 @@ msgstr "Not allowed"
 #: templates/403.html
 msgid "You do not have permission to see this page."
 msgstr "You do not have permission to see this page."
+
+#: templates/403.html
+msgid "See subscription"
+msgstr "See subscription"
 
 #: templates/404.html
 msgid "Page not found"
@@ -804,6 +812,14 @@ msgstr "contribution"
 msgid "contributions"
 msgstr "contributions"
 
+#: apps/budget/models/goals.py
+msgid "Nulo si la fecha cae en un mes que el hogar no ha vivido."
+msgstr "Null if the date falls in a month the household hasn't lived yet."
+
+#: apps/budget/models/goals.py
+msgid "Nulo cuando el aporte viene del reparto: ahorra el hogar, no una persona."
+msgstr "Null when the contribution comes from the split: the household saves, not a person."
+
 #: apps/budget/models/allocation.py
 msgid "A savings goal"
 msgstr "A savings goal"
@@ -1115,3 +1131,349 @@ msgstr "That month is not on the calendar."
 #: apps/budget/views.py
 msgid "This month is already closed."
 msgstr "This month is already closed."
+
+#: apps/subscriptions/models.py
+msgid "Trial"
+msgstr "Trial"
+
+#: apps/subscriptions/models.py
+msgid "trial ends at"
+msgstr "trial ends at"
+
+#: apps/subscriptions/models.py
+msgid "paid at"
+msgstr "paid at"
+
+#: apps/subscriptions/models.py
+msgid "subscription"
+msgstr "subscription"
+
+#: apps/subscriptions/models.py
+msgid "subscriptions"
+msgstr "subscriptions"
+
+#: apps/subscriptions/models.py
+msgid "Stripe event"
+msgstr "Stripe event"
+
+#: apps/subscriptions/models.py
+msgid "Stripe events"
+msgstr "Stripe events"
+
+#: templates/subscriptions/retorno.html
+msgid "Thank you"
+msgstr "Thank you"
+
+#: templates/subscriptions/retorno.html
+msgid "We are confirming your payment. This page will not change until Stripe tells us it went through."
+msgstr "We are confirming your payment. This page will not change until Stripe tells us it went through."
+
+#: templates/subscriptions/retorno.html
+msgid "Back to Wealthome"
+msgstr "Back to Wealthome"
+
+#: templates/subscriptions/estado.html
+msgid "Subscription"
+msgstr "Subscription"
+
+#: templates/subscriptions/estado.html
+msgid "Wealthome is yours. Thank you."
+msgstr "Wealthome is yours. Thank you."
+
+#: templates/subscriptions/estado.html
+msgid "Your trial has ended. Your data is all here and always will be — you just cannot add anything new until you subscribe."
+msgstr "Your trial has ended. Your data is all here and always will be — you just cannot add anything new until you subscribe."
+
+#: templates/subscriptions/estado.html
+msgid "Subscribe once for $%(precio)s CAD"
+msgstr "Subscribe once for $%(precio)s CAD"
+
+#: templates/subscriptions/estado.html
+msgid "One day left in your trial."
+msgid_plural "%(dias)s days left in your trial."
+msgstr[0] "One day left in your trial."
+msgstr[1] "%(dias)s days left in your trial."
+
+#: apps/core/context_processors.py
+msgid "Add"
+msgstr "Add"
+
+#: templates/_nav.html
+msgid "Main"
+msgstr "Main"
+
+#: templates/_nav.html
+msgid "Your trial has ended"
+msgstr "Your trial has ended"
+
+#: templates/budget/mes.html
+msgid "Not started"
+msgstr "Not started"
+
+#: templates/subscriptions/estado.html
+msgid "Expired"
+msgstr "Expired"
+
+#: templates/accounts/inicio.html
+msgid "Your budget lives in the menu. Start with this month."
+msgstr "Your budget lives in the menu. Start with this month."
+
+#: apps/budget/scopes.py
+msgid "That view does not exist."
+msgstr "That view does not exist."
+
+#: templates/budget/overview.html
+msgid "Overview"
+msgstr "Overview"
+
+#: templates/budget/overview.html
+msgid "Planned against real"
+msgstr "Planned against real"
+
+#: templates/budget/overview.html
+msgid "Real"
+msgstr "Real"
+
+#: templates/budget/overview.html
+msgid "How the balance moved"
+msgstr "How the balance moved"
+
+#: templates/budget/overview.html
+msgid "Recent activity"
+msgstr "Recent activity"
+
+#: templates/budget/balance.html
+msgid "Balance"
+msgstr "Balance"
+
+#: templates/budget/balance.html
+msgid "Income, planned"
+msgstr "Income, planned"
+
+#: templates/budget/balance.html
+msgid "Income, real"
+msgstr "Income, real"
+
+#: templates/budget/balance.html
+msgid "Spending, planned"
+msgstr "Spending, planned"
+
+#: templates/budget/balance.html
+msgid "Spending, real"
+msgstr "Spending, real"
+
+#: templates/budget/balance.html
+msgid "Where it went off plan"
+msgstr "Where it went off plan"
+
+#: templates/budget/balance.html
+msgid "Difference"
+msgstr "Difference"
+
+#: templates/budget/balance.html
+msgid "Everything landed on plan."
+msgstr "Everything landed on plan."
+
+#: templates/budget/balance.html
+msgid "No month has been closed yet. Your first balance appears when you close a month."
+msgstr "No month has been closed yet. Your first balance appears when you close a month."
+
+#: templates/budget/metas.html
+msgid "Contributions"
+msgstr "Contributions"
+
+#: templates/budget/metas.html
+msgid "The household"
+msgstr "The household"
+
+#: templates/budget/mesada.html
+msgid "My allowance"
+msgstr "My allowance"
+
+#: templates/budget/mesada.html
+msgid "Left to spend"
+msgstr "Left to spend"
+
+#: templates/budget/mesada.html
+msgid "How that number is made"
+msgstr "How that number is made"
+
+#: templates/budget/mesada.html
+msgid "Carried in from last month"
+msgstr "Carried in from last month"
+
+#: templates/budget/mesada.html
+msgid "Granted this month"
+msgstr "Granted this month"
+
+#: templates/budget/mesada.html
+msgid "Adjustment"
+msgstr "Adjustment"
+
+#: templates/budget/mesada.html
+msgid "Spent"
+msgstr "Spent"
+
+#: templates/budget/mesada.html
+msgid "Where it went"
+msgstr "Where it went"
+
+#: templates/budget/mesada.html
+msgid "Nothing spent yet this month."
+msgstr "Nothing spent yet this month."
+
+#: templates/budget/mesada.html
+msgid "You have no allowance this month yet. It appears once the month is planned."
+msgstr "You have no allowance this month yet. It appears once the month is planned."
+
+#: templates/budget/mesada.html
+msgid "A previous month closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+msgstr "A previous month closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+
+#: templates/budget/metas.html
+msgid "%(hecho)s of %(objetivo)s — %(pct)s%%"
+msgstr "%(hecho)s of %(objetivo)s — %(pct)s%%"
+
+#: templates/budget/metas.html
+msgid "Put in %(importe)s a month to get there on time."
+msgstr "Put in %(importe)s a month to get there on time."
+
+#: templates/budget/metas.html
+msgid "At this rate you get there in %(cuando)s."
+msgstr "At this rate you get there in %(cuando)s."
+
+#: templates/budget/mesada.html
+msgid "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+msgstr "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
+
+#: templates/budget/_fragmentos/gasto_form.html
+msgid "Record it"
+msgstr "Record it"
+
+#: templates/budget/_fragmentos/aporte_form.html
+msgid "Add it"
+msgstr "Add it"
+
+#: templates/budget/overview.html
+msgid "Everything"
+msgstr "Everything"
+
+#: templates/budget/overview.html
+msgid "Money in"
+msgstr "Money in"
+
+#: templates/budget/overview.html
+msgid "Money out"
+msgstr "Money out"
+
+#: apps/budget/views_month.py
+msgid "One-off item this month"
+msgstr "One-off item this month"
+
+#: templates/wizards/planificar_2.html
+msgid "Add a one-off item"
+msgstr "Add a one-off item"
+
+#: apps/budget/wizards.py
+msgid "That step does not exist."
+msgstr "That step does not exist."
+
+#: templates/wizards/planificar_1.html
+msgid "Next"
+msgstr "Next"
+
+#: templates/wizards/planificar_2.html
+msgid "Back"
+msgstr "Back"
+
+#: templates/wizards/incorporacion.html
+msgid "Finish"
+msgstr "Finish"
+
+#: templates/wizards/incorporacion.html
+msgid "Skip for now"
+msgstr "Skip for now"
+
+#: templates/wizards/incorporacion.html
+msgid "Set this up"
+msgstr "Set this up"
+
+#: templates/wizards/planificar_1.html
+msgid "Edit income"
+msgstr "Edit income"
+
+#: templates/wizards/planificar_1.html
+msgid "What is coming in"
+msgstr "What is coming in"
+
+#: templates/wizards/planificar_2.html
+msgid "What is going out"
+msgstr "What is going out"
+
+#: templates/wizards/planificar_1.html
+msgid "No income set up yet."
+msgstr "No income set up yet."
+
+#: templates/wizards/planificar_2.html
+msgid "No fixed expenses set up yet."
+msgstr "No fixed expenses set up yet."
+
+#: templates/wizards/planificar_3.html
+msgid "How the leftover gets split"
+msgstr "How the leftover gets split"
+
+#: templates/wizards/planificar_3.html
+msgid "Your rules, in order"
+msgstr "Your rules, in order"
+
+#: templates/wizards/planificar_3.html
+msgid "What each person gets"
+msgstr "What each person gets"
+
+#: templates/wizards/planificar_1.html
+msgid "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month."
+msgstr "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month."
+
+#: templates/wizards/planificar_3.html
+msgid "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list."
+msgstr "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list."
+
+#: apps/budget/wizards.py
+msgid "Who else lives here"
+msgstr "Who else lives here"
+
+#: apps/budget/wizards.py
+msgid "What comes in"
+msgstr "What comes in"
+
+#: apps/budget/wizards.py
+msgid "What goes out every month"
+msgstr "What goes out every month"
+
+#: apps/budget/wizards.py
+msgid "What you are saving for"
+msgstr "What you are saving for"
+
+#: templates/wizards/incorporacion.html
+msgid "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it."
+msgstr "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it."
+
+#: templates/wizards/planificar_1.html
+msgid "Step %(paso)s of 3"
+msgstr "Step %(paso)s of 3"
+
+#: templates/wizards/incorporacion.html
+msgid "Step %(paso)s of %(total)s"
+msgstr "Step %(paso)s of %(total)s"
+
+#: templates/sin-conexion.html
+msgid "No connection"
+msgstr "No connection"
+
+#: templates/households/ajustes.html
+msgid "Sign out"
+msgstr "Sign out"
+
+#: templates/sin-conexion.html
+msgid "You are offline and this page was not saved on this device. Anything you have already opened is still here."
+msgstr "You are offline and this page was not saved on this device. Anything you have already opened is still here."

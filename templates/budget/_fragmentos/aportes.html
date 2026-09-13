@@ -1,0 +1,12 @@
+{% load i18n money %}
+<div id="aportes-{{ meta.pk }}" class="tabla__envoltura">
+  <table class="tabla">
+    {% for aporte in aportes %}
+      <tr>
+        <td>{{ aporte.date }}</td>
+        <td>{% if aporte.member %}{{ aporte.member.user }}{% else %}{% translate "The household" %}{% endif %}</td>
+        <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>

@@ -16,11 +16,28 @@ from tests.factories_budget import CategoryFactory, ExpenseRuleFactory, GoalFact
 
 pytestmark = pytest.mark.django_db
 
+# (nombre, args). Desde la Tarea 18 las cuatro pantallas del §7.1 llevan el
+# ambito en la ruta, y el aislamiento hay que comprobarlo en LOS DOS: un filtro
+# de ambito mal escrito podria colar filas ajenas solo en uno de ellos.
 RUTAS_DE_LECTURA = [
-    "budget:configurar", "budget:mes", "budget:metas",
-    "budget:registrar", "budget:planificar", "budget:ingreso_nuevo",
-    "budget:gasto_nuevo", "budget:categoria_nueva", "budget:reparto_nuevo",
-    "budget:meta_nueva", "budget:aportar",
+    ("budget:configurar", ()),
+    ("budget:registrar", ()),
+    ("budget:ingreso_nuevo", ()),
+    ("budget:gasto_nuevo", ()),
+    ("budget:categoria_nueva", ()),
+    ("budget:reparto_nuevo", ()),
+    ("budget:meta_nueva", ()),
+    ("budget:aportar", ()),
+    ("budget:mes", ("household",)),
+    ("budget:mes", ("personal",)),
+    ("budget:metas", ("household",)),
+    ("budget:metas", ("personal",)),
+    ("budget:planificar", ("household",)),
+    ("budget:planificar", ("personal",)),
+    ("budget:overview", ("household",)),
+    ("budget:overview", ("personal",)),
+    ("budget:balance", ("household",)),
+    ("budget:balance", ("personal",)),
 ]
 
 
@@ -37,12 +54,12 @@ def dos_hogares():
     return thompson, garcia
 
 
-@pytest.mark.parametrize("nombre", RUTAS_DE_LECTURA)
-def test_ninguna_pantalla_filtra_datos_del_otro_hogar(client, dos_hogares, nombre):
+@pytest.mark.parametrize("nombre,args", RUTAS_DE_LECTURA)
+def test_ninguna_pantalla_filtra_datos_del_otro_hogar(client, dos_hogares, nombre, args):
     thompson, _ = dos_hogares
     client.force_login(thompson.active_memberships().first().user)
 
-    html = client.get(reverse(nombre)).content.decode()
+    html = client.get(reverse(nombre, args=args)).content.decode()
 
     assert "SECRETO-GARCIA" not in html
     assert "META-SECRETA-GARCIA" not in html

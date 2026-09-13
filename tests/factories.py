@@ -41,9 +41,20 @@ class UserFactory(factory.django.DjangoModelFactory):
 class HouseholdFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Household
+        skip_postgeneration_save = True
 
     name = factory.Sequence(lambda n: f"Hogar {n}")
     family_size = 4
+
+    @factory.post_generation
+    def suscripcion(obj, create, extracted, **kwargs):
+        """Sin esto, cada hogar de prueba nace sin suscripcion y la guardia del
+        §2.4 lo dejaria escribir por la puerta de atras en vez de por la buena."""
+        if not create:
+            return
+        from apps.subscriptions.services import crear_suscripcion
+
+        crear_suscripcion(obj)
 
 
 class MembershipFactory(factory.django.DjangoModelFactory):

@@ -1,0 +1,7 @@
+{% load i18n %}
+<form class="formulario" hx-post="{% url 'budget:registrar' %}"
+      hx-target="#recientes" hx-swap="outerHTML">
+  {% csrf_token %}
+  {{ form.as_div }}
+  <button class="btn btn--primary" type="submit">{% translate "Record it" %}</button>
+</form>

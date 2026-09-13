@@ -1,0 +1,158 @@
+"""Los fragmentos de htmx se prueban como fragmentos.
+
+No hace falta un navegador: htmx es una peticion HTTP normal con una cabecera.
+Lo que hay que verificar es que la vista devuelva el trozo y no la pagina
+entera, y que el trozo siga estando acotado al hogar.
+"""
+
+from decimal import Decimal
+
+import pytest
+from django.urls import reverse
+
+from apps.budget.seeds import sembrar
+from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
+from tests.factories_budget import CategoryFactory
+
+pytestmark = pytest.mark.django_db
+
+
+def _admin_logueado(client, con_arbol=False):
+    hogar = HouseholdFactory()
+    if con_arbol:
+        sembrar(hogar)
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+    return hogar, user
+
+
+def test_registrar_por_htmx_devuelve_un_fragmento_y_no_la_pagina(client):
+    _admin_logueado(client)
+
+    entera = client.get(reverse("budget:registrar"))
+    trozo = client.get(reverse("budget:registrar"), HTTP_HX_REQUEST="true")
+
+    assert b"<!doctype html>" in entera.content.lower()
+    assert b"<!doctype html>" not in trozo.content.lower()
+    assert b"<form" in trozo.content
+
+
+def test_un_gasto_guardado_por_htmx_devuelve_los_movimientos_al_dia(client):
+    from django.utils import timezone
+
+    hogar, _user = _admin_logueado(client, con_arbol=True)
+    categoria = CategoryFactory(household=hogar, slug="cafe")
+    hoy = timezone.localdate()
+
+    respuesta = client.post(
+        reverse("budget:registrar"),
+        {"amount": "12.50", "date": hoy.isoformat(), "category": categoria.pk,
+         "scope": "household", "payment_method": "card", "comercio": ""},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 200
+    assert b"12" in respuesta.content
+    assert b"<!doctype html>" not in respuesta.content.lower()
+
+
+def test_un_hogar_expirado_no_puede_registrar_ni_por_htmx(client):
+    """La guardia del §2.2 es por METODO: las vistas de htmx nacen cubiertas.
+
+    Esta es la prueba que demuestra que la decision del §2.2 valio la pena: no se
+    escribio ni una linea nueva de guardia para esta vista.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    hogar, _user = _admin_logueado(client)
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+
+    respuesta = client.post(reverse("budget:registrar"), {}, HTTP_HX_REQUEST="true")
+
+    assert respuesta.status_code == 403
+
+
+def test_un_hogar_expirado_si_puede_LEER_por_htmx(client):
+    """El otro lado de "por metodo": expirar no destruye datos, solo escribe.
+
+    No esta en el plan. Sin ella, una guardia que bloqueara TODA peticion de htmx
+    —y no solo las de escritura— pasaria las otras pruebas igual.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    hogar, _user = _admin_logueado(client)
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+
+    respuesta = client.get(reverse("budget:registrar"), HTTP_HX_REQUEST="true")
+
+    assert respuesta.status_code == 200
+
+
+def test_el_filtro_del_overview_es_una_pagina_de_verdad(client):
+    """hx-select pide la pagina entera: la URL filtrada tiene que funcionar sola."""
+    _admin_logueado(client, con_arbol=True)
+    url = reverse("budget:overview", args=["household"]) + "?kind=expense"
+
+    entera = client.get(url)
+
+    assert entera.status_code == 200
+    assert b"<!doctype html>" in entera.content.lower()
+    assert entera.context["filtro_kind"] == "expense"
+
+
+def test_un_filtro_inventado_se_ignora_y_no_filtra(client):
+    """Entrada hostil barata: el filtro llega de la query string."""
+    _admin_logueado(client, con_arbol=True)
+    url = reverse("budget:overview", args=["household"]) + "?kind=; DROP TABLE"
+
+    respuesta = client.get(url)
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["filtro_kind"] == "; DROP TABLE"
+
+
+def test_el_fragmento_de_recientes_no_ensena_otro_hogar(client):
+    """Un fragmento es un endpoint como cualquier otro: tambien esta acotado."""
+    from django.utils import timezone
+
+    from apps.households.services import crear_hogar
+    from tests.factories_budget import BudgetMonthFactory, TransactionFactory
+
+    hogar, _user = _admin_logueado(client, con_arbol=True)
+    ajeno = crear_hogar(UserFactory(), "Los Otros", family_size=2)
+    hoy = timezone.localdate()
+    mes_ajeno = BudgetMonthFactory(household=ajeno, year=hoy.year, month=hoy.month)
+    TransactionFactory(household=ajeno, budget_month=mes_ajeno,
+                       category=CategoryFactory(household=ajeno, slug="su-cat"),
+                       amount=Decimal("9999.99"), date=hoy)
+
+    categoria = CategoryFactory(household=hogar, slug="cafe")
+    respuesta = client.post(
+        reverse("budget:registrar"),
+        {"amount": "12.50", "date": hoy.isoformat(), "category": categoria.pk,
+         "scope": "household", "payment_method": "card", "comercio": ""},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert b"9999" not in respuesta.content
+    assert b"9,999.99" not in respuesta.content
+
+
+def test_aportar_por_htmx_devuelve_los_aportes_y_no_la_pagina(client):
+    from tests.factories_budget import GoalFactory
+
+    hogar, _user = _admin_logueado(client, con_arbol=True)
+    GoalFactory(household=hogar)
+
+    trozo = client.get(reverse("budget:aportar"), HTTP_HX_REQUEST="true")
+
+    assert trozo.status_code == 200
+    assert b"<!doctype html>" not in trozo.content.lower()
+    assert b"<form" in trozo.content
