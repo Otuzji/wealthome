@@ -147,3 +147,58 @@ Nada de esto es un fallo conocido: es cobertura que falta.
 - **`test_views.py` tiene 55 pruebas y ~500 s.** Partirlo por tema (mes, metas,
   asistentes, configuración) es trabajo de una hora que la próxima tanda va a
   necesitar.
+
+## 7. La revisión final: qué se hizo y qué encontró
+
+**Los subagentes revisores no funcionaron en esta sesión.** Se despacharon cuatro
+y los cuatro murieron igual: `Agent stalled: no progress for 600s`, con el fichero
+de salida vacío y una sola línea de apertura. No era el prompt —fallaron con
+alcances distintos y prompts distintos—, así que la revisión la hizo el
+coordinador leyendo el código. **Esto significa que el tramo de las Tareas 7 a 31
+sigue sin una segunda opinión independiente**, y es la deuda más importante que
+queda.
+
+La revisión propia se centró en lo que el plan nombra como más peligroso: la
+guardia de `_decorador` (por la que pasa toda petición) y el webhook (público y
+sin autenticar). Encontró dos cosas, ya arregladas en `b7017e8`:
+
+- **Importante:** `wizards.reordenar_reglas` daba un **500** con una lista parcial
+  de reglas. Con reglas 1, 2 y 3 y una lista `[3, 2]`, la 3 pide el orden 1 que la
+  1 todavía ocupa, y `UniqueConstraint(household, order)` lo tumba con un
+  `IntegrityError`. La interfaz manda siempre la lista entera, así que solo se
+  llega por otro camino. Arreglado exigiendo la lista completa y rechazando pks
+  repetidos, con prueba de las dos cosas.
+- **Menor:** `/admin/` no estaba en la lista de rutas que el service worker nunca
+  cachea.
+
+Y un fallo que la revisión sacó a la luz **porque las corridas completas se
+aplazaron a los puntos de control**: `test_criterio_3` de aceptación seguía
+esperando la pantalla única de planificar que la Tarea 26 convirtió en asistente.
+La Tarea 26 corrió sus propias pruebas, no las de aceptación. Es el coste concreto
+de esa decisión de cadencia, y conviene tenerlo presente si se repite.
+
+Lo que la revisión **verificó y encontró correcto**, para que no se revise dos
+veces: el orden de los decoradores de `pagar` (invertirlo dejaría a un hogar
+expirado sin poder pagar); que `obtener_mes` devolviendo una `ProyeccionDeMes`
+para el mes corriente no rompe a ninguno de sus cuatro llamadores; que
+`templates/sw.js` no contiene sintaxis de plantilla Django, así que servirlo por
+`TemplateView` es seguro; y que el punto ciego del guardia de modelo
+(`queryset.update()` / `bulk_create()`) está documentado en su docstring y no se
+usa sobre esos modelos.
+
+## 8. Estado final de la suite
+
+**537 pruebas en verde**, en nueve llamadas más la de navegador:
+
+| Llamada | Pruebas | Tiempo |
+|---|---|---|
+| motor puro | 128 | <1 s |
+| `test_models.py` | 36 | 99 s |
+| `test_views.py` | 57 | 512 s |
+| ciclo del mes y servicios | 35 | 334 s |
+| resto del presupuesto | 66 | 391 s |
+| fundación | 77 | 184 s |
+| cuentas e invitaciones | 32 | 136 s |
+| suscripción y webhook | 28 | 85 s |
+| todo lo demás | 77 | 398 s |
+| navegador (Playwright) | 1 | 37 s |

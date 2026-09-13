@@ -48,8 +48,12 @@ límite. Los tiempos son los medidos al cerrar la tanda 2 (458 pruebas):
 # 1 · el motor puro: 128 pruebas, bajo un segundo
 .venv/Scripts/python.exe -m pytest tests/budget/engine -q
 
-# 2 · modelos y vistas del presupuesto: 65 pruebas, ~6-7 min
-.venv/Scripts/python.exe -m pytest tests/budget/test_models.py tests/budget/test_views.py -q
+# 2 · modelos del presupuesto: 36 pruebas, ~1,5 min
+.venv/Scripts/python.exe -m pytest tests/budget/test_models.py -q
+
+# 2b · vistas del presupuesto: 57 pruebas, ~8,5 min. SE PARTIO de la 2 al cerrar
+# la tanda 4; es la llamada mas gorda y la proxima en romperse.
+.venv/Scripts/python.exe -m pytest tests/budget/test_views.py -q
 
 # 3 · el ciclo del mes y los servicios: 35 pruebas, ~6 min
 .venv/Scripts/python.exe -m pytest -q \
@@ -96,9 +100,24 @@ Para medir por archivo:
   | sort -rn
 ```
 
-**Las llamadas 2 y 3 son las próximas en romperse** (~396 s y ~375 s): la Tarea 18
-parte `views.py` y las Tareas 19-22 añaden pantallas, así que `test_views.py`
-crece. Mide antes de dar por buena la partición al abrir la tanda 4.
+**`test_views.py` es la llamada mas gorda** (~510 s con 57 pruebas) y la proxima
+en romperse. Partirla por tema —mes, metas, asistentes, configuracion— es trabajo
+de una hora que la siguiente tanda va a necesitar.
+
+**EL POOLER DE SUPABASE SE DEGRADA DE FORMA BRUTAL, y hay que saberlo antes de
+investigar un fallo.** No es una variacion del 20 %: la misma seleccion de
+`test_views.py` tardo **20 h 34 min** una vez y 8,5 min otra. Una de 43 pruebas
+tardo 3 h y otra de 3 pruebas, 40 min. Los sintomas son
+`OperationalError: server closed the connection unexpectedly` y fallos o errores
+en pruebas que pasan solas en segundos. **Reintenta la seleccion pequena antes de
+tocar el codigo**: en este plan, cinco "fallos" de tres corridas distintas fueron
+todos el pooler.
+
+**`--create-db` NO se puede correr**: falla con `DuplicateDatabase` /
+`ObjectInUse` porque el pooler mantiene sesiones abiertas contra `test_postgres`.
+Si acabas de anadir una migracion y necesitas el esquema nuevo, no hay forma
+limpia desde aqui; comprueba antes con `git log -- "*/migrations/*"` si de verdad
+se anadio alguna.
 
 Añade `--create-db` **a la primera llamada que toque la base** (la 2) tras una migración
 nueva; las siguientes reutilizan ya el esquema nuevo.
