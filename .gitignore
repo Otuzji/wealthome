@@ -38,3 +38,6 @@ desktop.ini
 
 # Worktrees de desarrollo
 .worktrees/
+
+# Capturas de la revision visual: artefactos locales, no del repositorio.
+capturas-ui/

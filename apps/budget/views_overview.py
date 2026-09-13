@@ -28,6 +28,8 @@ def overview(request, hogar, ambito):
     es_proyeccion = isinstance(resultado, services.ProyeccionDeMes)
 
     planeado, real = {}, {}
+    ingresos_planeados = Decimal("0.00")
+    egresos_planeados = Decimal("0.00")
     recientes = []
     if not es_proyeccion:
         for linea in acotar_por_dueno(
@@ -35,6 +37,10 @@ def overview(request, hogar, ambito):
         ):
             clave = linea.category.etiqueta()
             planeado[clave] = planeado.get(clave, Decimal("0.00")) + linea.planned_amount
+            if linea.kind == "income":
+                ingresos_planeados += linea.planned_amount
+            else:
+                egresos_planeados += linea.planned_amount
 
         movimientos = acotar(
             resultado.transacciones.select_related("category"), ambito, membresia
@@ -46,6 +52,8 @@ def overview(request, hogar, ambito):
     else:
         for linea in resultado.lineas:
             planeado[linea.nombre] = planeado.get(linea.nombre, Decimal("0.00")) + linea.importe
+        ingresos_planeados = resultado.total_ingresos
+        egresos_planeados = resultado.total_egresos
 
     etiquetas = sorted(set(planeado) | set(real))
     # Los importes viajan como `str` y no como Decimal: json_script no sabe
@@ -67,8 +75,22 @@ def overview(request, hogar, ambito):
         "balance": [str(c.balance) for c in cierres],
     }
 
+    # Los tres numeros de cabecera se calculan AQUI y no se leen de `resultado`.
+    # ProyeccionDeMes los trae como campos, pero BudgetMonth —que es lo que
+    # devuelve obtener_mes en cuanto el mes esta materializado, o sea casi
+    # siempre— no los tiene, y Django se traga el atributo ausente en silencio:
+    # la cabecera salia EN BLANCO en la pantalla principal de la aplicacion.
+    # Ademas asi salen del mismo conjunto de lineas que la grafica, y por tanto
+    # respetan el ambito Hogar/Personal.
+    totales = {
+        "ingresos": ingresos_planeados,
+        "egresos": egresos_planeados,
+        "sobrante": ingresos_planeados - egresos_planeados,
+    }
+
     contexto = {
         "ambito": ambito, "resultado": resultado, "es_proyeccion": es_proyeccion,
+        "totales": totales,
         "recientes": recientes,
         "series_categorias": series_categorias,
         "series_balance": series_balance,

@@ -120,3 +120,42 @@ def test_el_menu_no_aparece_sin_sesion(client):
 
     assert respuesta.status_code == 200
     assert respuesta.context["nav_entradas"] == []
+
+
+@pytest.mark.django_db
+def test_cada_entrada_del_menu_trae_su_icono(client):
+    """La barra de movil se apoya en los iconos, no en el texto.
+
+    Con siete destinos y etiquetas de texto la barra no cabia en 390 px y dos
+    pantallas quedaban fuera de la pantalla, inalcanzables. Ahora en movil manda
+    el icono — asi que una entrada nueva SIN icono deja un hueco por el que no se
+    puede pinchar, y esta prueba lo caza: _nav_icono.html cae en un circulo
+    generico, que es lo que se busca aqui.
+    """
+    from apps.core.context_processors import navegacion
+
+    _sesion(client, ADMIN)
+    respuesta = client.get(reverse("households:ajustes"))
+    cuerpo = respuesta.content.decode()
+
+    conocidos = {"home", "persona", "mesada", "mas", "meta", "balance", "ajustes"}
+    for entrada in respuesta.context["nav_entradas"]:
+        assert entrada["icono"] in conocidos, (
+            f"la entrada {entrada['nombre']!r} usa el icono {entrada['icono']!r}, "
+            f"que _nav_icono.html no dibuja: saldria un circulo generico"
+        )
+
+    # Y que los SVG llegan de verdad al HTML, uno por entrada.
+    assert cuerpo.count('class="nav__icono"') == len(respuesta.context["nav_entradas"])
+
+
+@pytest.mark.django_db
+def test_el_menu_conserva_su_etiqueta_para_los_lectores_de_pantalla(client):
+    """El icono se ve, el texto no — pero sigue en el DOM. Ocultarlo con
+    display:none lo quitaria tambien del lector de pantalla."""
+    _sesion(client, ADMIN)
+
+    cuerpo = client.get(reverse("households:ajustes")).content.decode()
+
+    assert 'class="nav__texto"' in cuerpo
+    assert "Balance" in cuerpo

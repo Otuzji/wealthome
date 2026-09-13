@@ -1029,3 +1029,37 @@ def test_no_se_reordenan_las_reglas_con_un_pk_repetido(client, admin_con_hogar):
     )
 
     assert respuesta.status_code == 400
+
+
+def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
+    """Lo encontro mirar la pantalla, que es para lo que servia el paso manual.
+
+    Las tres cifras se leian de `resultado`, y `resultado` es un BudgetMonth en
+    cuanto el mes esta materializado —o sea casi siempre—. BudgetMonth no tiene
+    total_ingresos ni total_egresos ni sobrante: solo los tiene ProyeccionDeMes.
+    Django se traga el atributo ausente en silencio, asi que la cabecera de la
+    pantalla principal salia EN BLANCO y ninguna prueba lo veia.
+    """
+    from django.utils import timezone
+
+    from tests.factories_budget import BudgetLineFactory, BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    entra = CategoryFactory(household=hogar, slug="lo-que-entra", kind="income")
+    sale = CategoryFactory(household=hogar, slug="lo-que-sale", kind="expense")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=entra,
+                      kind="income", planned_amount=Decimal("3000.00"))
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
+                      kind="expense", planned_amount=Decimal("1800.00"))
+
+    respuesta = client.get(reverse("budget:overview", args=["household"]))
+    totales = respuesta.context["totales"]
+
+    assert totales["ingresos"] == Decimal("3000.00")
+    assert totales["egresos"] == Decimal("1800.00")
+    assert totales["sobrante"] == Decimal("1200.00")
+    # Y que lleguen al HTML, que es donde faltaban.
+    assert "1,200.00" in respuesta.content.decode()

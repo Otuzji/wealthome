@@ -7,15 +7,15 @@
   <div class="cifras">
     <div class="cifra">
       <div class="cifra__etiqueta">{% translate "Income" %}</div>
-      <div class="cifra__valor">{{ resultado.total_ingresos|money:hogar.currency }}</div>
+      <div class="cifra__valor">{{ totales.ingresos|money:hogar.currency }}</div>
     </div>
     <div class="cifra">
       <div class="cifra__etiqueta">{% translate "Fixed expenses" %}</div>
-      <div class="cifra__valor">{{ resultado.total_egresos|money:hogar.currency }}</div>
+      <div class="cifra__valor">{{ totales.egresos|money:hogar.currency }}</div>
     </div>
     <div class="cifra">
       <div class="cifra__etiqueta">{% translate "Left over" %}</div>
-      <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
+      <div class="cifra__valor">{{ totales.sobrante|money:hogar.currency }}</div>
     </div>
   </div>
 </section>

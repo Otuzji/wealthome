@@ -4,7 +4,12 @@
   <ul class="nav__lista">
     {% for entrada in nav_entradas %}
       <li class="nav__item nav__item--{{ entrada.icono }}">
-        <a class="nav__enlace" href="{{ entrada.url }}">{{ entrada.etiqueta }}</a>
+        {% comment %} La etiqueta sigue en el DOM aunque en movil no se vea: un
+           lector de pantalla la necesita, y el title la da al raton. {% endcomment %}
+        <a class="nav__enlace" href="{{ entrada.url }}" title="{{ entrada.etiqueta }}">
+          {% include "_nav_icono.html" with icono=entrada.icono %}
+          <span class="nav__texto">{{ entrada.etiqueta }}</span>
+        </a>
       </li>
     {% endfor %}
   </ul>
