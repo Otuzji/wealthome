@@ -332,22 +332,34 @@ def hogar_listo_para_planificar(admin_con_hogar):
 
 
 def test_planificar_muestra_el_sobrante_y_la_mesada(client, hogar_listo_para_planificar):
-    """§13.5: la pareja ve su sobrante repartido y cada uno sabe su mesada."""
+    """§13.5: la pareja ve su sobrante repartido y cada uno sabe su mesada.
+
+    Desde la Tarea 26 eso vive en el PASO 3 del asistente, no en la primera
+    pantalla: el paso 1 son los ingresos. La promesa del §13.5 no cambia, cambia
+    donde se cumple.
+    """
     admin, hogar = hogar_listo_para_planificar
     client.force_login(admin)
 
-    html = client.get(reverse("budget:planificar", args=["household"])).content.decode()
+    html = client.get(
+        reverse("budget:planificar_paso", args=["household", 3])
+    ).content.decode()
 
     assert "1,200.00" in html or "1 200,00" in html   # el sobrante proyectado
 
 
 def test_confirmar_la_planificacion_escribe_las_mesadas(client, hogar_listo_para_planificar):
+    """Solo el paso 3 escribe. Confirmar en el 1 o el 2 no puede tocar nada."""
     from apps.budget.models import AllowanceLedger
 
     admin, hogar = hogar_listo_para_planificar
     client.force_login(admin)
 
-    respuesta = client.post(reverse("budget:planificar", args=["household"]))
+    client.post(reverse("budget:planificar_paso", args=["household", 1]))
+    client.post(reverse("budget:planificar_paso", args=["household", 2]))
+    assert not AllowanceLedger.objects.for_household(hogar).exists()
+
+    respuesta = client.post(reverse("budget:planificar_paso", args=["household", 3]))
 
     assert respuesta.status_code == 302
     assert AllowanceLedger.objects.for_household(hogar).exists()
@@ -971,3 +983,49 @@ def test_un_paso_inventado_da_404(client, admin_con_hogar):
     user, _hogar = admin_con_hogar
     client.force_login(user)
     assert client.get("/budget/household/plan/9/").status_code == 404
+
+
+def test_no_se_reordenan_las_reglas_con_una_lista_parcial(client, admin_con_hogar):
+    """Lo encontro la revision final, y era un 500.
+
+    Con reglas 1, 2 y 3 y una lista [3, 2], la 3 pide el orden 1 que la 1 todavia
+    ocupa: UniqueConstraint(household, order) lo tumba con un IntegrityError. La
+    interfaz manda siempre la lista entera, asi que solo se llega por otro camino
+    — pero un 500 en un POST es justo lo que el resto de este plan evita.
+    """
+    from apps.budget.models import AllocationRule
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    a = AllocationRuleFactory(household=hogar, order=1)
+    b = AllocationRuleFactory(household=hogar, order=2)
+    AllocationRuleFactory(household=hogar, order=3)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(b.pk), str(a.pk)]},      # falta la tercera
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 400
+    assert AllocationRule.objects.for_household(hogar).get(pk=a.pk).order == 1
+    assert AllocationRule.objects.for_household(hogar).get(pk=b.pk).order == 2
+
+
+def test_no_se_reordenan_las_reglas_con_un_pk_repetido(client, admin_con_hogar):
+    """Dos veces el mismo pk dejaria dos reglas pidiendo el mismo orden."""
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    a = AllocationRuleFactory(household=hogar, order=1)
+    AllocationRuleFactory(household=hogar, order=2)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(a.pk), str(a.pk)]},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.status_code == 400

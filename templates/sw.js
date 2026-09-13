@@ -35,7 +35,8 @@ var PRECARGA = [
 
 // Nada de esto se cachea nunca: el webhook es de Stripe, y las paginas de
 // sesion tienen que hablar con el servidor siempre.
-var NUNCA = ["/subscription/webhook/", "/logout/", "/login/", "/signup/"];
+var NUNCA = ["/subscription/webhook/", "/logout/", "/login/", "/signup/",
+             "/admin/"];
 
 self.addEventListener("install", function (evento) {
   evento.waitUntil(

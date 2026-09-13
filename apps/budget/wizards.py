@@ -98,12 +98,29 @@ def reordenar_reglas(request, hogar):
         return HttpResponseBadRequest()
 
     pks = [p for p in request.POST.getlist("orden") if p.isdigit()]
+    if len(set(pks)) != len(pks):
+        # Un pk repetido daria dos reglas con el mismo orden final.
+        return HttpResponseBadRequest()
+
+    activas = {
+        r.pk: r
+        for r in AllocationRule.objects.for_household(hogar).filter(is_active=True)
+    }
     reglas = {
         r.pk: r for r in AllocationRule.objects.for_household(hogar).filter(pk__in=pks)
     }
     if not pks or len(reglas) != len(pks):
         # Un pk de otra familia, o inventado. La barrera de ambito ya lo filtro;
         # esto solo evita reordenar a medias.
+        return HttpResponseBadRequest()
+
+    # Y la lista tiene que venir COMPLETA. Con una parcial, las reglas que no se
+    # mencionan conservan su orden y chocan con los nuevos: reglas 1,2,3 y una
+    # lista [3,2] deja a la 3 pidiendo el orden 1, que la 1 todavia ocupa, y el
+    # UniqueConstraint(household, order) lo tumba con un IntegrityError — un 500
+    # en un POST. La interfaz manda siempre la lista entera; esto cubre al que
+    # llegue por otro camino.
+    if set(pks) != {str(pk) for pk in activas}:
         return HttpResponseBadRequest()
 
     with transaction.atomic():
