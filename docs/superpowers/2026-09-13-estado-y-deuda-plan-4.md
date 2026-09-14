@@ -14,7 +14,7 @@ cubiertos por completo**, y están marcados.
 |---|---|---|
 | 1 | 14 días sin tarjeta; el día 15, solo lectura sin perder un dato | `test_suscripcion.py::test_un_hogar_nuevo_nace_con_catorce_dias_y_sin_tarjeta`, `::test_el_dia_quince_deja_de_estar_vigente`, `::test_un_hogar_expirado_lee_pero_no_escribe` |
 | 2 | Solo el webhook acredita; la URL de retorno no concede nada | `test_suscripcion.py::test_el_retorno_no_concede_nada`, `test_webhook.py::test_un_pago_acredita_la_suscripcion` |
-| 3 | El mismo evento tres veces, **y dos en paralelo**, deja el mismo estado | `test_webhook.py::test_el_mismo_evento_tres_veces_deja_el_mismo_estado`. **⚠ El paralelo NO está probado** — ver §2 |
+| 3 | El mismo evento tres veces, **y dos en paralelo**, deja el mismo estado | `test_webhook.py::test_el_mismo_evento_tres_veces_deja_el_mismo_estado` y `test_webhook_concurrente.py::test_el_mismo_evento_dos_veces_a_la_vez_acredita_una_sola`. **Cubierto**, y verificado por mutación |
 | 4 | Un hogar expirado ve su presupuesto y no materializa ni cierra; al pagar la cadena se pone al día | `test_month_cycle.py::test_un_hogar_expirado_no_materializa_el_mes_corriente`, `::test_un_hogar_expirado_ve_su_historia_pero_no_cierra_nada`, `::test_al_pagar_la_cadena_de_cierres_se_pone_al_dia`, `::test_un_hogar_expirado_puede_mirar_su_mes` |
 | 5 | El adolescente registra un gasto sin teclear una URL | `test_navegacion.py::test_el_adolescente_llega_a_registrar_un_gasto_sin_teclear_la_url` |
 | 6 | El menú enseña exactamente lo que el perfil puede abrir | `test_navegacion.py::test_el_menu_ensena_exactamente_lo_que_el_perfil_puede_abrir`, `::test_ningun_enlace_del_menu_devuelve_403` |
@@ -22,7 +22,7 @@ cubiertos por completo**, y están marcados.
 | 8 | El miembro ve su mesada y el ajuste heredado con su explicación | `test_views.py::test_la_mesada_ensena_el_libro_mayor_entero`, `::test_la_mesada_explica_de_donde_sale_el_ajuste`, `::test_un_ajuste_sin_mes_anterior_sigue_explicandose` |
 | 9 | Tres pasos de verdad, reordenar arrastrando, partida excepcional | `test_views.py::test_el_asistente_tiene_tres_pasos`, `::test_reordenar_reglas_cambia_su_prioridad`, `::test_se_puede_anadir_una_partida_excepcional_al_mes`. **⚠ El arrastre en sí (Alpine) no está probado en navegador** — solo el endpoint |
 | 10 | `aportar` contra un mes cerrado se rechaza en la capa de modelo | `test_mes_cerrado.py::test_goal_contribution_no_se_escribe_contra_un_mes_cerrado` |
-| 11 | Se instala, abre sin señal enseñando lo visitado, y al salir la caché queda vacía | `test_pwa.py` (manifiesto, iconos, precarga) y `::test_cerrar_sesion_deja_la_cache_vacia` (navegador). **⚠ "Abre sin señal" NO está probado** — ver §2 |
+| 11 | Se instala, abre sin señal enseñando lo visitado, y al salir la caché queda vacía | `test_pwa.py` (manifiesto, iconos, precarga) `::test_cerrar_sesion_deja_la_cache_vacia` y `::test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline` (navegador). **Cubierto** |
 | 12 | Ningún componente con selector de tema; gráficas legibles en los tres | `test_css.py` (cuatro guardias: sin `data-theme`, sin color literal, paleta en los tres temas, JS sin colores ni cadenas). **⚠ "Legibles" es visual y no se ha mirado** |
 | 13 | Funciona en francés, con montos `2 847,50 $` | `test_catalogo_exhaustivo.py`, `test_traducciones.py`, `test_money_field.py`, `test_i18n.py` |
 
@@ -30,16 +30,14 @@ cubiertos por completo**, y están marcados.
 
 Nada de esto es un fallo conocido: es cobertura que falta.
 
-- **El webhook en paralelo (criterio 3).** El mecanismo está —`select_for_update`
-  sobre la fila de `StripeEvent` dentro de una transacción— y la idempotencia
-  secuencial está probada, pero **no hay prueba de concurrencia**. Una prueba de
-  verdad necesita dos conexiones simultáneas, que con `--reuse-db` contra el
-  pooler de Supabase es justo lo que provoca los deadlocks que el plan documenta.
-  Es la deuda de cobertura más importante que queda.
-- **Abrir sin señal (criterio 11).** La prueba de navegador comprueba la purga,
-  no el modo offline. Haría falta interceptar la red en Playwright
-  (`page.route("**", lambda r: r.abort())`) y comprobar que la página ya visitada
-  se sirve y que una nueva cae en `/offline/`.
+- ~~El webhook en paralelo~~ y ~~abrir sin señal~~: **ambos cubiertos ya**, con
+  pruebas escritas después de cerrar el plan. Se dejan aquí anotados porque lo
+  que costó acertar en el primero merece no repetirse: la primera versión creaba
+  la fila del evento **dentro** de los hilos, así que chocaban en el unique de
+  `event_id` y era ese índice el que los serializaba — la prueba pasaba igual
+  quitando el `select_for_update`, o sea que no medía nada. Creando la fila antes
+  y sin procesar se llega a la carrera de verdad. **Verificado por mutación:** sin
+  el bloqueo, acreditan las dos entregas.
 - **Las verificaciones visuales.** Los pasos «míralo en los tres temas y en los
   dos tamaños» de las Tareas 13, 14, 16 y 19, el manifiesto en las herramientas
   del navegador (T29), y el arrastre a mano (T26). **Nada de esto se ha hecho.**

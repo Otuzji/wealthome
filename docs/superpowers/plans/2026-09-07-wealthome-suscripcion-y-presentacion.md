@@ -73,17 +73,23 @@ límite. Los tiempos son los medidos al cerrar la tanda 2 (458 pruebas):
 .venv/Scripts/python.exe -m pytest -q tests/test_invitations.py \
     tests/test_auth_flow.py tests/test_accounts.py
 
-# 7 · suscripción y webhook: 28 pruebas, ~1,5 min
-.venv/Scripts/python.exe -m pytest -q tests/test_suscripcion.py tests/test_webhook.py
+# 7 · suscripción y webhook: 29 pruebas, ~2 min
+.venv/Scripts/python.exe -m pytest -q tests/test_suscripcion.py tests/test_webhook.py \
+    tests/test_webhook_concurrente.py
 
 # 8 · todo lo demás: 42 pruebas, ~5 min
 .venv/Scripts/python.exe -m pytest -q --ignore=tests/budget \
     --ignore=tests/test_scoping.py --ignore=tests/test_permisos.py \
     --ignore=tests/test_settings_views.py --ignore=tests/test_money_field.py \
     --ignore=tests/test_suscripcion.py --ignore=tests/test_webhook.py \
+    --ignore=tests/test_webhook_concurrente.py \
     --ignore=tests/test_invitations.py --ignore=tests/test_auth_flow.py \
     --ignore=tests/test_accounts.py
 ```
+
+**La prueba de navegador se excluye con `-m "not navegador"`** y se corre aparte:
+`pytest tests/test_pwa.py -m navegador`. Son dos, tardan ~40 s juntas, y necesitan
+`playwright install chromium` una vez.
 
 **El modelo de coste, medido, para que el próximo reparto no sea a ciegas.** El
 tiempo de una llamada es `suma de los tiempos de ejecución + ~3,2 s por prueba`.
