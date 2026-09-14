@@ -132,3 +132,28 @@
   font-weight: var(--font-weight-strong);
 }
 .reglas__item:active { cursor: grabbing; box-shadow: var(--shadow-inset); }
+
+/* ---------- modal ----------
+   Sobre <dialog> nativo: la tecla Esc, el foco atrapado y el fondo inerte los
+   pone el navegador. Aqui solo va el aspecto. */
+.modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow-raised);
+}
+.modal::backdrop { background: var(--backdrop); }
+.modal__caja { padding: 20px; overflow-y: auto; max-height: calc(100vh - 64px); }
+.modal__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.modal__cabecera h2 { margin: 0; }
+.modal__cerrar { font-size: 1.5em; line-height: 1; padding: 0 10px; }

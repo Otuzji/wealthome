@@ -27,43 +27,54 @@ def overview(request, hogar, ambito):
     resultado = services.obtener_mes(hogar, hoy.year, hoy.month)
     es_proyeccion = isinstance(resultado, services.ProyeccionDeMes)
 
-    planeado, real = {}, {}
-    ingresos_planeados = Decimal("0.00")
-    egresos_planeados = Decimal("0.00")
+    # Dos diccionarios por tipo, no uno. Mezclar ingresos y gastos en la misma
+    # grafica la vuelve ilegible: la barra del sueldo aplasta a la del super y a
+    # la del alquiler, que es donde el mes de verdad se decide.
+    planeado = {"income": {}, "expense": {}}
+    real = {"income": {}, "expense": {}}
     recientes = []
+
+    def _sumar(donde, tipo, clave, importe):
+        cubo = donde["income" if tipo == "income" else "expense"]
+        cubo[clave] = cubo.get(clave, Decimal("0.00")) + importe
+
     if not es_proyeccion:
         for linea in acotar_por_dueno(
             resultado.lineas.select_related("category"), ambito, membresia
         ):
-            clave = linea.category.etiqueta()
-            planeado[clave] = planeado.get(clave, Decimal("0.00")) + linea.planned_amount
-            if linea.kind == "income":
-                ingresos_planeados += linea.planned_amount
-            else:
-                egresos_planeados += linea.planned_amount
+            _sumar(planeado, linea.kind, linea.category.etiqueta(), linea.planned_amount)
 
         movimientos = acotar(
             resultado.transacciones.select_related("category"), ambito, membresia
         )
         for tx in movimientos:
-            clave = tx.category.etiqueta()
-            real[clave] = real.get(clave, Decimal("0.00")) + tx.amount
+            _sumar(real, tx.category.kind, tx.category.etiqueta(), tx.amount)
         recientes = list(movimientos.order_by("-date", "-pk")[:MOVIMIENTOS_RECIENTES])
     else:
         for linea in resultado.lineas:
-            planeado[linea.nombre] = planeado.get(linea.nombre, Decimal("0.00")) + linea.importe
+            _sumar(planeado, linea.kind, linea.nombre, linea.importe)
+
+    ingresos_planeados = sum(planeado["income"].values(), Decimal("0.00"))
+    egresos_planeados = sum(planeado["expense"].values(), Decimal("0.00"))
+    if es_proyeccion:
+        # La proyeccion ya trae sus totales calculados por el motor; se prefieren
+        # a la suma de las lineas porque son los que el resto de la aplicacion usa.
         ingresos_planeados = resultado.total_ingresos
         egresos_planeados = resultado.total_egresos
 
-    etiquetas = sorted(set(planeado) | set(real))
-    # Los importes viajan como `str` y no como Decimal: json_script no sabe
-    # serializar Decimal, y pasarlos por float seria meter coma flotante en una
-    # aplicacion financiera por comodidad de una grafica.
-    series_categorias = {
-        "etiquetas": etiquetas,
-        "planeado": [str(planeado.get(e, Decimal("0.00"))) for e in etiquetas],
-        "real": [str(real.get(e, Decimal("0.00"))) for e in etiquetas],
-    }
+    def _serie(tipo):
+        etiquetas = sorted(set(planeado[tipo]) | set(real[tipo]))
+        # Los importes viajan como `str` y no como Decimal: json_script no sabe
+        # serializar Decimal, y pasarlos por float seria meter coma flotante en
+        # una aplicacion financiera por comodidad de una grafica.
+        return {
+            "etiquetas": etiquetas,
+            "planeado": [str(planeado[tipo].get(e, Decimal("0.00"))) for e in etiquetas],
+            "real": [str(real[tipo].get(e, Decimal("0.00"))) for e in etiquetas],
+        }
+
+    series_ingresos = _serie("income")
+    series_egresos = _serie("expense")
 
     cierres = list(
         MonthlyClose.objects.for_household(hogar)
@@ -92,7 +103,8 @@ def overview(request, hogar, ambito):
         "ambito": ambito, "resultado": resultado, "es_proyeccion": es_proyeccion,
         "totales": totales,
         "recientes": recientes,
-        "series_categorias": series_categorias,
+        "series_ingresos": series_ingresos,
+        "series_egresos": series_egresos,
         "series_balance": series_balance,
     }
 

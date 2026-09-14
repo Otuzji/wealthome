@@ -73,9 +73,17 @@ def registrar(request, hogar):
             if es_htmx:
                 # Los movimientos al dia, no un redirect: htmx los intercambia
                 # en su sitio y el usuario no pierde la pantalla.
-                return render(request, "budget/_fragmentos/recientes.html", {
+                respuesta = render(request, "budget/_fragmentos/recientes.html", {
                     "recientes": _recientes(hogar),
                 })
+                # Que el gasto entro lo dice el SERVIDOR, no el navegador. Quien
+                # abrio esto en un modal lo cierra al oirlo; quien entro por la
+                # pagina entera no escucha y no le afecta. Intentarlo desde el
+                # cliente —mirando que el evento venga de dentro del <dialog>—
+                # no funciono de forma fiable, y ademas ataba el fragmento, que
+                # es compartido, a la pantalla que lo muestra.
+                respuesta["HX-Trigger"] = "gasto-registrado"
+                return respuesta
             return redirect("budget:registrar")
 
     plantilla = "budget/_fragmentos/gasto_form.html" if es_htmx else "budget/gasto.html"

@@ -48,13 +48,20 @@ def test_un_gasto_guardado_por_htmx_devuelve_los_movimientos_al_dia(client):
     respuesta = client.post(
         reverse("budget:registrar"),
         {"amount": "12.50", "date": hoy.isoformat(), "category": categoria.pk,
-         "scope": "household", "payment_method": "card", "comercio": ""},
+         "scope": "household", "payment_method": "debit", "comercio": ""},
         HTTP_HX_REQUEST="true",
     )
 
     assert respuesta.status_code == 200
-    assert b"12" in respuesta.content
     assert b"<!doctype html>" not in respuesta.content.lower()
+    # La FILA, no el texto "12": ese tambien sale del value="12.50" del
+    # formulario reenviado cuando el POST es invalido, y por eso esta prueba
+    # llevaba desde la Tarea 24 pasando sin guardar nada — el payment_method
+    # que enviaba no era una opcion valida.
+    from apps.budget.models import Transaction
+    guardada = Transaction.objects.for_household(hogar).get()
+    assert guardada.amount == Decimal("12.50")
+    assert str(guardada.amount) in respuesta.content.decode()
 
 
 def test_un_hogar_expirado_no_puede_registrar_ni_por_htmx(client):
@@ -137,7 +144,7 @@ def test_el_fragmento_de_recientes_no_ensena_otro_hogar(client):
     respuesta = client.post(
         reverse("budget:registrar"),
         {"amount": "12.50", "date": hoy.isoformat(), "category": categoria.pk,
-         "scope": "household", "payment_method": "card", "comercio": ""},
+         "scope": "household", "payment_method": "debit", "comercio": ""},
         HTTP_HX_REQUEST="true",
     )
 
@@ -156,3 +163,39 @@ def test_aportar_por_htmx_devuelve_los_aportes_y_no_la_pagina(client):
     assert trozo.status_code == 200
     assert b"<!doctype html>" not in trozo.content.lower()
     assert b"<form" in trozo.content
+
+
+def test_un_gasto_guardado_avisa_con_hx_trigger(client):
+    """Quien cerro el modal es el SERVIDOR, y solo cuando el gasto entro.
+
+    El Overview escucha ese evento para cerrar el <dialog>. Intentarlo desde el
+    cliente —mirando que el htmx:afterRequest viniera de dentro del dialogo— no
+    cerraba de forma fiable, y ataba el fragmento del formulario, que comparte
+    la pagina entera, a la pantalla que lo muestra.
+    """
+    from django.utils import timezone
+
+    hogar, _user = _admin_logueado(client, con_arbol=True)
+    categoria = CategoryFactory(household=hogar, slug="cafe")
+    hoy = timezone.localdate()
+
+    respuesta = client.post(
+        reverse("budget:registrar"),
+        {"amount": "12.50", "date": hoy.isoformat(), "category": categoria.pk,
+         "scope": "household", "payment_method": "debit", "comercio": ""},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert respuesta.headers.get("HX-Trigger") == "gasto-registrado"
+
+
+def test_un_gasto_RECHAZADO_no_avisa_de_nada(client):
+    """El otro lado, y es el que importa: si el formulario no valida, el modal
+    tiene que quedarse abierto con los errores a la vista."""
+    hogar, _user = _admin_logueado(client, con_arbol=True)
+
+    respuesta = client.post(reverse("budget:registrar"), {}, HTTP_HX_REQUEST="true")
+
+    assert respuesta.status_code == 200
+    assert "HX-Trigger" not in respuesta.headers
+    assert b"<form" in respuesta.content

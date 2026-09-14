@@ -1477,3 +1477,15 @@ msgstr "Sign out"
 #: templates/sin-conexion.html
 msgid "You are offline and this page was not saved on this device. Anything you have already opened is still here."
 msgstr "You are offline and this page was not saved on this device. Anything you have already opened is still here."
+
+#: templates/budget/overview.html
+msgid "Close"
+msgstr "Close"
+
+#: templates/budget/overview.html
+msgid "What goes out, planned against real"
+msgstr "What goes out, planned against real"
+
+#: templates/budget/overview.html
+msgid "What comes in, planned against real"
+msgstr "What comes in, planned against real"

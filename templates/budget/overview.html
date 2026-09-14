@@ -18,11 +18,30 @@
       <div class="cifra__valor">{{ totales.sobrante|money:hogar.currency }}</div>
     </div>
   </div>
+
+  <p>
+    <button class="btn btn--primary" type="button"
+            hx-get="{% url 'budget:registrar' %}"
+            hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML"
+            onclick="document.getElementById('modal-gasto').showModal()">
+      {% translate "Record a spend" %}
+    </button>
+  </p>
 </section>
 
 <section class="card">
-  <h2>{% translate "Planned against real" %}</h2>
-  <canvas id="grafica-categorias"
+  {% comment %} Dos graficas y no una: ingresos y gastos tienen ordenes de
+     magnitud distintos, y juntos la barra del sueldo aplasta a la del super y a
+     la del alquiler — que es donde el mes de verdad se decide. {% endcomment %}
+  <h2>{% translate "What goes out, planned against real" %}</h2>
+  <canvas id="grafica-egresos"
+          data-etiqueta-planeado="{% translate 'Planned' %}"
+          data-etiqueta-real="{% translate 'Real' %}"></canvas>
+</section>
+
+<section class="card">
+  <h2>{% translate "What comes in, planned against real" %}</h2>
+  <canvas id="grafica-ingresos"
           data-etiqueta-planeado="{% translate 'Planned' %}"
           data-etiqueta-real="{% translate 'Real' %}"></canvas>
 </section>
@@ -31,11 +50,6 @@
   <h2>{% translate "How the balance moved" %}</h2>
   <canvas id="grafica-balance"
           data-etiqueta-balance="{% translate 'Balance' %}"></canvas>
-</section>
-
-<section class="card">
-  <h2>{% translate "Record a spend" %}</h2>
-  <div hx-get="{% url 'budget:registrar' %}" hx-trigger="load"></div>
 </section>
 
 <section class="card">
@@ -56,7 +70,48 @@
   {% include "budget/_fragmentos/recientes.html" %}
 </section>
 
-{{ series_categorias|json_script:"series-categorias" }}
+{% comment %} El registro de gasto va en un MODAL y no en una tarjeta fija: es la
+   accion mas frecuente (§7.1), pero no tiene por que ocupar media pantalla
+   mientras miras las cifras. <dialog> nativo y no una libreria: trae la tecla
+   Esc, el foco atrapado y el fondo inerte sin JavaScript nuestro.
+
+   El formulario se pide al ABRIR y no al cargar la pagina: una peticion que
+   nadie iba a mirar es una peticion de menos.
+
+   El dialogo se cierra solo tras un POST con exito. La condicion del verbo
+   importa: sin ella, el GET que trae el formulario lo cerraria al instante.
+
+   Sin JavaScript el boton no hace nada, pero la entrada [+] del menu sigue
+   llevando a /budget/spend/, que es la misma vista como pagina entera. {% endcomment %}
+<dialog id="modal-gasto" class="modal">
+  <div class="modal__caja">
+    <div class="modal__cabecera">
+      <h2>{% translate "Record a spend" %}</h2>
+      <button class="btn btn--sutil modal__cerrar" type="button"
+              onclick="document.getElementById('modal-gasto').close()"
+              aria-label="{% translate 'Close' %}">&times;</button>
+    </div>
+    <div id="modal-gasto-cuerpo"></div>
+  </div>
+</dialog>
+
+<script>
+  // El modal se cierra cuando el SERVIDOR dice que el gasto entro: la vista
+  // manda la cabecera HX-Trigger: gasto-registrado, y htmx la convierte en este
+  // evento. Es lo unico que sabe de verdad si se guardo.
+  //
+  // Se intento antes desde el cliente, mirando que el htmx:afterRequest viniera
+  // de dentro del <dialog> y fuera un POST con exito. No cerraba de forma
+  // fiable, y ademas ataba el fragmento del formulario —que comparte la pagina
+  // entera— a la pantalla que lo muestra.
+  document.body.addEventListener("gasto-registrado", function () {
+    var dialogo = document.getElementById("modal-gasto");
+    if (dialogo && dialogo.open) { dialogo.close(); }
+  });
+</script>
+
+{{ series_ingresos|json_script:"series-ingresos" }}
+{{ series_egresos|json_script:"series-egresos" }}
 {{ series_balance|json_script:"series-balance" }}
 <script src="{% static 'vendor/chart.umd.min.js' %}"></script>
 <script src="{% static 'js/graficas.js' %}"></script>

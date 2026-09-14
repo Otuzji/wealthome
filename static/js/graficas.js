@@ -41,25 +41,29 @@
     graficas.forEach(function (g) { g.destroy(); });
     graficas = [];
 
-    var porCategoria = datos("series-categorias");
-    var lienzoA = document.getElementById("grafica-categorias");
-    if (porCategoria && lienzoA && porCategoria.etiquetas.length) {
-      graficas.push(new Chart(lienzoA, {
+    // Dos graficas de barras y no una: ingresos y gastos tienen ordenes de
+    // magnitud distintos, y juntos la barra del sueldo aplasta a todo lo demas.
+    [["series-ingresos", "grafica-ingresos"],
+     ["series-egresos", "grafica-egresos"]].forEach(function (par) {
+      var serie = datos(par[0]);
+      var lienzo = document.getElementById(par[1]);
+      if (!serie || !lienzo || !serie.etiquetas.length) { return; }
+      graficas.push(new Chart(lienzo, {
         type: "bar",
         data: {
-          labels: porCategoria.etiquetas,
+          labels: serie.etiquetas,
           datasets: [
-            { label: lienzoA.dataset.etiquetaPlaneado,
-              data: numeros(porCategoria.planeado),
+            { label: lienzo.dataset.etiquetaPlaneado,
+              data: numeros(serie.planeado),
               backgroundColor: color("--chart-2") },
-            { label: lienzoA.dataset.etiquetaReal,
-              data: numeros(porCategoria.real),
+            { label: lienzo.dataset.etiquetaReal,
+              data: numeros(serie.real),
               backgroundColor: color("--chart-1") }
           ]
         },
         options: { responsive: true, scales: rejilla() }
       }));
-    }
+    });
 
     var balance = datos("series-balance");
     var lienzoB = document.getElementById("grafica-balance");

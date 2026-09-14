@@ -577,7 +577,7 @@ def test_el_overview_da_las_series_ya_serializadas(client, admin_con_hogar):
     respuesta = client.get(reverse("budget:overview", args=["household"]))
 
     assert respuesta.status_code == 200
-    series = respuesta.context["series_categorias"]
+    series = respuesta.context["series_egresos"]
     # etiqueta() es un metodo, no una property: en plantilla Django lo llama
     # solo, en Python hay que llamarlo.
     assert cat.etiqueta() in series["etiquetas"]
@@ -604,7 +604,7 @@ def test_el_overview_personal_no_cuenta_lo_del_hogar(client, admin_con_hogar):
 
     series = client.get(
         reverse("budget:overview", args=["personal"])
-    ).context["series_categorias"]
+    ).context["series_egresos"]
 
     assert "500.00" not in series["real"]
 
@@ -1063,3 +1063,49 @@ def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
     assert totales["sobrante"] == Decimal("1200.00")
     # Y que lleguen al HTML, que es donde faltaban.
     assert "1,200.00" in respuesta.content.decode()
+
+
+def test_el_overview_parte_ingresos_y_gastos_en_dos_series(client, admin_con_hogar):
+    """Mezclarlos hacia la grafica ilegible: la barra del sueldo aplasta a la del
+    super y a la del alquiler, que es donde el mes de verdad se decide."""
+    from django.utils import timezone
+
+    from tests.factories_budget import BudgetLineFactory, BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    sueldo = CategoryFactory(household=hogar, slug="un-sueldo", kind="income")
+    super_ = CategoryFactory(household=hogar, slug="un-super", kind="expense")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sueldo,
+                      kind="income", planned_amount=Decimal("5600.00"))
+    BudgetLineFactory(household=hogar, budget_month=mes, category=super_,
+                      kind="expense", planned_amount=Decimal("850.00"))
+
+    contexto = client.get(reverse("budget:overview", args=["household"])).context
+
+    assert contexto["series_ingresos"]["etiquetas"] == [sueldo.etiqueta()]
+    assert contexto["series_egresos"]["etiquetas"] == [super_.etiqueta()]
+    # Y sobre todo: ninguna de las dos lleva lo de la otra.
+    assert super_.etiqueta() not in contexto["series_ingresos"]["etiquetas"]
+    assert sueldo.etiqueta() not in contexto["series_egresos"]["etiquetas"]
+
+
+def test_el_overview_no_trae_el_formulario_de_gasto_hasta_que_se_abre(client, admin_con_hogar):
+    """El formulario vive en un modal y se pide al ABRIRLO.
+
+    Antes se cargaba con hx-trigger="load" y ocupaba media pantalla siempre. Que
+    no venga en el HTML inicial es lo que hace que sea un modal de verdad y no
+    una tarjeta escondida.
+    """
+    user, _hogar = admin_con_hogar
+    client.force_login(user)
+
+    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert 'id="modal-gasto"' in cuerpo          # el dialogo esta
+    assert 'id="modal-gasto-cuerpo"' in cuerpo   # y su hueco, vacio
+    assert 'hx-trigger="load"' not in cuerpo     # pero no se pide al cargar
+    # El menu sigue teniendo la pagina entera como alternativa sin JavaScript.
+    assert reverse("budget:registrar") in cuerpo
