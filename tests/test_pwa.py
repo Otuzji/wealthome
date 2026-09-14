@@ -217,3 +217,57 @@ def test_cerrar_sesion_deja_la_cache_vacia(page, live_server, settings):
         if not ruta.startswith("/static/") and ruta != "/offline/"
     ]
     assert not fugas, f"quedan paginas cacheadas tras cerrar sesion: {fugas}"
+
+
+@pytest.mark.navegador
+@pytest.mark.django_db(transaction=True)
+def test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline(
+    page, live_server, settings
+):
+    """El criterio 11, la mitad que faltaba.
+
+    La prueba de la purga cubria cerrar sesion; esto cubre la promesa de al lado:
+    "abre sin senal ensenando lo ya visitado". Se corta la red de verdad con
+    page.route y se comprueba lo UNO y lo OTRO — que la pagina visitada sigue
+    ahi, y que una que no se visito cae en /offline/ en vez de en el dinosaurio
+    del navegador.
+    """
+    from apps.budget.seeds import sembrar
+    from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
+
+    settings.DEBUG = False
+    hogar = HouseholdFactory()
+    sembrar(hogar)
+    user = UserFactory()
+    user.set_password("clave-larga-123")
+    user.save()
+    MembershipFactory(user=user, household=hogar, role="admin")
+
+    page.goto(live_server.url + "/login/")
+    page.fill("input[name='username']", user.email)
+    page.fill("input[name='password']", "clave-larga-123")
+    page.click("button[type='submit']")
+
+    # Se visita la pantalla del mes: eso la mete en la cache de paginas.
+    page.goto(live_server.url + "/budget/household/month/")
+    page.wait_for_function("navigator.serviceWorker.controller !== null")
+    page.wait_for_function(
+        "caches.open('paginas-wealthome-v1').then(c => c.keys())"
+        ".then(k => k.some(r => r.url.includes('/month/')))"
+    )
+
+    # Y ahora se corta la red. El service worker ya esta instalado y es quien
+    # responde: lo que tenga cacheado lo sirve, y lo que no, va a /offline/.
+    page.context.route("**", lambda ruta: ruta.abort())
+
+    page.goto(live_server.url + "/budget/household/month/")
+    assert "This month" in page.content() or "2026" in page.content(), (
+        "la pantalla ya visitada no se sirvio desde la cache"
+    )
+
+    # Una que no se visito nunca: no hay copia, asi que toca la de sin conexion.
+    page.goto(live_server.url + "/budget/household/goals/")
+    assert "No connection" in page.content(), (
+        "una pagina sin cachear deberia caer en /offline/, no en el error del "
+        "navegador"
+    )
