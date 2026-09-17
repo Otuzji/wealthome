@@ -1,0 +1,22 @@
+{% load i18n %}
+{% comment %} Las pestanas del ambito actual. Un solo bloque de HTML, dos
+presentaciones: en movil, barra inferior fija (el patron nativo); en escritorio,
+fila bajo la barra superior. El mismo HTML, distinta hoja: nunca dos menus que
+puedan divergir.
+
+La etiqueta sigue en el DOM aunque en movil no se vea: un lector de pantalla la
+necesita, y el title la da al raton.
+
+aria-current="page" es a la vez el estado visual (CSS) y el que oye un lector
+de pantalla: un solo atributo, una sola verdad. {% endcomment %}
+{% if nav_pantallas %}
+<nav class="tabs" aria-label="{% translate 'Main' %}">
+  {% for pantalla in nav_pantallas %}
+    <a class="tabs__enlace" href="{{ pantalla.url }}" title="{{ pantalla.etiqueta }}"
+       {% if pantalla.activa %}aria-current="page"{% endif %}>
+      {% include "_nav_icono.html" with icono=pantalla.icono %}
+      <span class="nav__texto">{{ pantalla.etiqueta }}</span>
+    </a>
+  {% endfor %}
+</nav>
+{% endif %}

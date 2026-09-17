@@ -1,0 +1,7 @@
+{% comment %} La imagen del perfil, o la inicial si no hay. Se usa dentro del boton
+de la barra y en la cabecera del drawer, por eso no lleva envoltorio propio. {% endcomment %}
+{% if user.profile.avatar %}
+  <img class="avatar__imagen" src="{{ user.profile.avatar.url }}" alt="">
+{% else %}
+  <span class="avatar__inicial" aria-hidden="true">{{ user|stringformat:"s"|slice:":1"|upper }}</span>
+{% endif %}

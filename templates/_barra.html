@@ -1,0 +1,37 @@
+{% load i18n %}
+{% comment %} La barra superior: logo, conmutador de ambito y avatar.
+
+Household | Personal NO es navegacion, es un cambio de ambito: cada opcion lleva
+a la MISMA pantalla en el otro lado (lo calcula el context processor), asi que
+se pinta como un segmented control y no como dos enlaces de menu.
+
+El avatar abre el drawer (_drawer.html). Ahi vive todo lo que era "Settings". {% endcomment %}
+<header class="barra">
+  <a class="barra__logo" href="{% url 'accounts:inicio' %}">Wealthome</a>
+
+  {% if nav_ambitos %}
+    <nav class="conmutador" aria-label="{% translate 'Scope' %}">
+      {% for ambito in nav_ambitos %}
+        <a class="conmutador__opcion" href="{{ ambito.url }}"
+           {% if ambito.activo %}aria-current="true"{% endif %}>{{ ambito.etiqueta }}</a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+
+  {% if user.is_authenticated %}
+    <div class="barra__derecha">
+      {% if nav_drawer and not nav_puede_escribir %}
+        {% comment %} Sustituye al [+], que desaparece para un hogar expirado: un
+           [+] que da 403 al tocarlo seria correcto y grosero (§7). {% endcomment %}
+        <a class="pildora pildora--mal barra__aviso" href="{% url 'subscriptions:estado' %}">
+          {% translate "Your trial has ended" %}
+        </a>
+      {% endif %}
+      <button class="avatar barra__avatar" type="button"
+              onclick="document.getElementById('drawer').showModal()"
+              aria-label="{% translate 'Account' %}" aria-haspopup="dialog">
+        {% include "_avatar.html" %}
+      </button>
+    </div>
+  {% endif %}
+</header>

@@ -16,8 +16,16 @@
   <link rel="stylesheet" href="{% static 'css/modules.css' %}">
 </head>
 <body>
-  {% include "_nav.html" %}
+  {% comment %} Cuatro piezas de menu, todas datos del context processor
+     `navegacion`: la barra (logo, conmutador de ambito, avatar), las pestanas
+     del ambito, el boton flotante de registrar y el drawer del avatar. Las
+     pestanas van ANTES de <main> en el DOM porque en escritorio son una fila
+     bajo la barra; en movil el CSS las fija abajo. {% endcomment %}
+  {% include "_barra.html" %}
+  {% include "_tabs.html" %}
   <main class="shell">{% block content %}{% endblock %}</main>
+  {% include "_fab.html" %}
+  {% include "_drawer.html" %}
   <script src="{% static 'vendor/htmx.min.js' %}"></script>
   {# Alpine lleva defer porque asi lo exige su propia documentacion; htmx no. #}
   <script defer src="{% static 'vendor/alpine.min.js' %}"></script>

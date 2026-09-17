@@ -1,0 +1,43 @@
+{% load i18n %}
+{% comment %} Lo que abre el avatar. Sobre <dialog> nativo, como el modal del
+gasto: la tecla Esc, el foco atrapado y el fondo inerte los pone el navegador.
+
+Tres bloques, en este orden: tu, tu hogar, salir. Las entradas las decide el
+context processor con los permisos ya aplicados; aqui solo se agrupan.
+
+Sign out vive aqui y no en una pantalla: el avatar esta en la barra de todas,
+asi que salir esta siempre a dos toques. {% endcomment %}
+{% if nav_drawer %}
+<dialog id="drawer" class="drawer" aria-label="{% translate 'Account' %}">
+  <div class="drawer__caja">
+    <div class="drawer__cabecera">
+      <span class="avatar avatar--grande">{% include "_avatar.html" %}</span>
+      <div class="drawer__quien">
+        <strong>{{ user }}</strong>
+        <span class="drawer__correo">{{ user.email }}</span>
+      </div>
+      <button class="btn btn--sutil drawer__cerrar" type="button"
+              onclick="document.getElementById('drawer').close()"
+              aria-label="{% translate 'Close' %}">&times;</button>
+    </div>
+
+    <ul class="drawer__lista">
+      {% for entrada in nav_drawer %}{% if entrada.grupo == "yo" %}
+        <li><a class="drawer__enlace" href="{{ entrada.url }}">{{ entrada.etiqueta }}</a></li>
+      {% endif %}{% endfor %}
+    </ul>
+
+    <h2 class="drawer__titulo">{{ nav_hogar.name }}</h2>
+    <ul class="drawer__lista">
+      {% for entrada in nav_drawer %}{% if entrada.grupo == "hogar" %}
+        <li><a class="drawer__enlace" href="{{ entrada.url }}">{{ entrada.etiqueta }}</a></li>
+      {% endif %}{% endfor %}
+    </ul>
+
+    <form class="drawer__salir" method="post" action="{% url 'accounts:logout' %}">
+      {% csrf_token %}
+      <button class="btn btn--sutil btn--bloque" type="submit">{% translate "Sign out" %}</button>
+    </form>
+  </div>
+</dialog>
+{% endif %}

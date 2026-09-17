@@ -1,0 +1,52 @@
+{% load i18n %}
+{% comment %} El [+] del §7.1: la accion mas frecuente, siempre a un toque, en
+toda pantalla. Boton flotante abajo a la derecha, el patron nativo.
+
+Es un <a> y no un <button>: sin JavaScript lleva a /budget/spend/, que es la
+misma vista como pagina entera. Con JavaScript, htmx cancela la navegacion,
+pide el fragmento del formulario y lo mete en el modal.
+
+El registro de gasto va en un MODAL y no en una tarjeta fija: no tiene por que
+ocupar media pantalla mientras miras las cifras. <dialog> nativo y no una
+libreria: trae la tecla Esc, el foco atrapado y el fondo inerte sin JavaScript
+nuestro. El formulario se pide al ABRIR y no al cargar la pagina: una peticion
+que nadie iba a mirar es una peticion de menos. {% endcomment %}
+{% if nav_fab %}
+<a class="fab" href="{% url 'budget:registrar' %}"
+   hx-get="{% url 'budget:registrar' %}"
+   hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML"
+   onclick="document.getElementById('modal-gasto').showModal()"
+   aria-label="{% translate 'Record a spend' %}" title="{% translate 'Record a spend' %}">
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
+       stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+    <path d="M12 5v14"/><path d="M5 12h14"/>
+  </svg>
+</a>
+
+<dialog id="modal-gasto" class="modal">
+  <div class="modal__caja">
+    <div class="modal__cabecera">
+      <h2>{% translate "Record a spend" %}</h2>
+      <button class="btn btn--sutil modal__cerrar" type="button"
+              onclick="document.getElementById('modal-gasto').close()"
+              aria-label="{% translate 'Close' %}">&times;</button>
+    </div>
+    <div id="modal-gasto-cuerpo"></div>
+  </div>
+</dialog>
+
+<script>
+  // El modal se cierra cuando el SERVIDOR dice que el gasto entro: la vista
+  // manda la cabecera HX-Trigger: gasto-registrado, y htmx la convierte en este
+  // evento. Es lo unico que sabe de verdad si se guardo.
+  //
+  // Se intento antes desde el cliente, mirando que el htmx:afterRequest viniera
+  // de dentro del <dialog> y fuera un POST con exito. No cerraba de forma
+  // fiable, y ademas ataba el fragmento del formulario —que comparte la pagina
+  // entera— a la pantalla que lo muestra.
+  document.body.addEventListener("gasto-registrado", function () {
+    var dialogo = document.getElementById("modal-gasto");
+    if (dialogo && dialogo.open) { dialogo.close(); }
+  });
+</script>
+{% endif %}
