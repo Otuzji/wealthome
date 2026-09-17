@@ -20,10 +20,21 @@
   --border-width: 0px;
   --border-color: transparent;
 
+  /* Un campo del mismo color que la superficie con sombra hundida casi no se
+     ve: la sombra es la UNICA senal del neomorfismo. --field-bg es un tono
+     aparte, y --focus-ring el anillo del foco. */
+  --field-bg:      #e1e6eb;
+  --focus-ring:    rgb(63 143 111 / 45%);
+
+  /* Desplazamiento corto y sombra oscura cercana al fondo: la tarjeta se
+     levanta, no flota. Con 8px y #c3c9d1 la pantalla era un tablero de piezas
+     sueltas. */
   --shadow-light: #ffffff;
-  --shadow-dark:  #c3c9d1;
-  --shadow-raised: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
-  --shadow-inset:  inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+  --shadow-dark:  #d2d8df;
+  --shadow-raised: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+  --shadow-raised-sm: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light);
+  --shadow-inset:  inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+  --shadow-overlay: 0 12px 40px rgb(51 64 79 / 30%);
 
   --touch-target: 44px;
 
@@ -48,8 +59,12 @@
   --accent-strong: #3f9d78;
   --danger:        #d98b6a;
 
-  --shadow-light: #2c333c;
-  --shadow-dark:  #1a1e24;
+  --field-bg:      #1e2329;
+  --focus-ring:    rgb(92 193 150 / 50%);
+
+  --shadow-light: #2b313a;
+  --shadow-dark:  #1c2027;
+  --shadow-overlay: 0 12px 40px rgb(0 0 0 / 55%);
 
   --chart-1: #5cc196;
   --chart-2: #6ba3c9;
@@ -80,8 +95,13 @@
   --border-width: 3px;
   --border-color: #14181d;
 
+  --field-bg:      #ffffff;
+  --focus-ring:    #0a5c3a;
+
   --shadow-raised: 0 4px 0 #14181d;
+  --shadow-raised-sm: 0 2px 0 #14181d;
   --shadow-inset:  none;
+  --shadow-overlay: none;
 
   --touch-target: 56px;
 

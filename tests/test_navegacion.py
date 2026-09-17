@@ -326,3 +326,24 @@ def test_el_fab_llega_al_html_solo_cuando_toca(client):
     _sesion(client, ADMIN)
     cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
     assert 'class="fab"' in cuerpo
+
+
+# ---------- el ciclo de vida del mes ----------
+
+@pytest.mark.django_db
+def test_planificar_y_cerrar_son_botones_de_this_month_para_quien_edita(client):
+    """Plan y Close salieron del menu: si no estan en This month, no estan en
+    ninguna parte y el wizard de planificacion queda inalcanzable otra vez."""
+    _sesion(client, ADMIN)
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
+    assert reverse("budget:planificar", args=["household"]) in cuerpo
+    assert reverse("budget:cerrar", args=["household"]) in cuerpo
+
+
+@pytest.mark.django_db
+def test_quien_solo_mira_no_ve_los_botones_del_ciclo_del_mes(client):
+    """Un boton que da 403 al tocarlo es correcto y grosero (§7)."""
+    _sesion(client, SOLO_VER)
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
+    assert reverse("budget:planificar", args=["household"]) not in cuerpo
+    assert reverse("budget:cerrar", args=["household"]) not in cuerpo

@@ -57,6 +57,23 @@ def test_los_tres_temas_definen_las_mismas_variables_de_grafica():
             )
 
 
+def test_los_tres_temas_definen_las_variables_de_los_campos():
+    """Un campo de formulario del mismo color que la superficie con una sombra
+    hundida casi no se ve: en neomorfismo la sombra es la UNICA senal, y en
+    Nocturno se pierde. --field-bg es un tono aparte por tema, y --focus-ring
+    el anillo del foco. Un tema que no las defina hereda las de Sereno y el
+    campo se vuelve una mancha clara sobre fondo oscuro.
+    """
+    texto = _texto("tokens.css")
+    sereno = texto.split(":root", 1)[1].split("}", 1)[0]
+    bloques = {"sereno": sereno}
+    bloques.update({tema: _bloque_del_tema(texto, tema) for tema in TEMAS})
+
+    for tema, bloque in bloques.items():
+        for variable in ("--field-bg", "--focus-ring"):
+            assert f"{variable}:" in bloque, f"El tema {tema} no define {variable}."
+
+
 def test_ningun_componente_lleva_un_color_literal():
     """Un literal donde debia ir una variable es invisible hasta que alguien
     cambia de tema y el componente se queda igual. Es el fallo que el Step 6 del

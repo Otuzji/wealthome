@@ -35,6 +35,19 @@
 .btn--bloque { width: 100%; }
 .btn--sutil { color: var(--text-muted); box-shadow: none; }
 .btn:active { box-shadow: var(--shadow-inset); }
+/* Un enlace con clase .btn: que se vea y se comporte como el boton de al lado. */
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+/* ---------- foco ----------
+   Un solo anillo para todo lo que se pueda enfocar. :focus-visible y no :focus:
+   el raton no lo pinta, el teclado si. */
+.btn:focus-visible, .campo:focus-visible, .formulario input:focus-visible,
+.formulario select:focus-visible, .formulario textarea:focus-visible,
+.tabs__enlace:focus-visible, .conmutador__opcion:focus-visible,
+.drawer__enlace:focus-visible, .avatar:focus-visible, .fab:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 
 /* ---------- campos ---------- */
 .campo {
@@ -42,7 +55,7 @@
   width: 100%;
   min-height: var(--touch-target);
   padding: 0 14px;
-  background: var(--surface);
+  background: var(--field-bg);
   color: var(--text);
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -100,4 +113,24 @@
   font-variant-numeric: tabular-nums;
 }
 .cifra__valor--mal { color: var(--danger); }
-.cifras { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+/* En movil, dos por fila y la ultima impar a todo el ancho: tres cifras en dos
+   columnas dejaban una huerfana. En escritorio, las que quepan. */
+.cifras { display: grid; gap: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cifras > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (min-width: 900px) {
+  .cifras { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .cifras > :last-child:nth-child(odd) { grid-column: auto; }
+}
+
+/* Una cifra DENTRO de una tarjeta (los cierres de Balance) se hunde en vez de
+   levantarse: relieve sobre relieve no se lee. */
+.card .cifra { box-shadow: var(--shadow-inset); background: var(--field-bg); }
+.card > h1 { margin-bottom: 16px; }
+.card > h2 + .btn, .card > ul + .btn, .card > ol + .btn, .card > .tabla__envoltura + .btn { margin-top: 8px; }
+.filtros { margin-bottom: 12px; }
+
+/* ---------- lista de miembros ---------- */
+.miembros { margin: 0; padding: 0; list-style: none; }
+.miembros__fila { display: flex; align-items: center; gap: 12px; min-height: var(--touch-target); padding: 6px 0; }
+.miembros__quien { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.miembros__rol { color: var(--text-muted); font-size: 0.875em; }

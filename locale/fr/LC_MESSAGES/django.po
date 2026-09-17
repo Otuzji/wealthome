@@ -1471,8 +1471,8 @@ msgid "What you are saving for"
 msgstr "Pour quoi vous épargnez"
 
 #: templates/wizards/incorporacion.html
-msgid "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it."
-msgstr "Vous pouvez fermer à tout moment. Tout ce que vous avez configuré est déjà enregistré, et le reste se trouve dans les Paramètres quand vous voudrez."
+msgid "You can close this at any point. Everything you set up is already saved, and the rest lives under your avatar, in Budget setup, whenever you want it."
+msgstr "Vous pouvez fermer ceci à tout moment. Tout ce que vous avez configuré est déjà enregistré, et le reste se trouve sous votre avatar, dans Réglages du budget, quand vous le voulez."
 
 #: templates/wizards/planificar_1.html
 msgid "Step %(paso)s of 3"
@@ -1505,3 +1505,23 @@ msgstr "Ce qui sort, prévu par rapport au réel"
 #: templates/budget/overview.html
 msgid "What comes in, planned against real"
 msgstr "Ce qui rentre, prévu par rapport au réel"
+
+#: templates/_barra.html
+msgid "Scope"
+msgstr "Portée"
+
+#: templates/_barra.html
+msgid "Account"
+msgstr "Compte"
+
+#: apps/core/context_processors.py
+msgid "Budget setup"
+msgstr "Réglages du budget"
+
+#: templates/budget/mes.html
+msgid "What the rules say"
+msgstr "Ce que disent les règles"
+
+#: templates/wizards/incorporacion.html
+msgid "You can close this at any point. Everything you set up is already saved, and the rest lives under your avatar, in Budget setup, whenever you want it."
+msgstr "Vous pouvez fermer ceci à tout moment. Tout ce que vous avez configuré est déjà enregistré, et le reste se trouve sous votre avatar, dans Réglages du budget, quand vous le voulez."

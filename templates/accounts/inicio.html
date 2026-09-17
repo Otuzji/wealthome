@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}Wealthome{% endblock %}
 {% block content %}
-<section class="card">
+<section class="card card--formulario">
   <h1>{% translate "Welcome" %}</h1>
   <p>{% translate "Your budget lives in the menu. Start with this month." %}</p>
   <p><a class="btn btn--primary" href="{% url 'budget:mes' 'household' %}">{% translate "This month" %}</a></p>

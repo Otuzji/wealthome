@@ -1,30 +1,33 @@
 {% extends "base.html" %}{% load i18n %}
-{% block title %}{% translate "Settings" %}{% endblock %}
+{% block title %}{% translate "Members" %} · Wealthome{% endblock %}
 {% block content %}
+{% comment %} Antes esta pantalla era "Settings" y colgaba de todo: suscripcion,
+   preferencias, salir. Eso vive ahora en el drawer del avatar, y aqui queda lo
+   unico que necesita una pagina propia: la lista de miembros con sus permisos. {% endcomment %}
+<header class="pagina__cabecera">
   <h1>{{ hogar.name }}</h1>
+  {% if es_admin %}
+    <div class="pagina__acciones">
+      <a class="btn btn--primary" href="{% url 'households:invitar' %}">{% translate "Invite a member" %}</a>
+    </div>
+  {% endif %}
+</header>
 
-  <section class="card">
-    <h2>{% translate "Members" %}</h2>
-    <ul>
-      {% for m in miembros %}
-        <li>
-          {{ m.user }} — {{ m.get_role_display }}
-          {% if es_admin and m.role != "admin" %}
-            <a href="{% url 'households:permisos' m.pk %}">{% translate "Permissions" %}</a>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-    {% if es_admin %}
-      <a class="btn" href="{% url 'households:invitar' %}">{% translate "Invite a member" %}</a>
-    {% endif %}
-  </section>
-
-  <p><a href="{% url 'subscriptions:estado' %}">{% translate "Subscription" %}</a></p>
-  <p><a href="{% url 'accounts:preferencias' %}">{% translate "My preferences" %}</a></p>
-
-  <form method="post" action="{% url 'accounts:logout' %}">
-    {% csrf_token %}
-    <button class="btn btn--sutil" type="submit">{% translate "Sign out" %}</button>
-  </form>
+<section class="card card--ancho">
+  <h2>{% translate "Members" %}</h2>
+  <ul class="miembros">
+    {% for m in miembros %}
+      <li class="miembros__fila">
+        <span class="avatar" aria-hidden="true">{{ m.user|stringformat:"s"|slice:":1"|upper }}</span>
+        <span class="miembros__quien">
+          <strong>{{ m.user }}</strong>
+          <span class="miembros__rol">{{ m.get_role_display }}</span>
+        </span>
+        {% if es_admin and m.role != "admin" %}
+          <a class="btn btn--sutil" href="{% url 'households:permisos' m.pk %}">{% translate "Permissions" %}</a>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
 {% endblock %}

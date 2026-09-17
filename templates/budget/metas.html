@@ -1,7 +1,14 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Goals" %} · Wealthome{% endblock %}
 {% block content %}
-<h1>{% translate "Goals" %}</h1>
+<header class="pagina__cabecera">
+  <h1>{% translate "Goals" %}</h1>
+  {% if nav_membresia.can_edit_budget and nav_puede_escribir %}
+    <div class="pagina__acciones">
+      <a class="btn btn--primary" href="{% url 'budget:meta_nueva' %}">{% translate "New goal" %}</a>
+    </div>
+  {% endif %}
+</header>
 
 {% for fila in filas %}
 <section class="card">
@@ -24,8 +31,6 @@
   {% include "budget/_fragmentos/aportes.html" with meta=fila.meta aportes=fila.meta.contributions.all %}
 </section>
 {% empty %}
-<section class="card"><p>{% translate "No goals yet." %}</p></section>
+<section class="card card--ancho"><p>{% translate "No goals yet." %}</p></section>
 {% endfor %}
-
-<p><a class="btn btn--primary" href="{% url 'budget:meta_nueva' %}">{% translate "New goal" %}</a></p>
 {% endblock %}

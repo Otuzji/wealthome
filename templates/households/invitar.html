@@ -1,11 +1,13 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate "Invite a member" %}{% endblock %}
 {% block content %}
+<section class="card card--formulario formulario">
   <h1>{% translate "Invite a member" %}</h1>
-  <form method="post" class="card">
+  <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
+    {{ form.as_div }}
     <button type="submit" class="btn btn--primary">{% translate "Send invitation" %}</button>
+    <a class="btn btn--sutil" href="{% url 'households:ajustes' %}">{% translate "Cancel" %}</a>
   </form>
-  <p><a href="{% url 'households:ajustes' %}">{% translate "Back to settings" %}</a></p>
+</section>
 {% endblock %}

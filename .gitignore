@@ -41,3 +41,6 @@ desktop.ini
 
 # Capturas de la revision visual: artefactos locales, no del repositorio.
 capturas-ui/
+
+# Capturas de Playwright (MCP)
+.playwright-mcp/

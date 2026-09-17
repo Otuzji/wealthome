@@ -1,9 +1,11 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Set up the budget" %} · Wealthome{% endblock %}
 {% block content %}
-<section class="card">
+<header class="pagina__cabecera">
   <h1>{% translate "Set up the budget" %}</h1>
+</header>
 
+<section class="card">
   <h2>{% translate "Income" %}</h2>
   <ul>
     {% for fuente in ingresos %}
@@ -13,7 +15,9 @@
     {% endfor %}
   </ul>
   <a class="btn" href="{% url 'budget:ingreso_nuevo' %}">{% translate "Add income" %}</a>
+</section>
 
+<section class="card">
   <h2>{% translate "Fixed expenses" %}</h2>
   <div class="tabla__envoltura">
     <table class="tabla">
@@ -29,7 +33,9 @@
     </table>
   </div>
   <a class="btn" href="{% url 'budget:gasto_nuevo' %}">{% translate "Add a fixed expense" %}</a>
+</section>
 
+<section class="card">
   <h2>{% translate "How the leftover is split" %}</h2>
   <ol>
     {% for regla in repartos %}
@@ -39,7 +45,9 @@
     {% endfor %}
   </ol>
   <a class="btn" href="{% url 'budget:reparto_nuevo' %}">{% translate "Add a split rule" %}</a>
+</section>
 
+<section class="card">
   <h2>{% translate "Categories" %}</h2>
   <ul>
     {% for categoria in categorias %}<li>{{ categoria.etiqueta }}</li>{% endfor %}

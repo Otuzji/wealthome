@@ -181,13 +181,15 @@ def test_cerrar_sesion_deja_la_cache_vacia(page, live_server, settings):
 
     # Antes de salir, la cache de PAGINAS tiene la pantalla del hogar.
     paginas_antes = page.evaluate(
-        "caches.open('paginas-wealthome-v1')"
+        "caches.open('paginas-wealthome-v2')"
         ".then(c => c.keys()).then(k => k.map(r => new URL(r.url).pathname))"
     )
     assert any("/household/settings/" in ruta for ruta in paginas_antes), (
         f"la cache de paginas no llego a guardar la pantalla: {paginas_antes}"
     )
 
+    # Sign out vive en el drawer del avatar: hay que abrirlo antes de pulsarlo.
+    page.click(".barra__avatar")
     page.click("form[action*='logout'] button[type='submit']")
     # Lo que se afirma es la GARANTIA, no `caches.keys() == []`.
     #
@@ -252,7 +254,7 @@ def test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline(
     page.goto(live_server.url + "/budget/household/month/")
     page.wait_for_function("navigator.serviceWorker.controller !== null")
     page.wait_for_function(
-        "caches.open('paginas-wealthome-v1').then(c => c.keys())"
+        "caches.open('paginas-wealthome-v2').then(c => c.keys())"
         ".then(k => k.some(r => r.url.includes('/month/')))"
     )
 

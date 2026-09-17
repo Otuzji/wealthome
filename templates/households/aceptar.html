@@ -1,9 +1,11 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate "Join this household" %}{% endblock %}
 {% block content %}
+<section class="card card--formulario formulario">
   <h1>{% translate "Join this household" %}</h1>
-  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if error %}<p class="campo--error">{{ error }}</p>{% endif %}
   <form method="post">{% csrf_token %}
-    <button type="submit" class="btn btn--primary">{% translate "Accept invitation" %}</button>
+    <button type="submit" class="btn btn--primary btn--bloque">{% translate "Accept invitation" %}</button>
   </form>
+</section>
 {% endblock %}

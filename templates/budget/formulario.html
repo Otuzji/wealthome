@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{{ titulo }} · Wealthome{% endblock %}
 {% block content %}
-<section class="card formulario">
+<section class="card card--formulario formulario">
   <h1>{{ titulo }}</h1>
   <form method="post">
     {% csrf_token %}

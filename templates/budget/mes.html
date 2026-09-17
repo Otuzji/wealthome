@@ -1,10 +1,33 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "This month" %} · Wealthome{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>{{ anio }}-{{ numero }}</h1>
-  {% if es_proyeccion %}
-    <p><span class="pildora">{% translate "Not started" %}</span></p>
+<header class="pagina__cabecera">
+  <h1>
+    {{ anio }}-{{ numero }}
+    {% if es_proyeccion %}
+      <span class="pildora">{% translate "Not started" %}</span>
+    {% else %}
+      <span class="pildora {% if resultado.status == 'closed' %}pildora--bien{% endif %}">
+        {{ resultado.get_status_display }}</span>
+    {% endif %}
+  </h1>
+  {% comment %} Plan y Close son el ciclo de vida del mes, no destinos del menu:
+     viven aqui. Solo para quien puede editar y mientras el hogar pueda escribir:
+     un boton que da 403 al tocarlo es correcto y grosero (§7). Cerrar solo tiene
+     sentido para un mes abierto. {% endcomment %}
+  {% if nav_membresia.can_edit_budget and nav_puede_escribir %}
+    <div class="pagina__acciones">
+      <a class="btn" href="{% url 'budget:planificar' ambito %}">{% translate "Plan the month" %}</a>
+      {% if not es_proyeccion and resultado.status == 'open' %}
+        <a class="btn btn--primary" href="{% url 'budget:cerrar' ambito %}">{% translate "Close the month" %}</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</header>
+
+{% if es_proyeccion %}
+  <section class="card">
+    <h2>{% translate "What the rules say" %}</h2>
     <p>{% translate "This month has not started yet — these numbers come from your rules." %}</p>
     <div class="tabla__envoltura">
       <table class="tabla">
@@ -16,15 +39,14 @@
         {% endfor %}
       </table>
     </div>
-    <div class="cifras">
-      <div class="cifra">
-        <div class="cifra__etiqueta">{% translate "Left over" %}</div>
-        <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
-      </div>
-    </div>
-  {% else %}
-    <p><span class="pildora {% if resultado.status == 'closed' %}pildora--bien{% endif %}">
-      {{ resultado.get_status_display }}</span></p>
+  </section>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+    <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
+  </div>
+{% else %}
+  <section class="card">
+    <h2>{% translate "Planned" %}</h2>
     <div class="tabla__envoltura">
       <table class="tabla">
         <tr><th>{% translate "Category" %}</th><th class="numero">{% translate "Planned" %}</th></tr>
@@ -36,6 +58,8 @@
         {% endfor %}
       </table>
     </div>
+  </section>
+  <section class="card">
     <h2>{% translate "What actually happened" %}</h2>
     <div class="tabla__envoltura">
       <table class="tabla">
@@ -50,6 +74,6 @@
         {% endfor %}
       </table>
     </div>
-  {% endif %}
-</section>
+  </section>
+{% endif %}
 {% endblock %}

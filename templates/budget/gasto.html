@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate "Record a spend" %} · Wealthome{% endblock %}
 {% block content %}
-<section class="card formulario">
+<section class="card card--formulario formulario">
   <h1>{% translate "Record a spend" %}</h1>
   <form method="post">
     {% csrf_token %}

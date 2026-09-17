@@ -54,7 +54,8 @@ def _sin_menu():
     """
     return {
         "nav_ambitos": [], "nav_pantallas": [], "nav_drawer": [],
-        "nav_fab": False, "nav_ambito": None, "nav_hogar": None, "nav_puede_escribir": False,
+        "nav_fab": False, "nav_ambito": None, "nav_hogar": None, "nav_membresia": None,
+        "nav_puede_escribir": False,
         "debug": settings.DEBUG,
     }
 
@@ -191,6 +192,9 @@ def navegacion(request):
         "nav_fab": bool(_permiso(membresia, "can_add_transactions") and puede_escribir),
         "nav_ambito": ambito,
         "nav_hogar": hogar_actual,
+        # Para que una plantilla ensene un boton solo a quien puede pulsarlo
+        # (Plan y Close en This month) sin que cada vista lo repita.
+        "nav_membresia": membresia,
         "nav_puede_escribir": puede_escribir,
         "debug": settings.DEBUG,
     }

@@ -1,24 +1,26 @@
 {% extends "base.html" %}{% load i18n money static %}
 {% block title %}{% translate "Overview" %} · Wealthome{% endblock %}
 {% block content %}
-<section class="card">
+<header class="pagina__cabecera">
   <h1>{% translate "Overview" %}</h1>
+</header>
 
-  <div class="cifras">
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Income" %}</div>
-      <div class="cifra__valor">{{ totales.ingresos|money:hogar.currency }}</div>
-    </div>
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Fixed expenses" %}</div>
-      <div class="cifra__valor">{{ totales.egresos|money:hogar.currency }}</div>
-    </div>
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Left over" %}</div>
-      <div class="cifra__valor">{{ totales.sobrante|money:hogar.currency }}</div>
-    </div>
+{% comment %} Cada cifra es una tarjeta propia y no tres dentro de una: en el
+   mosaico, una tarjeta dentro de otra es relieve sobre relieve. {% endcomment %}
+<div class="cifras">
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Income" %}</div>
+    <div class="cifra__valor">{{ totales.ingresos|money:hogar.currency }}</div>
   </div>
-</section>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Fixed expenses" %}</div>
+    <div class="cifra__valor">{{ totales.egresos|money:hogar.currency }}</div>
+  </div>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+    <div class="cifra__valor">{{ totales.sobrante|money:hogar.currency }}</div>
+  </div>
+</div>
 
 <section class="card">
   {% comment %} Dos graficas y no una: ingresos y gastos tienen ordenes de

@@ -1,11 +1,13 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate "Create your household" %}{% endblock %}
 {% block content %}
+<section class="card card--formulario formulario">
   <h1>{% translate "Create your household" %}</h1>
-  <form method="post" class="card">
+  <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn--primary">{% translate "Start my 14-day trial" %}</button>
+    {{ form.as_div }}
+    <button type="submit" class="btn btn--primary btn--bloque">{% translate "Start my 14-day trial" %}</button>
   </form>
-  <p><a href="{% url 'accounts:login' %}">{% translate "I already have an account" %}</a></p>
+  <p class="campo__ayuda"><a href="{% url 'accounts:login' %}">{% translate "I already have an account" %}</a></p>
+</section>
 {% endblock %}

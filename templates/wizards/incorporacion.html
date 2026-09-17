@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{{ titulo }} · Wealthome{% endblock %}
 {% block content %}
-<section class="card">
+<section class="card card--formulario">
   <p class="pildora">{% blocktranslate %}Step {{ paso }} of {{ total }}{% endblocktranslate %}</p>
   <h1>{{ titulo }}</h1>
 
@@ -15,6 +15,6 @@
     {% endif %}
   </p>
 
-  <p class="campo__ayuda">{% translate "You can close this at any point. Everything you set up is already saved, and the rest lives in Settings whenever you want it." %}</p>
+  <p class="campo__ayuda">{% translate "You can close this at any point. Everything you set up is already saved, and the rest lives under your avatar, in Budget setup, whenever you want it." %}</p>
 </section>
 {% endblock %}

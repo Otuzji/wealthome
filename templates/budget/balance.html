@@ -1,7 +1,9 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Balance" %} · Wealthome{% endblock %}
 {% block content %}
-<h1>{% translate "Balance" %}</h1>
+<header class="pagina__cabecera">
+  <h1>{% translate "Balance" %}</h1>
+</header>
 
 {% for fila in cierres %}
 <section class="card">
@@ -48,7 +50,7 @@
   </div>
 </section>
 {% empty %}
-<section class="card">
+<section class="card card--ancho">
   <p>{% translate "No month has been closed yet. Your first balance appears when you close a month." %}</p>
 </section>
 {% endfor %}

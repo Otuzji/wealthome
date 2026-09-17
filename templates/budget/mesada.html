@@ -1,17 +1,19 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "My allowance" %} · Wealthome{% endblock %}
 {% block content %}
-<h1>{% translate "My allowance" %}</h1>
+<header class="pagina__cabecera">
+  <h1>{% translate "My allowance" %}</h1>
+</header>
 
 {% if libro %}
-<section class="card">
-  <div class="cifras">
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Left to spend" %}</div>
-      <div class="cifra__valor">{{ libro.saldo|money:hogar.currency }}</div>
-    </div>
+<div class="cifras">
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Left to spend" %}</div>
+    <div class="cifra__valor">{{ libro.saldo|money:hogar.currency }}</div>
   </div>
+</div>
 
+<section class="card">
   <h2>{% translate "How that number is made" %}</h2>
   <div class="tabla__envoltura">
     <table class="tabla">
@@ -58,7 +60,7 @@
   </div>
 </section>
 {% else %}
-<section class="card">
+<section class="card card--ancho">
   <p>{% translate "You have no allowance this month yet. It appears once the month is planned." %}</p>
 </section>
 {% endif %}

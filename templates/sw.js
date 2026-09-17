@@ -15,7 +15,10 @@
  * la purga al cerrar sesion (sw.js + Clear-Site-Data) es una garantia de
  * privacidad y no una optimizacion. Ver tests/test_pwa.py.
  */
-var VERSION = "wealthome-v1";
+// Sube la version con cada cambio de CSS o JS: los estaticos se sirven cache
+// primero, y sin esto un navegador con el worker instalado seguiria viendo la
+// hoja de estilos anterior hasta vaciar la cache a mano.
+var VERSION = "wealthome-v2";
 var ARMAZON = "armazon-" + VERSION;
 var PAGINAS = "paginas-" + VERSION;
 
