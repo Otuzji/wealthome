@@ -181,7 +181,7 @@ def test_cerrar_sesion_deja_la_cache_vacia(page, live_server, settings):
 
     # Antes de salir, la cache de PAGINAS tiene la pantalla del hogar.
     paginas_antes = page.evaluate(
-        "caches.open('paginas-wealthome-v3')"
+        "caches.open('paginas-wealthome-v4')"
         ".then(c => c.keys()).then(k => k.map(r => new URL(r.url).pathname))"
     )
     assert any("/household/settings/" in ruta for ruta in paginas_antes), (
@@ -254,7 +254,7 @@ def test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline(
     page.goto(live_server.url + "/budget/household/month/")
     page.wait_for_function("navigator.serviceWorker.controller !== null")
     page.wait_for_function(
-        "caches.open('paginas-wealthome-v3').then(c => c.keys())"
+        "caches.open('paginas-wealthome-v4').then(c => c.keys())"
         ".then(k => k.some(r => r.url.includes('/month/')))"
     )
 
@@ -273,3 +273,22 @@ def test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline(
         "una pagina sin cachear deberia caer en /offline/, no en el error del "
         "navegador"
     )
+
+
+def test_el_service_worker_sirve_la_precarga_si_falta_la_version_exacta():
+    """Las URLs de estaticos llevan ?v=<mtime> (ver test_estaticos_versionados).
+    Cache-first por URL completa hace que una version nueva se pida a la red;
+    sin red, la copia precargada (sin ?v) tiene que valer, o la aplicacion
+    offline se queda sin estilos."""
+    sw = (RAIZ / "templates" / "sw.js").read_text(encoding="utf-8")
+    rama = sw.split('indexOf("/static/") === 0', 1)[1].split("return;", 1)[0]
+    assert "ignoreSearch: true" in rama
+    assert "cache.put(peticion" in rama, "lo que llega de la red debe quedar cacheado para la proxima vez sin senal"
+
+
+def test_el_service_worker_se_sirve_sin_error(client):
+    """sw.js pasa por el motor de plantillas: un `{%` en un comentario lo
+    tumba con un 500 y ningun navegador vuelve a instalarlo."""
+    respuesta = client.get("/sw.js")
+    assert respuesta.status_code == 200
+    assert b"ignoreSearch" in respuesta.content

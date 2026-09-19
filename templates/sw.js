@@ -18,7 +18,7 @@
 // Sube la version con cada cambio de CSS o JS: los estaticos se sirven cache
 // primero, y sin esto un navegador con el worker instalado seguiria viendo la
 // hoja de estilos anterior hasta vaciar la cache a mano.
-var VERSION = "wealthome-v3";
+var VERSION = "wealthome-v4";
 var ARMAZON = "armazon-" + VERSION;
 var PAGINAS = "paginas-" + VERSION;
 
@@ -71,9 +71,22 @@ self.addEventListener("fetch", function (evento) {
     if (url.pathname.indexOf(NUNCA[i]) === 0) { return; }
   }
 
+  // Estaticos: cache primero POR URL COMPLETA. Las paginas los enlazan con
+  // ?v=<mtime> (la etiqueta estatico), asi que una version nueva no casa con la
+  // cacheada, se pide a la red y se guarda. Sin red y sin esa version exacta,
+  // vale la precarga (sin ?v): estilos de ayer antes que ningun estilo.
   if (url.pathname.indexOf("/static/") === 0) {
     evento.respondWith(
-      caches.match(peticion).then(function (r) { return r || fetch(peticion); })
+      caches.match(peticion).then(function (r) {
+        if (r) { return r; }
+        return fetch(peticion).then(function (respuesta) {
+          var copia = respuesta.clone();
+          caches.open(ARMAZON).then(function (cache) { cache.put(peticion, copia); });
+          return respuesta;
+        }).catch(function () {
+          return caches.match(peticion, { ignoreSearch: true });
+        });
+      })
     );
     return;
   }

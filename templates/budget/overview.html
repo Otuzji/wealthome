@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n money static %}
+{% extends "base.html" %}{% load i18n money static estaticos %}
 {% block title %}{% translate "Overview" %} · Wealthome{% endblock %}
 {% block content %}
 <header class="pagina__cabecera">
@@ -66,6 +66,6 @@
 {{ series_ingresos|json_script:"series-ingresos" }}
 {{ series_egresos|json_script:"series-egresos" }}
 {{ series_balance|json_script:"series-balance" }}
-<script src="{% static 'vendor/chart.umd.min.js' %}"></script>
-<script src="{% static 'js/graficas.js' %}"></script>
+<script src="{% estatico 'vendor/chart.umd.min.js' %}"></script>
+<script src="{% estatico 'js/graficas.js' %}"></script>
 {% endblock %}

@@ -1,4 +1,4 @@
-{% load i18n static %}<!doctype html>
+{% load i18n static estaticos %}<!doctype html>
 <html lang="{{ LANGUAGE_CODE }}" data-theme="{{ user.profile.theme|default:'sereno' }}">
 <head>
   <meta charset="utf-8">
@@ -10,10 +10,10 @@
   <link rel="manifest" href="{% static 'manifest.json' %}">
   <meta name="theme-color" content="#3f8f6f">
   <link rel="apple-touch-icon" href="{% static 'icons/icono-192.png' %}">
-  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}">
-  <link rel="stylesheet" href="{% static 'css/components.css' %}">
-  <link rel="stylesheet" href="{% static 'css/modules.css' %}">
+  <link rel="stylesheet" href="{% estatico 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% estatico 'css/base.css' %}">
+  <link rel="stylesheet" href="{% estatico 'css/components.css' %}">
+  <link rel="stylesheet" href="{% estatico 'css/modules.css' %}">
 </head>
 <body>
   {% comment %} Cuatro piezas de menu, todas datos del context processor
@@ -26,9 +26,9 @@
   <main class="shell">{% include "_mensajes.html" %}{% block content %}{% endblock %}</main>
   {% include "_fab.html" %}
   {% include "_drawer.html" %}
-  <script src="{% static 'vendor/htmx.min.js' %}"></script>
+  <script src="{% estatico 'vendor/htmx.min.js' %}"></script>
   {# Alpine lleva defer porque asi lo exige su propia documentacion; htmx no. #}
-  <script defer src="{% static 'vendor/alpine.min.js' %}"></script>
+  <script defer src="{% estatico 'vendor/alpine.min.js' %}"></script>
   {% comment %} `debug` lo pone apps.core.context_processors.navegacion en sus TRES
      salidas, no el context processor de Django: ese solo expone la variable si
      DEBUG esta activo Y la IP esta en INTERNAL_IPS, asi que en la pagina de

@@ -93,3 +93,16 @@ def test_settings_no_falla_en_debug_sin_variables():
         timeout=30,
     )
     assert resultado.returncode == 0, resultado.stderr
+
+
+def test_el_autoreloader_vigila_el_archivo_env():
+    """Cambiar .env debe reiniciar runserver, como cambiar un .py."""
+    from pathlib import Path
+
+    from django.conf import settings
+    from django.utils.autoreload import StatReloader, autoreload_started
+
+    reloader = StatReloader()
+    autoreload_started.send(sender=reloader)
+
+    assert Path(settings.BASE_DIR) / ".env" in set(reloader.watched_files())
