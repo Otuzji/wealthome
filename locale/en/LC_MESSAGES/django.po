@@ -1509,3 +1509,66 @@ msgstr "What the rules say"
 #: templates/wizards/incorporacion.html
 msgid "You can close this at any point. Everything you set up is already saved, and the rest lives under your avatar, in Budget setup, whenever you want it."
 msgstr "You can close this at any point. Everything you set up is already saved, and the rest lives under your avatar, in Budget setup, whenever you want it."
+
+#: apps/households/emails.py
+#, python-format
+msgid "%(invitador)s invites you to join %(hogar)s on Wealthome"
+msgstr "%(invitador)s invites you to join %(hogar)s on Wealthome"
+
+#: templates/households/email/invitacion.txt
+#, python-format
+msgid "%(invitador)s has invited you to join the household %(hogar)s on Wealthome, to manage the family budget together."
+msgstr "%(invitador)s has invited you to join the household %(hogar)s on Wealthome, to manage the family budget together."
+
+#: templates/households/email/invitacion.txt
+msgid "Join the household"
+msgstr "Join the household"
+
+#: templates/households/email/invitacion.txt
+#, python-format
+msgid "This link expires in %(dias)s days. If you were not expecting this invitation, you can ignore this email."
+msgstr "This link expires in %(dias)s days. If you were not expecting this invitation, you can ignore this email."
+
+#: apps/households/views.py
+#, python-format
+msgid "The invitation was created but we could not send the email. Share the link below with %(email)s."
+msgstr "The invitation was created but we could not send the email. Share the link below with %(email)s."
+
+#: apps/households/views.py
+#, python-format
+msgid "Invitation sent to %(email)s."
+msgstr "Invitation sent to %(email)s."
+
+#: apps/households/views.py
+#, python-format
+msgid "Invitation to %(email)s revoked."
+msgstr "Invitation to %(email)s revoked."
+
+#: templates/households/ajustes.html
+msgid "Pending invitations"
+msgstr "Pending invitations"
+
+#: templates/households/ajustes.html
+#, python-format
+msgid "Expires in %(cuando)s"
+msgstr "Expires in %(cuando)s"
+
+#: templates/households/ajustes.html
+msgid "Invitation link"
+msgstr "Invitation link"
+
+#: templates/households/ajustes.html
+msgid "Copy"
+msgstr "Copy"
+
+#: templates/households/ajustes.html
+msgid "Copied"
+msgstr "Copied"
+
+#: templates/households/ajustes.html
+msgid "Resend"
+msgstr "Resend"
+
+#: templates/households/ajustes.html
+msgid "Revoke"
+msgstr "Revoke"

@@ -119,7 +119,7 @@ class Invitation(models.Model):
     household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="invitations")
     email = models.EmailField(_("email address"))
     token = models.CharField(max_length=64, unique=True, default=_token_invitacion, editable=False)
-    language = models.CharField(_("language"), max_length=5, default="en")
+    language = models.CharField(_("language"), max_length=5, default="en", choices=settings.LANGUAGES)
     invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_invitations"
     )

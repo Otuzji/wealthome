@@ -1,21 +1,43 @@
+import smtplib
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
+from django.utils.translation import gettext as _
 
+from .emails import enviar_invitacion
 from .forms import InvitarForm, PermisosForm
-from .models import Membership
+from .models import Invitation, Membership
 from .permissions import con_hogar, membresia_actual, solo_admin
-from .services import HouseholdLleno, InvitacionInvalida, aceptar_invitacion, invitar
+from .services import (
+    HouseholdLleno,
+    InvitacionInvalida,
+    aceptar_invitacion,
+    invitaciones_pendientes,
+    invitar,
+    revocar_invitacion,
+)
 
 
 @con_hogar
 def ajustes(request, hogar):
+    es_admin = membresia_actual(request).role == Membership.ADMIN
+    # Solo el admin ve las pendientes: llevan el enlace, que vale por una entrada.
+    pendientes = (
+        [(inv, _enlace_de(request, inv)) for inv in invitaciones_pendientes(hogar)]
+        if es_admin
+        else []
+    )
     return render(
         request,
         "households/ajustes.html",
         {
             "hogar": hogar,
             "miembros": hogar.active_memberships().select_related("user"),
-            "es_admin": membresia_actual(request).role == Membership.ADMIN,
+            "es_admin": es_admin,
+            "pendientes": pendientes,
         },
     )
 
@@ -25,12 +47,34 @@ def invitar_view(request, hogar):
     form = InvitarForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
-            invitar(request.user, hogar, form.cleaned_data["email"], form.cleaned_data["language"])
+            invitacion = invitar(
+                request.user, hogar, form.cleaned_data["email"], form.cleaned_data["language"]
+            )
         except HouseholdLleno as exc:
             form.add_error(None, str(exc))
         else:
+            _enviar_o_avisar(request, invitacion)
             return redirect("households:ajustes")
     return render(request, "households/invitar.html", {"form": form})
+
+
+def _enlace_de(request, invitacion):
+    return request.build_absolute_uri(reverse("households:aceptar", args=[invitacion.token]))
+
+
+def _enviar_o_avisar(request, invitacion):
+    """Un fallo del SMTP no tira la invitación: el token ya existe y Ajustes
+    muestra el enlace para compartirlo a mano."""
+    try:
+        enviar_invitacion(invitacion, _enlace_de(request, invitacion))
+    except (smtplib.SMTPException, OSError):
+        messages.warning(
+            request,
+            _("The invitation was created but we could not send the email. Share the link below with %(email)s.")
+            % {"email": invitacion.email},
+        )
+    else:
+        messages.success(request, _("Invitation sent to %(email)s.") % {"email": invitacion.email})
 
 
 @solo_admin
@@ -43,6 +87,29 @@ def permisos(request, hogar, pk):
         form.save()
         return redirect("households:ajustes")
     return render(request, "households/permisos.html", {"form": form, "membresia": membresia})
+
+
+def _invitacion_del_hogar(hogar, pk):
+    # Acotada al hogar del admin igual que `permisos`: la de otro hogar da 404.
+    return get_object_or_404(Invitation, pk=pk, household=hogar, accepted_at__isnull=True)
+
+
+@solo_admin
+@require_POST
+def revocar(request, hogar, pk):
+    invitacion = _invitacion_del_hogar(hogar, pk)
+    revocar_invitacion(invitacion)
+    messages.success(
+        request, _("Invitation to %(email)s revoked.") % {"email": invitacion.email}
+    )
+    return redirect("households:ajustes")
+
+
+@solo_admin
+@require_POST
+def reenviar(request, hogar, pk):
+    _enviar_o_avisar(request, _invitacion_del_hogar(hogar, pk))
+    return redirect("households:ajustes")
 
 
 @login_required

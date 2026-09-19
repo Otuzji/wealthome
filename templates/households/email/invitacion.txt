@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}{{ invitador }} has invited you to join the household {{ hogar }} on Wealthome, to manage the family budget together.{% endblocktranslate %}
+
+{% translate "Join the household" %}: {{ enlace }}
+
+{% blocktranslate %}This link expires in {{ dias }} days. If you were not expecting this invitation, you can ignore this email.{% endblocktranslate %}
+{% endautoescape %}

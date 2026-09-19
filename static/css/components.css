@@ -134,3 +134,39 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .miembros__fila { display: flex; align-items: center; gap: 12px; min-height: var(--touch-target); padding: 6px 0; }
 .miembros__quien { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .miembros__rol { color: var(--text-muted); font-size: 0.875em; }
+/* La fila de una invitacion pendiente lleva mas piezas (enlace, reenviar,
+   revocar) que la de un miembro: en movil se parte en dos lineas. */
+.miembros__fila--invitacion { flex-wrap: wrap; }
+.miembros__fila--invitacion .miembros__quien { flex-basis: 100%; }
+.miembros__accion { margin: 0; }
+.enlace-copiable { display: flex; flex: 1; flex-basis: 100%; min-width: 0; gap: 6px; align-items: center; }
+.enlace-copiable__campo {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 0 10px;
+  background: var(--field-bg);
+  color: var(--text-muted);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.875em;
+  text-overflow: ellipsis;
+}
+.btn--peligro { color: var(--danger); }
+@media (min-width: 720px) {
+  .miembros__fila--invitacion .miembros__quien { flex-basis: 14rem; }
+  .enlace-copiable { flex-basis: auto; }
+}
+[x-cloak] { display: none !important; }
+
+/* ---------- avisos (django.contrib.messages) ---------- */
+.avisos { margin-bottom: 16px; }
+.aviso {
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: inset 4px 0 0 var(--accent), var(--shadow-raised);
+}
+.aviso--warning, .aviso--error { box-shadow: inset 4px 0 0 var(--danger), var(--shadow-raised); }

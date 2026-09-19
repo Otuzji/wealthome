@@ -30,4 +30,33 @@
     {% endfor %}
   </ul>
 </section>
+
+{% if pendientes %}
+<section class="card card--ancho">
+  <h2>{% translate "Pending invitations" %}</h2>
+  <ul class="miembros">
+    {% for inv, enlace in pendientes %}
+      <li class="miembros__fila miembros__fila--invitacion">
+        <span class="miembros__quien">
+          <strong>{{ inv.email }}</strong>
+          <span class="miembros__rol">{% blocktranslate with cuando=inv.expires_at|timeuntil %}Expires in {{ cuando }}{% endblocktranslate %}</span>
+        </span>
+        <span class="enlace-copiable" x-data="{ copiado: false }">
+          <input class="enlace-copiable__campo" type="text" readonly value="{{ enlace }}" aria-label="{% translate 'Invitation link' %}" @focus="$el.select()">
+          <button type="button" class="btn btn--sutil"
+                  @click="navigator.clipboard.writeText('{{ enlace|escapejs }}').then(() => { copiado = true; setTimeout(() => copiado = false, 2000) })">
+            <span x-show="!copiado">{% translate "Copy" %}</span><span x-show="copiado" x-cloak>{% translate "Copied" %}</span>
+          </button>
+        </span>
+        <form method="post" action="{% url 'households:reenviar' inv.pk %}" class="miembros__accion">
+          {% csrf_token %}<button type="submit" class="btn btn--sutil">{% translate "Resend" %}</button>
+        </form>
+        <form method="post" action="{% url 'households:revocar' inv.pk %}" class="miembros__accion">
+          {% csrf_token %}<button type="submit" class="btn btn--sutil btn--peligro">{% translate "Revoke" %}</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 {% endblock %}

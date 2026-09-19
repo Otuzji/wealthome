@@ -144,6 +144,24 @@ if "pytest" in sys.modules:
     INSTALLED_APPS += ["tests"]
 
 # Stripe (§5). Vacias en desarrollo y en pruebas: la suite NUNCA llama a Stripe.
+# Correo saliente (invitaciones). Con EMAIL_HOST_USER definido se envia por
+# SMTP (Gmail con contrasena de aplicacion, ver .env.example); sin el, el
+# backend de consola imprime el correo en la terminal, que es lo que quiere el
+# desarrollo local. Las pruebas no pasan por aqui: pytest-django fuerza el
+# backend en memoria (`mailoutbox`).
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_TIMEOUT = 10  # segundos: el envio es sincrono dentro de la peticion
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "wealthome@localhost")
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_HOST_USER
+    else "django.core.mail.backends.console.EmailBackend"
+)
+
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")

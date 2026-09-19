@@ -182,3 +182,131 @@ def test_las_rutas_visibles_están_en_inglés():
     assert reverse("households:invitar") == "/household/settings/invite/"
     assert reverse("households:permisos", args=[7]) == "/household/settings/permissions/7/"
     assert reverse("households:aceptar", args=["abc"]) == "/household/invitation/abc/"
+
+
+@pytest.mark.django_db
+def test_al_invitar_se_envia_el_correo_con_el_enlace_absoluto(client, admin_con_hogar, mailoutbox):
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    client.post(reverse("households:invitar"), {"email": "marie@example.com", "language": "en"})
+
+    inv = Invitation.objects.get(household=hogar)
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to == ["marie@example.com"]
+    assert "http://testserver" + reverse("households:aceptar", args=[inv.token]) in mailoutbox[0].body
+
+
+@pytest.mark.django_db
+def test_si_el_correo_falla_la_invitacion_se_conserva_y_se_avisa(client, admin_con_hogar, monkeypatch):
+    import smtplib
+
+    from apps.households import views
+
+    def _falla(*args, **kwargs):
+        raise smtplib.SMTPException("boom")
+
+    monkeypatch.setattr(views, "enviar_invitacion", _falla)
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    respuesta = client.post(
+        reverse("households:invitar"), {"email": "marie@example.com", "language": "en"}, follow=True
+    )
+
+    assert Invitation.objects.filter(household=hogar, email="marie@example.com").exists()
+    html = respuesta.content.decode()
+    assert "could not send the email" in html
+
+
+@pytest.mark.django_db
+def test_el_admin_ve_las_invitaciones_pendientes_con_su_enlace(client, admin_con_hogar):
+    admin, hogar = admin_con_hogar
+    pendiente = invitar(admin, hogar, "marie@example.com", language="fr")
+    aceptada = invitar(admin, hogar, "paul@example.com", language="en")
+    aceptar_invitacion(UserFactory(), aceptada.token)
+    client.force_login(admin)
+
+    html = client.get(reverse("households:ajustes")).content.decode()
+
+    assert "marie@example.com" in html
+    assert "http://testserver" + reverse("households:aceptar", args=[pendiente.token]) in html
+    assert "paul@example.com" not in html
+
+
+@pytest.mark.django_db
+def test_un_miembro_normal_no_ve_las_invitaciones_pendientes(client, admin_con_hogar):
+    admin, hogar = admin_con_hogar
+    invitar(admin, hogar, "marie@example.com", language="en")
+    miembro = MembershipFactory(household=hogar, role=Membership.MEMBER)
+    client.force_login(miembro.user)
+
+    html = client.get(reverse("households:ajustes")).content.decode()
+    assert "marie@example.com" not in html
+
+
+@pytest.mark.django_db
+def test_revocar_una_invitacion_libera_su_puesto(client, admin_con_hogar):
+    admin, hogar = admin_con_hogar
+    for i in range(5):
+        invitar(admin, hogar, f"p{i}@example.com", language="en")
+    victima = Invitation.objects.filter(household=hogar).first()
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("households:revocar", args=[victima.pk]))
+
+    assert respuesta.status_code == 302
+    assert not Invitation.objects.filter(pk=victima.pk).exists()
+    # El sexto puesto vuelve a estar libre.
+    assert invitar(admin, hogar, "sexto@example.com", language="en")
+
+
+@pytest.mark.django_db
+def test_un_admin_no_puede_revocar_una_invitacion_de_otro_hogar(client, admin_con_hogar):
+    admin, _ = admin_con_hogar
+    otro_admin = UserFactory()
+    otro_hogar = crear_hogar(otro_admin, "Family Martin", family_size=2)
+    ajena = invitar(otro_admin, otro_hogar, "x@example.com", language="en")
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("households:revocar", args=[ajena.pk]))
+
+    assert respuesta.status_code == 404
+    assert Invitation.objects.filter(pk=ajena.pk).exists()
+
+
+@pytest.mark.django_db
+def test_un_miembro_normal_no_puede_revocar_ni_reenviar(client, admin_con_hogar):
+    admin, hogar = admin_con_hogar
+    inv = invitar(admin, hogar, "marie@example.com", language="en")
+    miembro = MembershipFactory(household=hogar, role=Membership.MEMBER)
+    client.force_login(miembro.user)
+
+    assert client.post(reverse("households:revocar", args=[inv.pk])).status_code == 403
+    assert client.post(reverse("households:reenviar", args=[inv.pk])).status_code == 403
+    assert Invitation.objects.filter(pk=inv.pk).exists()
+
+
+@pytest.mark.django_db
+def test_reenviar_manda_otra_vez_el_correo_de_la_misma_invitacion(client, admin_con_hogar, mailoutbox):
+    admin, hogar = admin_con_hogar
+    inv = invitar(admin, hogar, "marie@example.com", language="fr")
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("households:reenviar", args=[inv.pk]))
+
+    assert respuesta.status_code == 302
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to == ["marie@example.com"]
+    assert inv.token in mailoutbox[0].body
+    assert Invitation.objects.filter(household=hogar).count() == 1
+
+
+@pytest.mark.django_db
+def test_revocar_y_reenviar_solo_aceptan_post(client, admin_con_hogar):
+    admin, hogar = admin_con_hogar
+    inv = invitar(admin, hogar, "marie@example.com", language="en")
+    client.force_login(admin)
+
+    assert client.get(reverse("households:revocar", args=[inv.pk])).status_code == 405
+    assert client.get(reverse("households:reenviar", args=[inv.pk])).status_code == 405

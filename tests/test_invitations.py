@@ -162,3 +162,49 @@ def test_aceptar_invitacion_bloquea_la_fila_del_hogar():
         "aceptar_invitacion debe bloquear la fila del hogar (SELECT ... FOR UPDATE) "
         "antes de contar sus membresías activas, no solo la fila de la invitación."
     )
+
+
+@pytest.mark.django_db
+def test_enviar_invitacion_manda_un_correo_al_invitado_con_el_enlace(mailoutbox):
+    from apps.households.emails import enviar_invitacion
+
+    admin = UserFactory(display_name="Anne")
+    hogar = crear_hogar(admin, "Family Thompson", family_size=4)
+    inv = invitar(admin, hogar, "marie@example.com", language="en")
+
+    enviar_invitacion(inv, "https://wealthome.test/invitation/" + inv.token + "/")
+
+    assert len(mailoutbox) == 1
+    correo = mailoutbox[0]
+    assert correo.to == ["marie@example.com"]
+    assert "Family Thompson" in correo.subject
+    assert "https://wealthome.test/invitation/" + inv.token + "/" in correo.body
+    assert correo.alternatives and correo.alternatives[0][1] == "text/html"
+    assert inv.token in correo.alternatives[0][0]
+
+
+@pytest.mark.django_db
+def test_el_correo_de_invitacion_sale_en_el_idioma_elegido_por_el_admin(mailoutbox):
+    from apps.households.emails import enviar_invitacion
+
+    admin = UserFactory()
+    hogar = crear_hogar(admin, "Family Thompson", family_size=4)
+    inv = invitar(admin, hogar, "marie@example.com", language="fr")
+
+    enviar_invitacion(inv, "https://wealthome.test/x/")
+
+    assert "vous invite" in mailoutbox[0].subject
+    assert "Rejoindre" in mailoutbox[0].body
+
+
+@pytest.mark.django_db
+def test_el_idioma_de_la_invitacion_solo_admite_los_del_producto():
+    from django.core.exceptions import ValidationError
+
+    admin = UserFactory()
+    hogar = crear_hogar(admin, "Family Thompson", family_size=4)
+    inv = Invitation(household=hogar, email="x@example.com", language="xx", invited_by=admin)
+
+    with pytest.raises(ValidationError) as exc:
+        inv.full_clean()
+    assert "language" in exc.value.message_dict

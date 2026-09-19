@@ -23,7 +23,7 @@
      bajo la barra; en movil el CSS las fija abajo. {% endcomment %}
   {% include "_barra.html" %}
   {% include "_tabs.html" %}
-  <main class="shell">{% block content %}{% endblock %}</main>
+  <main class="shell">{% include "_mensajes.html" %}{% block content %}{% endblock %}</main>
   {% include "_fab.html" %}
   {% include "_drawer.html" %}
   <script src="{% static 'vendor/htmx.min.js' %}"></script>

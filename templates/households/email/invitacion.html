@@ -1,0 +1,10 @@
+{% load i18n %}<!doctype html>
+<html lang="{{ invitacion.language }}"><body style="font-family:system-ui,sans-serif;color:#1f2937;line-height:1.5;max-width:36rem;margin:0 auto;padding:1.5rem">
+  <h1 style="font-size:1.25rem;margin:0 0 1rem">Wealthome</h1>
+  <p>{% blocktranslate %}{{ invitador }} has invited you to join the household {{ hogar }} on Wealthome, to manage the family budget together.{% endblocktranslate %}</p>
+  <p style="margin:1.5rem 0">
+    <a href="{{ enlace }}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:.75rem 1.25rem;border-radius:.5rem;font-weight:600">{% translate "Join the household" %}</a>
+  </p>
+  <p style="font-size:.875rem;color:#6b7280">{% blocktranslate %}This link expires in {{ dias }} days. If you were not expecting this invitation, you can ignore this email.{% endblocktranslate %}</p>
+  <p style="font-size:.75rem;color:#9ca3af;word-break:break-all">{{ enlace }}</p>
+</body></html>

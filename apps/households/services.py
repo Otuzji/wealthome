@@ -14,12 +14,22 @@ class InvitacionInvalida(Exception):
     """El token no existe, ya se usó o caducó."""
 
 
+def invitaciones_pendientes(household):
+    """Las que aún ocupan un puesto: ni aceptadas ni caducadas."""
+    return Invitation.objects.filter(
+        household=household, accepted_at__isnull=True, expires_at__gt=timezone.now()
+    ).order_by("created_at")
+
+
+def revocar_invitacion(invitacion):
+    """Borrarla basta: `_puestos_libres` solo cuenta las que existen y siguen
+    vigentes, así que el puesto se libera en el acto."""
+    invitacion.delete()
+
+
 def _puestos_libres(household):
     ocupados = household.active_memberships().count()
-    pendientes = Invitation.objects.filter(
-        household=household, accepted_at__isnull=True, expires_at__gt=timezone.now()
-    ).count()
-    return Membership.MAX_PER_HOUSEHOLD - ocupados - pendientes
+    return Membership.MAX_PER_HOUSEHOLD - ocupados - invitaciones_pendientes(household).count()
 
 
 @transaction.atomic

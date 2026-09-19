@@ -1525,3 +1525,77 @@ msgstr "Ce que disent les règles"
 #: templates/wizards/incorporacion.html
 msgid "You can close this at any point. Everything you set up is already saved, and the rest lives under your avatar, in Budget setup, whenever you want it."
 msgstr "Vous pouvez fermer ceci à tout moment. Tout ce que vous avez configuré est déjà enregistré, et le reste se trouve sous votre avatar, dans Réglages du budget, quand vous le voulez."
+
+#: apps/households/emails.py
+#, python-format
+msgid "%(invitador)s invites you to join %(hogar)s on Wealthome"
+msgstr "%(invitador)s vous invite à rejoindre %(hogar)s sur Wealthome"
+
+#: templates/households/email/invitacion.txt
+#: templates/households/email/invitacion.html
+#, python-format
+msgid ""
+"%(invitador)s has invited you to join the household %(hogar)s on Wealthome, "
+"to manage the family budget together."
+msgstr ""
+"%(invitador)s vous a invité·e à rejoindre le foyer %(hogar)s sur Wealthome, "
+"pour gérer ensemble le budget familial."
+
+#: templates/households/email/invitacion.txt
+#: templates/households/email/invitacion.html
+msgid "Join the household"
+msgstr "Rejoindre le foyer"
+
+#: templates/households/email/invitacion.txt
+#: templates/households/email/invitacion.html
+#, python-format
+msgid ""
+"This link expires in %(dias)s days. If you were not expecting this "
+"invitation, you can ignore this email."
+msgstr ""
+"Ce lien expire dans %(dias)s jours. Si vous n'attendiez pas cette "
+"invitation, vous pouvez ignorer ce courriel."
+
+#: apps/households/views.py
+#, python-format
+msgid "The invitation was created but we could not send the email. Share the link below with %(email)s."
+msgstr "L'invitation a été créée mais nous n'avons pas pu envoyer le courriel. Partagez le lien ci-dessous avec %(email)s."
+
+#: apps/households/views.py
+#, python-format
+msgid "Invitation sent to %(email)s."
+msgstr "Invitation envoyée à %(email)s."
+
+#: apps/households/views.py
+#, python-format
+msgid "Invitation to %(email)s revoked."
+msgstr "Invitation à %(email)s révoquée."
+
+#: templates/households/ajustes.html
+msgid "Pending invitations"
+msgstr "Invitations en attente"
+
+#: templates/households/ajustes.html
+#, python-format
+msgid "Expires in %(cuando)s"
+msgstr "Expire dans %(cuando)s"
+
+#: templates/households/ajustes.html
+msgid "Invitation link"
+msgstr "Lien d'invitation"
+
+#: templates/households/ajustes.html
+msgid "Copy"
+msgstr "Copier"
+
+#: templates/households/ajustes.html
+msgid "Copied"
+msgstr "Copié"
+
+#: templates/households/ajustes.html
+msgid "Resend"
+msgstr "Renvoyer"
+
+#: templates/households/ajustes.html
+msgid "Revoke"
+msgstr "Révoquer"
