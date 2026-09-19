@@ -7,8 +7,10 @@ se pinta como un segmented control y no como dos enlaces de menu.
 
 El avatar abre el drawer (_drawer.html). Ahi vive todo lo que era "Settings". {% endcomment %}
 <header class="barra">
-  <a class="barra__logo" href="{% url 'accounts:inicio' %}">Wealthome</a>
-
+  <div class="barra_containers">
+    <a class="barra__logo" href="{% url 'accounts:inicio' %}">Wealthome</a>
+  </div>
+  <div class="barra_containers">
   {% if nav_ambitos %}
     <nav class="conmutador" aria-label="{% translate 'Scope' %}">
       {% for ambito in nav_ambitos %}
@@ -17,7 +19,8 @@ El avatar abre el drawer (_drawer.html). Ahi vive todo lo que era "Settings". {%
       {% endfor %}
     </nav>
   {% endif %}
-
+  </div>
+  <div class="barra_containers">
   {% if user.is_authenticated %}
     <div class="barra__derecha">
       {% if nav_drawer and not nav_puede_escribir %}
@@ -34,4 +37,5 @@ El avatar abre el drawer (_drawer.html). Ahi vive todo lo que era "Settings". {%
       </button>
     </div>
   {% endif %}
+  </div>
 </header>

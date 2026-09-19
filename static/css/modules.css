@@ -13,6 +13,16 @@
   padding: 8px 16px;
   background: var(--bg);
   border-bottom: var(--border-width) solid var(--border-color);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.barra_containers {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 .barra__logo {
   flex: none;
@@ -84,11 +94,15 @@
   left: 0; right: 0; bottom: 0;
   z-index: 10;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
+  gap: 12px;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: var(--border-width) solid var(--border-color);
   box-shadow: var(--shadow-raised);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 .tabs__enlace {
   display: flex;
@@ -133,9 +147,9 @@
   .barra { padding: 8px 24px; }
   .tabs {
     position: static;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 6px;
-    max-width: 1100px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 8px 24px 0;
     background: transparent;
