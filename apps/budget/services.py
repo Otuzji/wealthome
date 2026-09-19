@@ -39,10 +39,16 @@ from apps.budget.models.catalog import EXPENSE, INCOME
 class LineaProyectada:
     categoria_id: int          # nunca None: los ingresos usan la categoria de ingreso
     kind: str
-    importe: Decimal
+    importe: Decimal           # de UN pago: hay una linea por vencimiento
     origen: str          # "income" | "expense"
     origen_id: int
     nombre: str
+    fecha: date                # el vencimiento: el dia en que la regla dispara
+
+    @property
+    def clave(self):
+        """Lo que identifica la linea dentro del mes, para casarla al refrescar."""
+        return (self.origen, self.origen_id, self.fecha)
 
 
 @dataclass(frozen=True)
@@ -83,8 +89,8 @@ def proyectar(hogar, anio, mes):
     lineas = []
 
     for fuente in IncomeSource.objects.for_household(hogar):
-        veces = len(fuente.ocurrencias_en(anio, mes))
-        if not veces:
+        fechas = fuente.ocurrencias_en(anio, mes)
+        if not fechas:
             continue
         media = fuente.amount_type == motor_income.ROLLING_AVERAGE
         cifra = fuente.cifra_del_mes(
@@ -94,28 +100,29 @@ def proyectar(hogar, anio, mes):
             # rolling_average sin historia: aún no hay datos, y no se inventa
             # un número. La interfaz lo dice con todas sus letras.
             continue
-        lineas.append(
-            LineaProyectada(
-                categoria_id=categoria_de_ingreso.pk, kind=INCOME,
-                # Los otros cuatro modos dan la cifra de UN pago, y hay que
-                # multiplicarla por las veces que cae en el mes (§2.2). La
-                # media móvil ya es de totales mensuales: multiplicarla
-                # presupuestaría el doble en un ingreso quincenal.
-                importe=centavos(cifra) if media else centavos(cifra * veces),
-                origen="income", origen_id=fuente.pk, nombre=fuente.name,
+        # Una linea por pago, con su fecha (§2.2: la cifra es de UN pago). La
+        # media movil ya es de totales mensuales: una sola linea, en la
+        # primera fecha, o presupuestaria el doble en un ingreso quincenal.
+        for fecha in (fechas[:1] if media else fechas):
+            lineas.append(
+                LineaProyectada(
+                    categoria_id=categoria_de_ingreso.pk, kind=INCOME,
+                    importe=centavos(cifra), origen="income", origen_id=fuente.pk,
+                    nombre=fuente.name, fecha=fecha,
+                )
             )
-        )
 
     for regla in ExpenseRule.objects.for_household(hogar).select_related("category"):
-        importe = regla.importe_del_mes(anio, mes)
-        if importe <= 0:
+        if regla.amount <= 0:
             continue
-        lineas.append(
-            LineaProyectada(
-                categoria_id=regla.category_id, kind=EXPENSE, importe=importe,
-                origen="expense", origen_id=regla.pk, nombre=regla.name,
+        for fecha in regla.ocurrencias_en(anio, mes):
+            lineas.append(
+                LineaProyectada(
+                    categoria_id=regla.category_id, kind=EXPENSE,
+                    importe=centavos(regla.amount), origen="expense",
+                    origen_id=regla.pk, nombre=regla.name, fecha=fecha,
+                )
             )
-        )
 
     ingresos = centavos(sum(l.importe for l in lineas if l.kind == INCOME))
     egresos = centavos(sum(l.importe for l in lineas if l.kind == EXPENSE))
@@ -142,7 +149,7 @@ def materializar(hogar, anio, mes):
         linea = BudgetLine(
             household=hogar, budget_month=fila, kind=proyectada.kind,
             planned_amount=proyectada.importe,
-            category_id=proyectada.categoria_id,
+            category_id=proyectada.categoria_id, due_date=proyectada.fecha,
         )
         if proyectada.origen == "income":
             linea.source_income_id = proyectada.origen_id
@@ -278,8 +285,12 @@ def _esta_vencido(mes, hoy):
     return hoy > fin + timedelta(days=DIAS_PARA_EL_CIERRE_AUTOMATICO)
 
 
-def _mes_siguiente(anio, mes):
+def mes_siguiente(anio, mes):
     return (anio + 1, 1) if mes == 12 else (anio, mes + 1)
+
+
+def mes_previo(anio, mes):
+    return (anio - 1, 12) if mes == 1 else (anio, mes - 1)
 
 
 def cerrar_vencidos(hogar, hoy=None):
@@ -303,7 +314,7 @@ def cerrar_vencidos(hogar, hoy=None):
         if mes is None or not _esta_vencido(mes, hoy):
             break
         cerrados.append(cerrar_mes(mes))
-        siguiente_anio, siguiente_mes = _mes_siguiente(mes.year, mes.month)
+        siguiente_anio, siguiente_mes = mes_siguiente(mes.year, mes.month)
         materializar(hogar, siguiente_anio, siguiente_mes)
     return cerrados
 
@@ -359,6 +370,90 @@ def obtener_mes(hogar, anio, mes, hoy=None):
         return proyectar(hogar, anio, mes)
 
     return materializar(hogar, anio, mes)
+
+
+def abrir_para_planificar(hogar, anio, mes, hoy=None):
+    """La fila sobre la que trabaja el asistente del §4.5.6, o None.
+
+    El mes corriente y los futuros se materializan si aun no lo estaban: desde
+    ese momento el mes es independiente del setup y se edita en sus lineas
+    (§2.3). Un mes pasado sin fila NO se fabrica —seria historial inventado,
+    ver `obtener_mes`— y un hogar que no puede escribir tampoco crea nada.
+    Devuelve la fila aunque este cerrada: que lo diga la vista.
+    """
+    hoy = hoy or timezone.localdate()
+    resultado = obtener_mes(hogar, anio, mes, hoy)
+    if isinstance(resultado, BudgetMonth):
+        return resultado
+    if (anio, mes) < (hoy.year, hoy.month) or not hogar.puede_escribir:
+        return None
+    return materializar(hogar, anio, mes)
+
+
+@transaction.atomic
+def refrescar_desde_las_reglas(hogar, mes):
+    """Vuelve a copiar el setup sobre un mes ya materializado.
+
+    Un mes con filas no sigue al setup (§2.3), y eso es lo correcto mientras se
+    edita el mes; pero quien corrige una regla DESPUES de haber planificado
+    octubre se queda con la copia vieja sin forma de ponerla al dia. Esto lo
+    hace a peticion: importes de las reglas vigentes, reglas nuevas anadidas,
+    lineas de reglas que ya no aplican (o borradas) quitadas. Las partidas
+    excepcionales no se tocan: no vienen del setup.
+    """
+    mes = BudgetMonth.unscoped.select_for_update().get(pk=mes.pk)
+    if mes.esta_cerrado:
+        raise MesCerrado(f"El mes {mes} está cerrado.")
+
+    existentes = {}
+    for linea in mes.lineas.filter(is_exceptional=False):
+        origen = (
+            ("income", linea.source_income_id) if linea.source_income_id
+            else ("expense", linea.source_expense_rule_id)
+        )
+        existentes[origen + (linea.due_date,)] = linea
+
+    for proyectada in proyectar(hogar, mes.year, mes.month).lineas:
+        linea = existentes.pop(proyectada.clave, None)
+        if linea is None:
+            linea = BudgetLine(household=hogar, budget_month=mes, kind=proyectada.kind,
+                               due_date=proyectada.fecha)
+            if proyectada.origen == "income":
+                linea.source_income_id = proyectada.origen_id
+            else:
+                linea.source_expense_rule_id = proyectada.origen_id
+        linea.category_id = proyectada.categoria_id
+        linea.planned_amount = proyectada.importe
+        linea.full_clean()
+        linea.save()
+
+    # Lo que queda son lineas cuya regla ya no aplica este mes o se borro
+    # (source en NULL): el setup ya no las tiene, el mes tampoco.
+    for linea in existentes.values():
+        linea.delete()
+    return mes
+
+
+@dataclass(frozen=True)
+class TotalesDelMes:
+    total_ingresos: Decimal
+    total_egresos: Decimal
+    sobrante: Decimal
+
+
+def totales_del_mes(mes):
+    """Lo que dicen las LINEAS del mes, excepcionales incluidas.
+
+    Es lo que el paso 3 del asistente reparte. Antes volvia a `proyectar`, que
+    lee las reglas: una partida excepcional anadida en el paso 2 no entraba en
+    el sobrante, y un importe corregido para ese mes tampoco.
+    """
+    por_kind = dict(
+        mes.lineas.values_list("kind").annotate(total=Sum("planned_amount"))
+    )
+    ingresos = centavos(por_kind.get(INCOME) or 0)
+    egresos = centavos(por_kind.get(EXPENSE) or 0)
+    return TotalesDelMes(ingresos, egresos, centavos(ingresos - egresos))
 
 
 @transaction.atomic
@@ -425,11 +520,11 @@ def mes_de_fecha(hogar, fecha):
 def _fila_del_mes_siguiente(mes):
     """La fila del mes que viene, creándola si el hogar no ha llegado allí.
 
-    Distinta de `_mes_siguiente(anio, mes)`, que solo hace la aritmética del
+    Distinta de `mes_siguiente(anio, mes)`, que solo hace la aritmética del
     calendario: aquí hace falta una fila donde escribir el ajuste de la
     mesada, y el hogar puede no haber entrado nunca a ese mes.
     """
-    anio, numero = _mes_siguiente(mes.year, mes.month)
+    anio, numero = mes_siguiente(mes.year, mes.month)
     fila, _ = BudgetMonth.unscoped.get_or_create(
         household=mes.household, year=anio, month=numero,
         defaults={"status": BudgetMonth.OPEN, "opened_at": timezone.now()},
@@ -478,18 +573,22 @@ def planificar_mes(hogar, mes, sobrante_proyectado):
     """Aplica la cascada y escribe el reparto y las mesadas del mes (§4.5.6).
 
     Al confirmar la planificación, cada miembro sabe desde el día 1 cuánta
-    mesada tiene, y esa cifra ya no se mueve durante el mes.
+    mesada tiene. Mientras el mes siga abierto el plan se puede rehacer —se
+    corrige un gasto del mes y se vuelve a confirmar—: el reparto anterior se
+    reescribe entero, no se suma. Lo unico inmutable es un mes cerrado.
     """
-    # Bloquea la fila del mes antes de mirar si ya hay reparto: sin esto, dos
-    # envios del boton "Confirmar el plan" pasan los dos por el exists() antes
-    # de que ninguno escriba, y el hogar acaba con las mesadas por duplicado.
-    # El bloqueo es sobre BudgetMonth y no sobre MonthlyAllocation porque no se
-    # puede bloquear una fila que aun no existe.
+    # Bloquea la fila del mes antes de tocar el reparto: sin esto, dos envios
+    # del boton "Confirmar el plan" se pisan y el hogar acaba con las mesadas
+    # por duplicado. El bloqueo es sobre BudgetMonth y no sobre
+    # MonthlyAllocation porque no se puede bloquear una fila que aun no existe.
     BudgetMonth.unscoped.select_for_update().get(pk=mes.pk)
 
-    ya = list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
-    if ya:
-        return ya
+    MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes).delete()
+    # Un miembro que tenia mesada y con el plan nuevo se queda sin ella tiene
+    # que ver 0, no la cifra del plan anterior.
+    for libro in AllowanceLedger.objects.for_household(hogar).filter(budget_month=mes):
+        libro.granted = Decimal("0.00")
+        libro.save(update_fields=["granted"])
 
     reglas_orm = {
         r.order: r

@@ -317,3 +317,58 @@
 }
 .modal__cabecera h2 { margin: 0; }
 .modal__cerrar { font-size: 1.5em; line-height: 1; padding: 0 10px; }
+
+/* ---------- la pantalla del mes ----------
+   Una columna en movil (resumen, plan, real). En escritorio el plan se lleva
+   el 70% y la columna derecha apila las donas y lo que de verdad paso. Las
+   areas se nombran para que el DOM siga el orden de lectura del movil. */
+.mes__cuerpo {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.mes__paginacion { display: flex; gap: 4px; }
+.pagina__cabecera h1 { display: flex; align-items: center; gap: 12px; font-size: 1.65em; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+@media (min-width: 900px) {
+  .mes__cuerpo {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    /* auto 1fr: sin esto, la altura del plan (que abarca las dos filas) se
+       reparte a medias y las donas y lo real quedan separadas por un hueco. */
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "plan donas" "plan real";
+  }
+  .mes__plan  { grid-area: plan; }
+  .mes__donas { grid-area: donas; }
+  .mes__real  { grid-area: real; }
+}
+
+/* Las donas: real contra planeado. El anillo es SVG con pathLength="100", asi
+   que el porcentaje es directamente el stroke-dasharray y no hay que calcular
+   circunferencias. Colores por variable: el tema los cambia sin recargar. */
+.donas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.dona { margin: 0; text-align: center; }
+.dona__anillo { position: relative; width: min(100%, 132px); margin: 0 auto; }
+.dona__anillo svg { display: block; width: 100%; height: auto; transform: rotate(-90deg); }
+.dona__pista, .dona__valor { fill: none; stroke-width: 11; }
+.dona__pista { stroke: var(--chart-grid); }
+.dona__valor { stroke-linecap: round; transition: stroke-dasharray 500ms ease-out; }
+.dona--ingreso .dona__valor { stroke: var(--accent); }
+.dona--egreso  .dona__valor { stroke: var(--outflow); }
+.dona__centro {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.35em;
+  font-weight: var(--font-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+.dona figcaption { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.dona figcaption span { color: var(--text-muted); font-size: 0.85em; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .dona__valor { transition: none; } }

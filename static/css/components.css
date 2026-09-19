@@ -6,6 +6,7 @@
   padding: 20px;
 }
 
+
 .btn {
   min-height: var(--touch-target);
   padding: 0 18px;
@@ -71,6 +72,39 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .tabla th, .tabla td { padding: 10px 12px; text-align: left; }
 .tabla th { color: var(--text-muted); font-weight: var(--font-weight-strong); }
 .tabla td.numero, .tabla th.numero { text-align: right; font-variant-numeric: tabular-nums; }
+/* Lo que entra en verde, lo que sale en naranja: se distinguen sin leer la cabecera. */
+.importe--ingreso { color: var(--accent-strong); }
+.importe--egreso { color: var(--outflow); }
+/* La tarjeta Planned: bloques con cabecera propia, totales y estado de pago.
+   Cada bloque lleva delante el punto del color de sus importes: verde lo que
+   entra, naranja lo que sale, la misma senal que la dona y las cifras. */
+.tabla__bloque th { padding-top: 22px; color: var(--text); font-weight: var(--font-weight-strong); font-size: 1.02em; }
+.tabla__bloque th::before {
+  content: "";
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-right: 9px;
+  border-radius: 999px;
+  vertical-align: 1px;
+  background: var(--text-muted);
+}
+.tabla__bloque--ingreso th::before { background: var(--accent); }
+.tabla__bloque--egreso th::before { background: var(--outflow); }
+.tabla__total td { font-weight: var(--font-weight-strong); border-top: 1px solid var(--field-bg); }
+.tabla__categoria, .tabla__vacio { color: var(--text-muted); }
+.linea__fecha { display: block; color: var(--text-muted); font-size: 0.8em; }
+.estado { white-space: nowrap; }
+.estado small { display: block; color: var(--text-muted); font-size: 0.8em; }
+.estado--pagada { color: var(--accent-strong); }
+.estado--parcial { color: var(--outflow); }
+.estado--pendiente { color: var(--text-muted); }
+
+/* Mientras htmx envia un formulario, que se note: el boton se apaga y no
+   admite un segundo clic. htmx pone .htmx-request en el <form>. */
+.htmx-request button[type="submit"] { opacity: 0.55; pointer-events: none; }
+
+/* El "Refresh from setup" de los pasos del asistente: aparte, debajo, discreto. */
+.refrescar { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--field-bg); }
 .tabla__envoltura { overflow-x: auto; }
 
 /* ---------- barra de progreso ---------- */
@@ -113,6 +147,8 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   font-variant-numeric: tabular-nums;
 }
 .cifra__valor--mal { color: var(--danger); }
+.cifra__valor--ingreso { color: var(--accent-strong); }
+.cifra__valor--egreso { color: var(--outflow); }
 /* En movil, dos por fila y la ultima impar a todo el ancho: tres cifras en dos
    columnas dejaban una huerfana. En escritorio, las que quepan. */
 .cifras { display: grid; gap: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -126,6 +162,24 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
    levantarse: relieve sobre relieve no se lee. */
 .card .cifra { box-shadow: var(--shadow-inset); background: var(--field-bg); }
 .card > h1 { margin-bottom: 16px; }
+/* El titulo de una tarjeta: un poco mas grande y con una barra corta de acento
+   debajo, que es lo que lo separa de una fila mas de la tabla. */
+.card > h2 {
+  margin-bottom: 18px;
+  font-size: 1.2em;
+  font-weight: var(--font-weight-strong);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.card > h2::after {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
 .card > h2 + .btn, .card > ul + .btn, .card > ol + .btn, .card > .tabla__envoltura + .btn { margin-top: 8px; }
 .filtros { margin-bottom: 12px; }
 
@@ -139,6 +193,13 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .miembros__fila--invitacion { flex-wrap: wrap; }
 .miembros__fila--invitacion .miembros__quien { flex-basis: 100%; }
 .miembros__accion { margin: 0; }
+
+/* Las filas de Configurar: la regla a la izquierda, Editar/Quitar a la derecha. */
+.lista-limpia { margin: 0; padding: 0; list-style: none; }
+.fila-regla { display: flex; align-items: center; gap: 12px; min-height: var(--touch-target); padding: 6px 0; }
+.fila-regla > span:first-child { flex: 1; }
+.fila-regla__acciones { display: inline-flex; gap: 6px; white-space: nowrap; }
+.fila-regla__acciones form { margin: 0; display: inline; }
 .enlace-copiable { display: flex; flex: 1; flex-basis: 100%; min-width: 0; gap: 6px; align-items: center; }
 .enlace-copiable__campo {
   flex: 1;

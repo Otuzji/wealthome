@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.budget.engine.income import RANGE, ROLLING_AVERAGE
+from apps.budget.engine.income import ESTIMATED, FIXED, RANGE, ROLLING_AVERAGE
 from apps.budget.engine.periodicity import BIWEEKLY, MONTHLY
 from apps.budget.models import Category, ExpenseRule, IncomeSource, Merchant
 from apps.budget.seeds import ARBOL, sembrar
@@ -188,6 +188,39 @@ def test_el_ingreso_en_rango_exige_que_el_minimo_no_supere_al_maximo():
 
     with pytest.raises(ValidationError):
         fuente.full_clean()
+
+
+@pytest.mark.parametrize("amount_type", [FIXED, ESTIMATED])
+def test_un_ingreso_fijo_o_estimado_exige_su_importe(amount_type):
+    """Encontrado con una cuenta de pruebas: un ingreso `estimated` guardado sin
+    `amount` pasaba el formulario (el campo es nulo para los otros modos) y el
+    motor reventaba con ValueError al proyectar su primer mes — un 500 en la
+    pantalla del mes. La guardia va en el modelo, como la del rango."""
+    from django.core.exceptions import ValidationError
+
+    hogar = HouseholdFactory()
+    fuente = IncomeSourceFactory.build(
+        household=hogar, owner=MembershipFactory(household=hogar),
+        amount_type=amount_type, amount=None,
+    )
+
+    with pytest.raises(ValidationError) as excinfo:
+        fuente.full_clean()
+    assert "amount" in excinfo.value.message_dict
+
+
+def test_un_ingreso_en_rango_exige_el_minimo():
+    from django.core.exceptions import ValidationError
+
+    hogar = HouseholdFactory()
+    fuente = IncomeSourceFactory.build(
+        household=hogar, owner=MembershipFactory(household=hogar),
+        amount_type=RANGE, amount_min=None, amount_max=Decimal("100"),
+    )
+
+    with pytest.raises(ValidationError) as excinfo:
+        fuente.full_clean()
+    assert "amount_min" in excinfo.value.message_dict
 
 
 # --- ExpenseRule --------------------------------------------------------------

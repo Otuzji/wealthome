@@ -89,6 +89,12 @@ class IncomeSource(ReglaVigente):
         super().clean()
         if self.owner_id and self.owner.household_id != self.household_id:
             raise ValidationError({"owner": _("That member belongs to another household.")})
+        # Lo que el motor exige por modo (cifra_conservadora lanza ValueError si
+        # falta): aqui es un error de formulario, alli seria un 500 en el mes.
+        if self.amount_type in (motor_income.FIXED, motor_income.ESTIMATED) and self.amount is None:
+            raise ValidationError({"amount": _("This kind of income needs an amount.")})
+        if self.amount_type == motor_income.RANGE and self.amount_min is None:
+            raise ValidationError({"amount_min": _("A range needs at least a minimum.")})
         if (
             self.amount_min is not None
             and self.amount_max is not None

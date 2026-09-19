@@ -7,9 +7,12 @@
 
 <section class="card">
   <h2>{% translate "Income" %}</h2>
-  <ul>
+  <ul class="lista-limpia">
     {% for fuente in ingresos %}
-      <li>{{ fuente.name }} — {{ fuente.get_amount_type_display }}</li>
+      <li class="fila-regla">
+        <span>{{ fuente.name }} — {{ fuente.get_amount_type_display }}</span>
+        {% include "budget/_fragmentos/acciones_regla.html" with editar='budget:ingreso_editar' borrar='budget:ingreso_borrar' pk=fuente.pk %}
+      </li>
     {% empty %}
       <li>{% translate "No income yet." %}</li>
     {% endfor %}
@@ -26,6 +29,7 @@
           <td>{{ gasto.name }}</td>
           <td>{{ gasto.get_periodicity_display }}</td>
           <td class="numero">{{ gasto.amount|money:hogar.currency }}</td>
+          <td>{% include "budget/_fragmentos/acciones_regla.html" with editar='budget:gasto_editar' borrar='budget:gasto_borrar' pk=gasto.pk %}</td>
         </tr>
       {% empty %}
         <tr><td>{% translate "No fixed expenses yet." %}</td></tr>
@@ -37,9 +41,12 @@
 
 <section class="card">
   <h2>{% translate "How the leftover is split" %}</h2>
-  <ol>
+  <ol class="lista-limpia">
     {% for regla in repartos %}
-      <li>{{ regla.get_target_type_display }} — {{ regla.get_method_display }}</li>
+      <li class="fila-regla">
+        <span>{{ regla.get_target_type_display }} — {{ regla.get_method_display }}</span>
+        {% include "budget/_fragmentos/acciones_regla.html" with editar='budget:reparto_editar' borrar='budget:reparto_borrar' pk=regla.pk %}
+      </li>
     {% empty %}
       <li>{% translate "No split rules yet." %}</li>
     {% endfor %}

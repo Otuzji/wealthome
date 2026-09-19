@@ -2,14 +2,14 @@
 {% block title %}{% translate "Close the month" %} · Wealthome{% endblock %}
 {% block content %}
 <section class="card card--formulario">
-  <h1>{% translate "Close the month" %}</h1>
+  <h1>{% translate "Close the month" %} · {{ mes }}</h1>
   <div class="card--hundida">
     <p>{% translate "Once closed, the month becomes a frozen picture and admits no more changes." %}</p>
   </div>
   <form method="post">
     {% csrf_token %}
     <button class="btn btn--primary btn--bloque" type="submit">{% translate "Close the month" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito %}">{% translate "Cancel" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito anio numero %}">{% translate "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

@@ -2,8 +2,12 @@
 {% block title %}{% translate "This month" %} · Wealthome{% endblock %}
 {% block content %}
 <header class="pagina__cabecera">
+  <nav class="mes__paginacion" aria-label="{% translate 'Months' %}">
+    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito anterior.0 anterior.1 %}">‹ {% translate "Previous" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito siguiente.0 siguiente.1 %}">{% translate "Next" %} ›</a>
+  </nav>
   <h1>
-    {{ anio }}-{{ numero }}
+    {{ anio }}-{{ numero|stringformat:"02d" }}
     {% if es_proyeccion %}
       <span class="pildora">{% translate "Not started" %}</span>
     {% else %}
@@ -17,16 +21,18 @@
      sentido para un mes abierto. {% endcomment %}
   {% if nav_membresia.can_edit_budget and nav_puede_escribir %}
     <div class="pagina__acciones">
-      <a class="btn" href="{% url 'budget:planificar' ambito %}">{% translate "Plan the month" %}</a>
-      {% if not es_proyeccion and resultado.status == 'open' %}
-        <a class="btn btn--primary" href="{% url 'budget:cerrar' ambito %}">{% translate "Close the month" %}</a>
+      {% if se_puede_planificar %}
+        <a class="btn" href="{% url 'budget:planificar_mes' ambito anio numero 1 %}">{% translate "Plan the month" %}</a>
+      {% endif %}
+      {% if se_puede_cerrar %}
+        <a class="btn btn--primary" href="{% url 'budget:cerrar_mes' ambito anio numero %}">{% translate "Close the month" %}</a>
       {% endif %}
     </div>
   {% endif %}
 </header>
 
 {% if es_proyeccion %}
-  <section class="card">
+  <section class="card ">
     <h2>{% translate "What the rules say" %}</h2>
     <p>{% translate "This month has not started yet — these numbers come from your rules." %}</p>
     <div class="tabla__envoltura">
@@ -45,35 +51,94 @@
     <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
   </div>
 {% else %}
-  <section class="card">
+  {% include "budget/_fragmentos/cifras.html" %}
+  {% comment %} En escritorio, el plan ocupa el 70% y a su derecha se apilan las
+     donas y lo que de verdad paso; en movil todo cae en una columna, resumen
+     primero. Es un solo contenedor con areas de rejilla para que el orden del
+     DOM (donas, plan, real) sea el orden de lectura en movil. {% endcomment %}
+  <div class="mes__cuerpo">
+  <section class="card mes__donas">
+    <h2>{% translate "Where the month stands" %}</h2>
+    <div class="donas">
+      {% for kind, dona in donas.items %}
+        <figure class="dona {% if kind == 'income' %}dona--ingreso{% else %}dona--egreso{% endif %}">
+          <div class="dona__anillo">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle class="dona__pista" cx="50" cy="50" r="42" pathLength="100"/>
+              {% if dona.porcentaje %}
+                <circle class="dona__valor" cx="50" cy="50" r="42" pathLength="100"
+                        stroke-dasharray="{{ dona.porcentaje }} 100"/>
+              {% endif %}
+            </svg>
+            <div class="dona__centro">{% if dona.planeado %}{{ dona.porcentaje }}%{% else %}—{% endif %}</div>
+          </div>
+          <figcaption>
+            <strong>{% if kind == 'income' %}{% translate "Income" %}{% else %}{% translate "Expenses" %}{% endif %}</strong>
+            <span>
+              {% if dona.planeado %}
+                {% blocktranslate with real=dona.real|money:hogar.currency planned=dona.planeado|money:hogar.currency %}{{ real }} of {{ planned }}{% endblocktranslate %}
+              {% else %}
+                {% translate "Nothing planned" %}
+              {% endif %}
+            </span>
+          </figcaption>
+        </figure>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="card mes__plan">
     <h2>{% translate "Planned" %}</h2>
     <div class="tabla__envoltura">
-      <table class="tabla">
-        <tr><th>{% translate "Category" %}</th><th class="numero">{% translate "Planned" %}</th></tr>
-        {% for linea in lineas %}
-          <tr>
-            <td>{{ linea.category.etiqueta }}</td>
-            <td class="numero">{{ linea.planned_amount|money:hogar.currency }}</td>
+      <table class="tabla tabla--plan">
+        <tr>
+          <th>{% translate "Category" %}</th><th>{% translate "Name" %}</th>
+          <th class="numero">{% translate "Planned" %}</th>
+          <th>{% translate "Status" %}</th><th>{% translate "Due date" %}</th>
+        </tr>
+        {% for bloque in bloques %}
+          <tr class="tabla__bloque {% if bloque.kind == 'income' %}tabla__bloque--ingreso{% else %}tabla__bloque--egreso{% endif %}">
+            <th colspan="5">{{ bloque.titulo }}</th></tr>
+          {% for linea in bloque.lineas %}
+            <tr>
+              <td class="tabla__categoria">{{ linea.category.etiqueta }}</td>
+              <td>{{ linea.nombre }}</td>
+              <td class="numero {% if bloque.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
+                {{ linea.planned_amount|money:hogar.currency }}</td>
+              <td>{% include "budget/_fragmentos/estado_linea.html" with linea=linea kind=bloque.kind %}</td>
+              <td>{% if linea.due_date %}{{ linea.due_date|date:"M j" }}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="tabla__vacio">
+              {% if bloque.kind == 'income' %}{% translate "No income falls in this month." %}
+              {% else %}{% translate "No fixed expenses fall in this month." %}{% endif %}</td></tr>
+          {% endfor %}
+          <tr class="tabla__total">
+            <td colspan="2">{% translate "Total" %}</td>
+            <td class="numero {% if bloque.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
+              {{ bloque.total|money:hogar.currency }}</td>
+            <td colspan="2"></td>
           </tr>
         {% endfor %}
       </table>
     </div>
   </section>
-  <section class="card">
+  <section class="card mes__real">
     <h2>{% translate "What actually happened" %}</h2>
     <div class="tabla__envoltura">
       <table class="tabla">
         {% for tx in transacciones %}
           <tr>
-            <td>{{ tx.date }}</td>
+            <td class="tabla__categoria">{{ tx.date|date:"M j" }}</td>
             <td>{{ tx.category.etiqueta }}</td>
-            <td class="numero">{{ tx.amount|money:hogar.currency }}</td>
+            <td class="numero {% if tx.category.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
+              {{ tx.amount|money:hogar.currency }}</td>
           </tr>
         {% empty %}
-          <tr><td>{% translate "Nothing recorded yet." %}</td></tr>
+          <tr><td class="tabla__vacio">{% translate "Nothing recorded yet." %}</td></tr>
         {% endfor %}
       </table>
     </div>
   </section>
+  </div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,11 @@
+{% load i18n money %}
+{% comment %} Paid / Partial / Pending de una linea del plan. En los ingresos,
+   "Received" en vez de "Paid": el dinero entro, nadie lo pago. {% endcomment %}
+{% if linea.estado == "paid" %}
+  <span class="estado estado--pagada">{% if kind == 'income' %}{% translate "Received" %}{% else %}{% translate "Paid" %}{% endif %}</span>
+{% elif linea.estado == "partial" %}
+  <span class="estado estado--parcial">{% translate "Partial" %}
+    <small>{% blocktranslate with falta=linea.restante|money:hogar.currency %}{{ falta }} left{% endblocktranslate %}</small></span>
+{% else %}
+  <span class="estado estado--pendiente">{% translate "Pending" %}</span>
+{% endif %}

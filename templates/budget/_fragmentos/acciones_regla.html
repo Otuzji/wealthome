@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %} Editar y Quitar de una regla del setup. Quitar es un POST con
+   confirmacion del navegador: un GET no destruye nada, y un modal propio
+   para un "seguro?" es mas de lo que la accion merece. {% endcomment %}
+<span class="fila-regla__acciones">
+  <a class="btn btn--sutil" href="{% url editar pk %}">{% translate "Edit" %}</a>
+  <form method="post" action="{% url borrar pk %}"
+        onsubmit="return confirm('{% translate "Remove this rule? Months already open keep their numbers." %}')">
+    {% csrf_token %}
+    <button class="btn btn--sutil btn--peligro" type="submit">{% translate "Remove" %}</button>
+  </form>
+</span>

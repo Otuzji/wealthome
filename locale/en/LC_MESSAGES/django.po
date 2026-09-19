@@ -1598,3 +1598,11 @@ msgstr "Join %(hogar)s"
 #: templates/households/aceptar.html
 msgid "Sign in to accept the invitation"
 msgstr "Sign in to accept the invitation"
+
+#: templates/budget/_fragmentos/cifras.html
+msgid "Total Incomes"
+msgstr "Total income"
+
+#: templates/budget/_fragmentos/cifras.html
+msgid "Total Expenses"
+msgstr "Total expenses"

@@ -3,9 +3,9 @@
 {% block content %}
 <section class="card card--formulario formulario">
   <h1>{% translate "Record a spend" %}</h1>
-  <form method="post">
+  <form method="post" x-data="{{ form.x_data|safe }}">
     {% csrf_token %}
-    {{ form.as_div }}
+    {% include "budget/_fragmentos/campos.html" %}
     <button class="btn btn--primary btn--bloque" type="submit">{% translate "Save" %}</button>
     <a class="btn btn--sutil" href="{% url 'budget:mes' 'household' %}">{% translate "Cancel" %}</a>
   </form>

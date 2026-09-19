@@ -11,7 +11,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 
-from apps.budget.models import ExpenseRule, IncomeSource
+from apps.budget.models import Category, ExpenseRule, IncomeSource
 from apps.households.models import Membership
 from apps.households.services import crear_hogar
 from tests.factories import MembershipFactory, UserFactory
@@ -124,6 +124,57 @@ def test_el_admin_crea_un_gasto_fijo(client, admin_con_hogar):
     assert respuesta.status_code == 302
     regla = ExpenseRule.objects.for_household(hogar).get(name="Alquiler")
     assert regla.amount == Decimal("1800.00")
+
+
+def test_el_admin_crea_una_categoria_y_el_slug_sale_del_nombre(client, admin_con_hogar):
+    """El formulario no pide el `slug`, pero el modelo lo exige: se deriva del nombre."""
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("budget:categoria_nueva"), {
+        "name": "Clases de piano", "kind": "expense",
+    })
+
+    assert respuesta.status_code == 302
+    categoria = Category.objects.for_household(hogar).get(name="Clases de piano")
+    assert categoria.slug == "clases-de-piano"
+    assert categoria.is_system is False
+
+
+def test_una_categoria_con_el_nombre_de_una_del_sistema_no_choca(client, admin_con_hogar):
+    """`Rent` sembrada con slug `rent`; el hogar crea "Rent" y no debe romper la unicidad."""
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("budget:categoria_nueva"), {"name": "Rent", "kind": "expense"})
+
+    assert respuesta.status_code == 302
+    slugs = set(Category.objects.for_household(hogar).filter(slug__startswith="rent")
+                .values_list("slug", flat=True))
+    assert slugs == {"rent", "rent-2"}
+
+
+def test_un_nombre_largo_cabe_en_el_slug(client, admin_con_hogar):
+    """`name` admite 80 caracteres y `slug` 50: el alta no puede romper por eso."""
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+    nombre = "Actividades extraescolares de los ninos durante el curso escolar"  # 65
+
+    respuesta = client.post(reverse("budget:categoria_nueva"), {"name": nombre, "kind": "expense"})
+
+    assert respuesta.status_code == 302
+    assert len(Category.objects.for_household(hogar).get(name=nombre).slug) <= 50
+
+
+def test_una_categoria_sin_nombre_se_rechaza_en_el_formulario(client, admin_con_hogar):
+    """`name` es opcional en el modelo (las del sistema van sin el), no en el alta."""
+    admin, hogar = admin_con_hogar
+    client.force_login(admin)
+
+    respuesta = client.post(reverse("budget:categoria_nueva"), {"name": "", "kind": "expense"})
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["form"].errors["name"]
 
 
 def test_el_admin_crea_un_ingreso(client, admin_con_hogar):
@@ -924,15 +975,21 @@ def test_solo_el_paso_tres_escribe_el_reparto(client, admin_con_hogar):
 
 def test_los_dos_primeros_pasos_solo_avanzan(client, admin_con_hogar):
     """No esta en el plan: afirma el DESTINO del avance, no solo que no escriba.
-    Sin esto, un paso 1 que redirigiera al paso 3 pasaria la prueba de arriba."""
+    Sin esto, un paso 1 que redirigiera al paso 3 pasaria la prueba de arriba.
+
+    Desde que el asistente sirve cualquier mes, avanza a la URL CON fecha del
+    mismo mes: la ruta sin fecha solo es la puerta de entrada al corriente."""
+    from django.utils import timezone
+
     user, _hogar = admin_con_hogar
     client.force_login(user)
+    hoy = timezone.localdate()
 
     uno = client.post(reverse("budget:planificar_paso", args=["household", 1]))
     dos = client.post(reverse("budget:planificar_paso", args=["household", 2]))
 
-    assert uno["Location"] == reverse("budget:planificar_paso", args=["household", 2])
-    assert dos["Location"] == reverse("budget:planificar_paso", args=["household", 3])
+    assert uno["Location"] == reverse("budget:planificar_mes", args=["household", hoy.year, hoy.month, 2])
+    assert dos["Location"] == reverse("budget:planificar_mes", args=["household", hoy.year, hoy.month, 3])
 
 
 def test_reordenar_reglas_cambia_su_prioridad(client, admin_con_hogar):
@@ -1063,6 +1120,69 @@ def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
     assert totales["sobrante"] == Decimal("1200.00")
     # Y que lleguen al HTML, que es donde faltaban.
     assert "1,200.00" in respuesta.content.decode()
+
+
+def test_this_month_ensena_las_cifras_y_las_donas_de_real_contra_planeado(client, admin_con_hogar):
+    """Las tres cifras del Overview tambien arriba de This month, y dos donas:
+    lo que de verdad entro y salio frente a lo planeado, en porcentaje."""
+    from django.utils import timezone
+
+    from tests.factories_budget import (
+        BudgetLineFactory, BudgetMonthFactory, TransactionFactory,
+    )
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    entra = CategoryFactory(household=hogar, slug="lo-que-entra", kind="income")
+    sale = CategoryFactory(household=hogar, slug="lo-que-sale", kind="expense")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=entra,
+                      kind="income", planned_amount=Decimal("3000.00"))
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
+                      kind="expense", planned_amount=Decimal("1800.00"))
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
+                      kind="expense", is_exceptional=True, planned_amount=Decimal("200.00"))
+    miembro = hogar.active_memberships().first()
+    TransactionFactory(household=hogar, budget_month=mes, category=sale,
+                       member=miembro, amount=Decimal("500.00"), date=hoy)
+    TransactionFactory(household=hogar, budget_month=mes, category=entra,
+                       member=miembro, amount=Decimal("3000.00"), date=hoy)
+
+    respuesta = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month]))
+
+    totales = respuesta.context["totales"]
+    assert totales["ingresos"] == Decimal("3000.00")
+    assert totales["egresos"] == Decimal("2000.00")   # fijos + puntuales
+    assert totales["sobrante"] == Decimal("1000.00")
+
+    donas = respuesta.context["donas"]
+    assert donas["income"]["planeado"] == Decimal("3000.00")
+    assert donas["income"]["real"] == Decimal("3000.00")
+    assert donas["income"]["porcentaje"] == 100
+    assert donas["expense"]["planeado"] == Decimal("2000.00")
+    assert donas["expense"]["real"] == Decimal("500.00")
+    assert donas["expense"]["porcentaje"] == 25
+
+    html = respuesta.content.decode()
+    assert "1,000.00" in html
+    assert 'pathLength="100"' in html
+
+
+def test_las_donas_no_dividen_por_cero_cuando_no_hay_nada_planeado(client, admin_con_hogar):
+    from django.utils import timezone
+
+    from tests.factories_budget import BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+
+    respuesta = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month]))
+
+    assert respuesta.status_code == 200
+    assert respuesta.context["donas"]["expense"]["porcentaje"] == 0
 
 
 def test_el_overview_parte_ingresos_y_gastos_en_dos_series(client, admin_con_hogar):

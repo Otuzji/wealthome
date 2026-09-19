@@ -12,6 +12,14 @@ urlpatterns = [
     path("setup/expense/new/", views_setup.gasto_nuevo, name="gasto_nuevo"),
     path("setup/category/new/", views_setup.categoria_nueva, name="categoria_nueva"),
     path("setup/split/new/", views_setup.reparto_nuevo, name="reparto_nuevo"),
+    # Corregir y quitar reglas. En sitio, no como sucesora (§3.2): un importe
+    # mal tecleado es una correccion, no un cambio en el tiempo.
+    path("setup/income/<int:pk>/", views_setup.ingreso_editar, name="ingreso_editar"),
+    path("setup/income/<int:pk>/delete/", views_setup.ingreso_borrar, name="ingreso_borrar"),
+    path("setup/expense/<int:pk>/", views_setup.gasto_editar, name="gasto_editar"),
+    path("setup/expense/<int:pk>/delete/", views_setup.gasto_borrar, name="gasto_borrar"),
+    path("setup/split/<int:pk>/", views_setup.reparto_editar, name="reparto_editar"),
+    path("setup/split/<int:pk>/delete/", views_setup.reparto_borrar, name="reparto_borrar"),
     path("spend/", views_month.registrar, name="registrar"),
     path("line/new/", views_month.linea_nueva, name="linea_nueva"),
     path("split/reorder/", wizards.reordenar_reglas, name="reordenar_reglas"),
@@ -32,7 +40,18 @@ urlpatterns += [
     path("<str:ambito>/plan/", wizards.planificar, name="planificar"),
     path("<str:ambito>/plan/<int:paso>/", wizards.planificar,
          name="planificar_paso"),
+    # Cualquier mes no cerrado se planifica, no solo el corriente.
+    path("<str:ambito>/plan/<int:anio>/<int:numero>/<int:paso>/", wizards.planificar,
+         name="planificar_mes"),
+    path("<str:ambito>/plan/<int:anio>/<int:numero>/<int:paso>/refresh/", wizards.refrescar,
+         name="planificar_refrescar"),
+    path("<str:ambito>/plan/<int:anio>/<int:numero>/line/new/", views_month.linea_nueva_del_mes,
+         name="linea_nueva_del_mes"),
+    path("<str:ambito>/plan/<int:anio>/<int:numero>/line/new/<str:kind>/",
+         views_month.linea_nueva_del_mes, name="linea_nueva_del_mes_de"),
+    path("<str:ambito>/line/<int:pk>/remove/", views_month.linea_quitar, name="linea_quitar"),
     path("<str:ambito>/close/", views_month.cerrar, name="cerrar"),
+    path("<str:ambito>/close/<int:anio>/<int:numero>/", views_month.cerrar, name="cerrar_mes"),
     path("<str:ambito>/balance/", views_overview.balance, name="balance"),
     path("<str:ambito>/goals/", views_goals.metas, name="metas"),
 ]

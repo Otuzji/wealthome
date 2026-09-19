@@ -1,0 +1,18 @@
+{% load i18n money %}
+{% comment %} Las tres cifras de cabecera, las mismas en Overview y en This month.
+   Cada cifra es una tarjeta propia y no tres dentro de una: en el mosaico, una
+   tarjeta dentro de otra es relieve sobre relieve. {% endcomment %}
+<div class="cifras">
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Total Incomes" %}</div>
+    <div class="cifra__valor cifra__valor--ingreso">{{ totales.ingresos|money:hogar.currency }}</div>
+  </div>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Total Expenses" %}</div>
+    <div class="cifra__valor cifra__valor--egreso">{{ totales.egresos|money:hogar.currency }}</div>
+  </div>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+    <div class="cifra__valor {% if totales.sobrante < 0 %}cifra__valor--mal{% endif %}">{{ totales.sobrante|money:hogar.currency }}</div>
+  </div>
+</div>

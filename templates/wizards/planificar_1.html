@@ -1,26 +1,28 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Plan the month" %} · Wealthome{% endblock %}
 {% block content %}
-<section class="card card--formulario">
-  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %}</p>
+<section class="card card--formulario formulario">
+  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %} · {{ mes }}</p>
   <h1>{% translate "What is coming in" %}</h1>
-  <p>{% translate "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month." %}</p>
-
-  <div class="tabla__envoltura">
-    <table class="tabla">
-      {% for linea in ingresos %}
-        <tr><td>{{ linea.nombre }}</td>
-            <td class="numero">{{ linea.importe|money:hogar.currency }}</td></tr>
-      {% empty %}
-        <tr><td>{% translate "No income set up yet." %}</td></tr>
-      {% endfor %}
-    </table>
-  </div>
+  <p>{% translate "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month. This changes only this month, not your setup." %}</p>
 
   <form method="post">
     {% csrf_token %}
+    {% include "wizards/_lineas.html" with vacio=_("No income falls in this month. Income that starts later will show up in its first month.") %}
+
+    {% comment %} Un aguinaldo, una devolucion de impuestos: entra una vez. {% endcomment %}
+    <p><a class="btn" href="{% url 'budget:linea_nueva_del_mes_de' ambito anio numero 'income' %}">{% translate "Add a one-off income" %}</a></p>
+
     <button class="btn btn--primary" type="submit">{% translate "Next" %}</button>
     <a class="btn btn--sutil" href="{% url 'budget:configurar' %}">{% translate "Edit income" %}</a>
+  </form>
+  {% comment %} Fuera del formulario del paso: es otro POST. Vuelve a copiar
+     las reglas vigentes sobre las lineas que vienen de reglas; las partidas
+     excepcionales se quedan. {% endcomment %}
+  <form method="post" action="{% url 'budget:planificar_refrescar' ambito anio numero paso %}" class="refrescar"
+        onsubmit="return confirm('{% translate "Copy your setup onto this month again? Amounts you typed here will be replaced; one-off items are kept." %}')">
+    {% csrf_token %}
+    <button class="btn btn--sutil" type="submit">{% translate "Refresh from setup" %}</button>
   </form>
 </section>
 {% endblock %}

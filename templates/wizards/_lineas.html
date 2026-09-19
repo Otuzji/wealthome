@@ -1,0 +1,29 @@
+{% load i18n money %}
+{% comment %} La tabla editable de los pasos 1 y 2: cada linea con su importe
+   en un campo. Las excepcionales llevan Quitar; las que vienen de una regla se
+   ponen a cero, no se borran. {% endcomment %}
+{% if form.non_field_errors %}<div class="aviso aviso--error">{{ form.non_field_errors }}</div>{% endif %}
+<div class="tabla__envoltura">
+  <table class="tabla tabla--lineas">
+    {% for linea, campo in form.filas %}
+      <tr>
+        <td>
+          <label for="{{ campo.id_for_label }}">{{ linea.nombre }}</label>
+          {% if linea.due_date %}<small class="linea__fecha">{{ linea.due_date|date:"M j" }}</small>{% endif %}
+          {% if linea.is_exceptional %}<span class="pildora">{% translate "One-off" %}</span>{% endif %}
+          {% if campo.errors %}<div class="campo__error">{{ campo.errors }}</div>{% endif %}
+        </td>
+        <td class="numero">{{ campo }}</td>
+        <td class="numero">
+          {% if linea.is_exceptional %}
+            <button class="btn btn--sutil btn--peligro" type="submit"
+                    formaction="{% url 'budget:linea_quitar' ambito linea.pk %}" formnovalidate>
+              {% translate "Remove" %}</button>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td>{{ vacio }}</td></tr>
+    {% endfor %}
+  </table>
+</div>

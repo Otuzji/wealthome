@@ -2,13 +2,13 @@
 {% block title %}{% translate "Plan the month" %} · Wealthome{% endblock %}
 {% block content %}
 <section class="card card--formulario">
-  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %}</p>
+  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %} · {{ mes }}</p>
   <h1>{% translate "How the leftover gets split" %}</h1>
 
   <div class="cifras">
     <div class="cifra">
       <div class="cifra__etiqueta">{% translate "Left over" %}</div>
-      <div class="cifra__valor">{{ proyeccion.sobrante|money:hogar.currency }}</div>
+      <div class="cifra__valor">{{ totales.sobrante|money:hogar.currency }}</div>
     </div>
   </div>
 
@@ -36,7 +36,7 @@
   <form method="post">
     {% csrf_token %}
     <button class="btn btn--primary" type="submit">{% translate "Confirm the plan" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:planificar_paso' ambito 2 %}">{% translate "Back" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:planificar_mes' ambito anio numero 2 %}">{% translate "Back" %}</a>
   </form>
 </section>
 {% endblock %}

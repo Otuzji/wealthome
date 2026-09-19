@@ -1,30 +1,28 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Plan the month" %} · Wealthome{% endblock %}
 {% block content %}
-<section class="card card--formulario">
-  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %}</p>
+<section class="card card--formulario formulario">
+  <p class="pildora">{% blocktranslate %}Step {{ paso }} of 3{% endblocktranslate %} · {{ mes }}</p>
   <h1>{% translate "What is going out" %}</h1>
-
-  <div class="tabla__envoltura">
-    <table class="tabla">
-      {% for linea in egresos %}
-        <tr><td>{{ linea.nombre }}</td>
-            <td class="numero">{{ linea.importe|money:hogar.currency }}</td></tr>
-      {% empty %}
-        <tr><td>{% translate "No fixed expenses set up yet." %}</td></tr>
-      {% endfor %}
-    </table>
-  </div>
-
-  {% comment %} El paso 2 del §4.5.6: "mas las partidas excepcionales de ese mes".
-     Es la razon por la que el formulario de linea excepcional vuelve en la
-     Tarea 25. {% endcomment %}
-  <p><a class="btn" href="{% url 'budget:linea_nueva' %}">{% translate "Add a one-off item" %}</a></p>
+  <p>{% translate "Adjust any amount for this month only. Your fixed expenses in the setup stay as they are." %}</p>
 
   <form method="post">
     {% csrf_token %}
+    {% include "wizards/_lineas.html" with vacio=_("No fixed expenses fall in this month.") %}
+
+    {% comment %} El paso 2 del §4.5.6: "mas las partidas excepcionales de ese mes". {% endcomment %}
+    <p><a class="btn" href="{% url 'budget:linea_nueva_del_mes_de' ambito anio numero 'expense' %}">{% translate "Add a one-off expense" %}</a></p>
+
     <button class="btn btn--primary" type="submit">{% translate "Next" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:planificar_paso' ambito 1 %}">{% translate "Back" %}</a>
+    <a class="btn btn--sutil" href="{% url 'budget:planificar_mes' ambito anio numero 1 %}">{% translate "Back" %}</a>
+  </form>
+  {% comment %} Fuera del formulario del paso: es otro POST. Vuelve a copiar
+     las reglas vigentes sobre las lineas que vienen de reglas; las partidas
+     excepcionales se quedan. {% endcomment %}
+  <form method="post" action="{% url 'budget:planificar_refrescar' ambito anio numero paso %}" class="refrescar"
+        onsubmit="return confirm('{% translate "Copy your setup onto this month again? Amounts you typed here will be replaced; one-off items are kept." %}')">
+    {% csrf_token %}
+    <button class="btn btn--sutil" type="submit">{% translate "Refresh from setup" %}</button>
   </form>
 </section>
 {% endblock %}

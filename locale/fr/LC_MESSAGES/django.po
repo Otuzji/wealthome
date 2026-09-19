@@ -1447,8 +1447,8 @@ msgid "What each person gets"
 msgstr "Ce que chacun reçoit"
 
 #: templates/wizards/planificar_1.html
-msgid "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month."
-msgstr "Les fixes sont déjà là. Confirmez ou ajustez ce qui varie — c'est le seul chiffre à saisir chaque mois."
+msgid "The fixed ones are already here. Confirm or adjust what varies — it is the only number you type each month. This changes only this month, not your setup."
+msgstr "Les fixes sont déjà là. Confirmez ou ajustez ce qui varie — c'est le seul chiffre à saisir chaque mois. Cela ne change que ce mois-ci, pas votre configuration."
 
 #: templates/wizards/planificar_3.html
 msgid "Drag to reorder. What is at the top gets served first, so a lean month eats into the bottom of the list."
@@ -1600,6 +1600,219 @@ msgstr "Renvoyer"
 msgid "Revoke"
 msgstr "Révoquer"
 
+#: apps/budget/views_setup.py
+msgid "Edit fixed expense"
+msgstr "Modifier la dépense fixe"
+
+#: apps/budget/views_setup.py
+msgid "Edit split rule"
+msgstr "Modifier la règle de répartition"
+
+#: templates/budget/_fragmentos/acciones_regla.html
+msgid "Edit"
+msgstr "Modifier"
+
+#: templates/budget/_fragmentos/acciones_regla.html templates/wizards/_lineas.html
+msgid "Remove"
+msgstr "Retirer"
+
+#: templates/budget/_fragmentos/acciones_regla.html
+msgid "Remove this rule? Months already open keep their numbers."
+msgstr "Retirer cette règle ? Les mois déjà ouverts gardent leurs chiffres."
+
+#: apps/budget/wizards.py apps/budget/views_month.py
+msgid "That month cannot be planned."
+msgstr "Ce mois ne peut pas être planifié."
+
+#: templates/wizards/planificar_2.html
+msgid "Adjust any amount for this month only. Your fixed expenses in the setup stay as they are."
+msgstr "Ajustez n'importe quel montant pour ce mois seulement. Vos dépenses fixes de la configuration restent telles quelles."
+
+#: templates/wizards/_lineas.html
+msgid "One-off"
+msgstr "Ponctuel"
+
+#: templates/budget/mes.html
+msgid "Months"
+msgstr "Mois"
+
+#: templates/budget/mes.html
+msgid "Previous"
+msgstr "Précédent"
+
+#: apps/budget/views_month.py
+msgid "That month has not started yet."
+msgstr "Ce mois n'a pas encore commencé."
+
+#: apps/budget/views_month.py
+msgid "That month cannot be closed."
+msgstr "Ce mois ne peut pas être clôturé."
+
+#: apps/budget/models/rules.py
+msgid "This kind of income needs an amount."
+msgstr "Ce type de revenu a besoin d'un montant."
+
+#: apps/budget/models/rules.py
+msgid "A range needs at least a minimum."
+msgstr "Une fourchette a besoin au moins d'un minimum."
+
+#: templates/wizards/planificar_1.html
+msgid "No income falls in this month. Income that starts later will show up in its first month."
+msgstr "Aucun revenu ne tombe ce mois-ci. Un revenu qui commence plus tard apparaîtra dans son premier mois."
+
+#: templates/wizards/planificar_2.html
+msgid "No fixed expenses fall in this month."
+msgstr "Aucune dépense fixe ne tombe ce mois-ci."
+
+#: apps/budget/forms.py
+msgid "Per payment, not per month."
+msgstr "Par paiement, pas par mois."
+
+#: apps/budget/forms.py
+msgid "Per payment. The budget counts this minimum; anything above shows up as surplus."
+msgstr "Par paiement. Le budget compte ce minimum ; tout ce qui dépasse apparaît comme surplus."
+
+#: apps/budget/forms.py
+msgid "The month adds up the payments that fall in it."
+msgstr "Le mois additionne les paiements qui y tombent."
+
+#: apps/budget/forms.py
+msgid "The date of the first payment: weekly and two-week incomes are counted from here."
+msgstr "La date du premier paiement : les revenus hebdomadaires et bimensuels se comptent à partir d'ici."
+
+#: templates/budget/mes.html
+msgid "Expenses"
+msgstr "Dépenses"
+
+#: templates/budget/mes.html
+msgid "No income falls in this month."
+msgstr "Aucun revenu ne tombe ce mois-ci."
+
+#: apps/budget/wizards.py
+msgid "This month now matches your setup. One-off items were kept."
+msgstr "Ce mois correspond maintenant à votre configuration. Les éléments ponctuels ont été conservés."
+
+#: templates/wizards/planificar_1.html templates/wizards/planificar_2.html
+msgid "Copy your setup onto this month again? Amounts you typed here will be replaced; one-off items are kept."
+msgstr "Recopier votre configuration sur ce mois ? Les montants saisis ici seront remplacés ; les éléments ponctuels sont conservés."
+
+#: templates/wizards/planificar_1.html templates/wizards/planificar_2.html
+msgid "Refresh from setup"
+msgstr "Recopier depuis la configuration"
+
+#: apps/budget/views_month.py
+msgid "One-off income this month"
+msgstr "Revenu ponctuel ce mois-ci"
+
+#: apps/budget/views_month.py
+msgid "One-off expense this month"
+msgstr "Dépense ponctuelle ce mois-ci"
+
+#: apps/budget/views_month.py
+msgid "That kind of item does not exist."
+msgstr "Ce type d'élément n'existe pas."
+
+#: templates/wizards/planificar_1.html
+msgid "Add a one-off income"
+msgstr "Ajouter un revenu ponctuel"
+
+#: templates/wizards/planificar_2.html
+msgid "Add a one-off expense"
+msgstr "Ajouter une dépense ponctuelle"
+
+#: templates/budget/mes.html
+msgid "One-off expenses"
+msgstr "Dépenses ponctuelles"
+
+#: apps/budget/views_month.py
+msgid "One-off income"
+msgstr "Revenus ponctuels"
+
+#: templates/budget/mes.html
+msgid "Name"
+msgstr "Nom"
+
+#: templates/budget/mes.html
+msgid "Status"
+msgstr "Statut"
+
+#: templates/budget/mes.html
+msgid "Due date"
+msgstr "Échéance"
+
+#: templates/budget/mes.html
+msgid "Total"
+msgstr "Total"
+
+#: templates/budget/_fragmentos/estado_linea.html
+msgid "Received"
+msgstr "Reçu"
+
+#: templates/budget/_fragmentos/estado_linea.html
+msgid "Paid"
+msgstr "Payé"
+
+#: templates/budget/_fragmentos/estado_linea.html
+msgid "Partial"
+msgstr "Partiel"
+
+#: templates/budget/_fragmentos/estado_linea.html
+#, python-format
+msgid "%(falta)s left"
+msgstr "reste %(falta)s"
+
+#: templates/budget/_fragmentos/estado_linea.html
+msgid "Pending"
+msgstr "En attente"
+
+#: apps/budget/forms.py
+msgid "How it will show in the plan. Empty: the store, or the category."
+msgstr "Comment cela apparaîtra dans le plan. Vide : le commerce, ou la catégorie."
+
+#: apps/budget/forms.py
+msgid "What is it"
+msgstr "Qu'est-ce que c'est"
+
+#: apps/budget/forms.py
+msgid "Something not planned"
+msgstr "Quelque chose de non prévu"
+
+#: apps/budget/forms.py
+msgid "Income received"
+msgstr "Revenu reçu"
+
+#: apps/budget/forms.py
+msgid "Pick a category for something that was not planned."
+msgstr "Choisissez une catégorie pour ce qui n'était pas prévu."
+
+#: apps/budget/forms.py
+msgid "pending"
+msgstr "en attente"
+
+#: apps/budget/forms.py
+msgid "partial"
+msgstr "partiel"
+
+#: apps/budget/forms.py
+msgid "paid"
+msgstr "payé"
+
+#: apps/budget/models/months.py
+msgid "due date"
+msgstr "échéance"
+
+#: templates/budget/mes.html
+msgid "Where the month stands"
+msgstr "Où en est le mois"
+
+#: templates/budget/mes.html
+msgid "%(real)s of %(planned)s"
+msgstr "%(real)s sur %(planned)s"
+
+#: templates/budget/mes.html
+msgid "Nothing planned"
+msgstr "Rien de prévu"
+
 #: templates/households/aceptar.html
 #, python-format
 msgid "%(quien)s has invited you to manage the family budget together in %(hogar)s on Wealthome."
@@ -1625,3 +1838,11 @@ msgstr "Rejoindre %(hogar)s"
 #: templates/households/aceptar.html
 msgid "Sign in to accept the invitation"
 msgstr "Connectez-vous pour accepter l'invitation"
+
+#: templates/budget/_fragmentos/cifras.html
+msgid "Total Incomes"
+msgstr "Total des revenus"
+
+#: templates/budget/_fragmentos/cifras.html
+msgid "Total Expenses"
+msgstr "Total des dépenses"

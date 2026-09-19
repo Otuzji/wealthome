@@ -9,8 +9,9 @@ argumento. Ninguna vista elige "el" hogar por su cuenta.
 """
 
 from django.core.exceptions import ValidationError
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 
 from apps.households.permissions import requiere_permiso
 
@@ -44,7 +45,27 @@ def crear(request, hogar, form_class, titulo, destino="budget:configurar", desti
     de metas, y duplicarlo es como divergen dos formularios que deberian
     validar igual.
     """
-    form = form_class(request.POST or None, household=hogar)
+    return _guardar(request, hogar, form_class(request.POST or None, household=hogar),
+                    titulo, destino, destino_args)
+
+
+def editar(request, hogar, modelo, form_class, pk, titulo):
+    """La edicion EN SITIO de una regla (ingreso, gasto fijo o reparto).
+
+    No es la sucesora del §3.2 —`services.reemplazar_regla`—: un importe mal
+    tecleado es una correccion, no un cambio en el tiempo. Y corregir en sitio
+    no reescribe historia: el mes abierto ya copio `planned_amount` en sus
+    lineas y los cerrados son inmutables, asi que solo cambian las proyecciones.
+
+    `for_household` antes que `get_object_or_404`: el pk de otra familia es un
+    404 identico al de un pk inventado, sin decir cual de los dos fue.
+    """
+    objeto = get_object_or_404(modelo.objects.for_household(hogar), pk=pk)
+    form = form_class(request.POST or None, household=hogar, instance=objeto)
+    return _guardar(request, hogar, form, titulo)
+
+
+def _guardar(request, hogar, form, titulo, destino="budget:configurar", destino_args=()):
     if request.method == "POST" and form.is_valid():
         objeto = form.save(commit=False)
         objeto.household = hogar
@@ -76,3 +97,47 @@ def categoria_nueva(request, hogar):
 @requiere_permiso("can_edit_budget")
 def reparto_nuevo(request, hogar):
     return crear(request, hogar, AllocationRuleForm, _("New split rule"))
+
+
+@requiere_permiso("can_edit_budget")
+def ingreso_editar(request, hogar, pk):
+    return editar(request, hogar, IncomeSource, IncomeSourceForm, pk, _("Edit income"))
+
+
+@requiere_permiso("can_edit_budget")
+def gasto_editar(request, hogar, pk):
+    return editar(request, hogar, ExpenseRule, ExpenseRuleForm, pk, _("Edit fixed expense"))
+
+
+@requiere_permiso("can_edit_budget")
+def reparto_editar(request, hogar, pk):
+    return editar(request, hogar, AllocationRule, AllocationRuleForm, pk, _("Edit split rule"))
+
+
+def borrar(request, hogar, modelo, pk):
+    """Quitar una regla. Solo por POST: un GET no destruye nada.
+
+    Las lineas ya materializadas se quedan (las FK son SET_NULL): el mes en
+    curso conto con ese gasto, y borrar la regla es "de ahora en adelante".
+    """
+    objeto = get_object_or_404(modelo.objects.for_household(hogar), pk=pk)
+    objeto.delete()
+    return redirect("budget:configurar")
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def ingreso_borrar(request, hogar, pk):
+    return borrar(request, hogar, IncomeSource, pk)
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def gasto_borrar(request, hogar, pk):
+    return borrar(request, hogar, ExpenseRule, pk)
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def reparto_borrar(request, hogar, pk):
+    return borrar(request, hogar, AllocationRule, pk)

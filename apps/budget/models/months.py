@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -111,6 +113,11 @@ class BudgetLine(EscrituraAcotadaAlMes, HouseholdScoped):
     )
     scope = models.CharField(_("scope"), max_length=10, choices=SCOPE_CHOICES, default=HOUSEHOLD)
     note = models.CharField(_("note"), max_length=200, blank=True)
+    # El vencimiento. Para una linea nacida de una regla es la fecha en que esa
+    # regla dispara (una linea por disparo); para una puntual, la que se teclee.
+    due_date = models.DateField(_("due date"), null=True, blank=True)
+
+    PENDIENTE, PARCIAL, PAGADA = "pending", "partial", "paid"
 
     class Meta(HouseholdScoped.Meta):
         verbose_name = _("budget line")
@@ -124,6 +131,38 @@ class BudgetLine(EscrituraAcotadaAlMes, HouseholdScoped):
 
     def __str__(self):
         return f"{self.category} · {self.planned_amount}"
+
+    @property
+    def nombre(self):
+        """Como la nombra el asistente: la regla de la que viene, o su nota."""
+        regla = self.source_income or self.source_expense_rule
+        if regla is not None:
+            return regla.name
+        return self.note or self.category.etiqueta()
+
+    @property
+    def pagado(self):
+        """Lo registrado contra esta linea. Una consulta por linea: quien pinte
+        muchas lineas debe anotar `pagado_total` en el queryset (ver
+        `BudgetLine.con_pagos`)."""
+        if hasattr(self, "pagado_total"):
+            return self.pagado_total or Decimal("0.00")
+        total = self.transacciones.aggregate(total=models.Sum("amount"))["total"]
+        return total or Decimal("0.00")
+
+    @property
+    def restante(self):
+        return max(self.planned_amount - self.pagado, Decimal("0.00"))
+
+    @property
+    def estado(self):
+        """Pagada si lo registrado alcanza lo planeado; parcial si hay algo."""
+        pagado = self.pagado
+        if pagado >= self.planned_amount:
+            return self.PAGADA
+        if pagado > 0:
+            return self.PARCIAL
+        return self.PENDIENTE
 
     def clean(self):
         super().clean()

@@ -3,11 +3,19 @@
 {% block content %}
 <section class="card card--formulario formulario">
   <h1>{{ titulo }}</h1>
-  <form method="post">
+  {% comment %} La misma estructura que form.as_div (un <div> por campo con su
+     grupo), pero envolviendo cada campo a mano: un formulario puede declarar
+     `x_data` y `field.x_show` (IncomeSourceForm) para que un campo solo se vea
+     con ciertos valores de `modo`. Van con |safe porque son expresiones de
+     Alpine escritas en el formulario, no datos del usuario, y el autoescape
+     convertiria las comillas en &#x27;. {% endcomment %}
+  <form method="post"{% if form.x_data %} x-data="{{ form.x_data|safe }}"{% endif %}>
     {% csrf_token %}
-    {{ form.as_div }}
+    {% include "budget/_fragmentos/campos.html" %}
     <button class="btn btn--primary" type="submit">{% translate "Save" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:configurar' %}">{% translate "Cancel" %}</a>
+    {% comment %} `cancelar` lo pone la vista cuando el formulario no sale de
+       Configurar (la partida excepcional vuelve al paso 2 del asistente). {% endcomment %}
+    <a class="btn btn--sutil" href="{% if cancelar %}{{ cancelar }}{% else %}{% url 'budget:configurar' %}{% endif %}">{% translate "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

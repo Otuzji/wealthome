@@ -10,6 +10,9 @@
   --accent:        #3f8f6f;
   --accent-strong: #2f7d5d;
   --danger:        #b0603f;
+  /* Lo que sale: naranja, distinto del rojo de --danger (un error) y del
+     verde de lo que entra. */
+  --outflow:       #c2782a;
 
   --font-family:    'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-size-base: 15px;
@@ -58,6 +61,7 @@
   --accent:        #5cc196;
   --accent-strong: #3f9d78;
   --danger:        #d98b6a;
+  --outflow:       #e0a25a;
 
   --field-bg:      #1e2329;
   --focus-ring:    rgb(92 193 150 / 50%);
@@ -86,6 +90,7 @@
   --accent:        #0a5c3a;
   --accent-strong: #084a2e;
   --danger:        #8c2f14;
+  --outflow:       #8a4b00;
 
   --font-size-base: 20px;
   --font-weight-strong: 800;

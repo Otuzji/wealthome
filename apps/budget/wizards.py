@@ -5,18 +5,23 @@ explicito de su plan, y el criterio de aceptacion 3 —"una pareja planifica el
 mes en tres pasos"— se dio por bueno sobre una pantalla que no tiene tres.
 """
 
+from django.contrib import messages
 from django.db import transaction
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 
 from apps.households.permissions import requiere_permiso
 
 from . import services
 from .engine.cascade import repartir
-from .models import AllocationRule
+from .forms import LineasDelMesForm
+from .models import AllocationRule, MesCerrado
+from .models.catalog import EXPENSE, INCOME
 from .scopes import validar
+from .views_month import exigir_en_el_calendario
 
 PASOS = (1, 2, 3)
 
@@ -26,44 +31,82 @@ _LIMBO = 10000
 
 
 @requiere_permiso("can_edit_budget")
-def planificar(request, hogar, ambito, paso=1):
-    """Un paso del asistente. Solo el tercero escribe."""
+def planificar(request, hogar, ambito, paso=1, anio=None, numero=None):
+    """Un paso del asistente, sobre las LINEAS del mes.
+
+    Sin fecha es el mes corriente. Con fecha, cualquier mes que no este
+    cerrado: el futuro se materializa al entrar y desde ahi se edita aqui, no en
+    el setup (§2.3). Los pasos 1 y 2 guardan los importes tecleados; el 3
+    escribe el reparto, y lo reescribe si ya lo habia.
+    """
     ambito = validar(ambito)
     if paso not in PASOS:
         raise Http404(_("That step does not exist."))
 
     hoy = timezone.localdate()
-    mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
-    proyeccion = (
-        mes_actual if isinstance(mes_actual, services.ProyeccionDeMes)
-        else services.proyectar(hogar, hoy.year, hoy.month)
-    )
+    if anio is None:
+        anio, numero = hoy.year, hoy.month
+    exigir_en_el_calendario(anio, numero)
 
-    if request.method == "POST":
-        if paso < 3:
-            # Los pasos 1 y 2 no escriben nada: el usuario ya edito lo suyo con
-            # los formularios de reglas y de linea excepcional, que guardan por
-            # su cuenta. Avanzar es solo avanzar.
-            return redirect("budget:planificar_paso", ambito=ambito, paso=paso + 1)
-        services.planificar_mes(hogar, mes_actual, proyeccion.sobrante)
-        request.session["plan_confirmado"] = True
-        return redirect("budget:mes", ambito)
+    mes = services.abrir_para_planificar(hogar, anio, numero, hoy)
+    if mes is None:
+        raise Http404(_("That month cannot be planned."))
+    if mes.esta_cerrado:
+        # No un 404: el mes existe, solo que ya no se toca. La pantalla del mes
+        # lo ensena cerrado.
+        messages.info(request, _("This month is already closed."))
+        return redirect("budget:mes", ambito, anio, numero)
 
-    contexto = {
-        "paso": paso, "ambito": ambito, "mes": mes_actual,
-        "proyeccion": proyeccion,
-    }
-    if paso == 1:
-        contexto["ingresos"] = [l for l in proyeccion.lineas if l.kind == "income"]
-    elif paso == 2:
-        contexto["egresos"] = [l for l in proyeccion.lineas if l.kind == "expense"]
-    else:
-        contexto.update(_reparto(hogar, proyeccion))
+    lineas = mes.lineas.select_related(
+        "category", "source_income", "source_expense_rule"
+    ).order_by("is_exceptional", "pk")
+    contexto = {"paso": paso, "ambito": ambito, "mes": mes, "anio": anio, "numero": numero}
 
+    if paso == 3:
+        if request.method == "POST":
+            totales = services.totales_del_mes(mes)
+            services.planificar_mes(hogar, mes, totales.sobrante)
+            request.session["plan_confirmado"] = True
+            return redirect("budget:mes", ambito, anio, numero)
+        contexto["totales"] = services.totales_del_mes(mes)
+        contexto.update(_reparto(hogar, contexto["totales"].sobrante))
+        return render(request, "wizards/planificar_3.html", contexto)
+
+    lineas = lineas.filter(kind=INCOME if paso == 1 else EXPENSE)
+    # Por METODO y no `request.POST or None`: un POST sin campos (un mes sin
+    # lineas, o "Next" sin tocar nada) es un QueryDict vacio, que es falsy, y
+    # dejaria el formulario sin enlazar — is_valid() False y la pagina de nuevo.
+    form = LineasDelMesForm(request.POST if request.method == "POST" else None, lineas=lineas)
+    if request.method == "POST" and form.is_valid():
+        try:
+            form.guardar()
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        else:
+            return redirect("budget:planificar_mes", ambito, anio, numero, paso + 1)
+    contexto["form"] = form
     return render(request, f"wizards/planificar_{paso}.html", contexto)
 
 
-def _reparto(hogar, proyeccion):
+@require_POST
+@requiere_permiso("can_edit_budget")
+def refrescar(request, hogar, ambito, anio, numero, paso):
+    """El boton "Refresh from setup" de los pasos 1 y 2: vuelve al mismo paso."""
+    ambito = validar(ambito)
+    exigir_en_el_calendario(anio, numero)
+    mes = services.abrir_para_planificar(hogar, anio, numero)
+    if mes is None:
+        raise Http404(_("That month cannot be planned."))
+    try:
+        services.refrescar_desde_las_reglas(hogar, mes)
+    except MesCerrado:
+        messages.info(request, _("This month is already closed."))
+        return redirect("budget:mes", ambito, anio, numero)
+    messages.success(request, _("This month now matches your setup. One-off items were kept."))
+    return redirect("budget:planificar_mes", ambito, anio, numero, paso)
+
+
+def _reparto(hogar, sobrante):
     """El paso 3: el sobrante, la cascada y la mesada por miembro."""
     reglas_orm = {
         r.order: r
@@ -79,7 +122,7 @@ def _reparto(hogar, proyeccion):
         "asignaciones": [
             {"importe": a.importe, "miembro": miembros.get(a.miembro_id),
              "regla": reglas_orm[a.orden]}
-            for a in repartir(proyeccion.sobrante, reglas)
+            for a in repartir(sobrante, reglas)
         ],
     }
 

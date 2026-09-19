@@ -1,0 +1,13 @@
+{% comment %} Los campos de un formulario, uno por <div> como form.as_div,
+   pero envueltos a mano: un formulario puede declarar `field.x_show`
+   (IncomeSourceForm, TransactionForm) para que un campo solo se vea con
+   cierto estado de Alpine. |safe porque son expresiones escritas en el
+   formulario, no datos del usuario, y el autoescape convertiria las comillas
+   en &#x27;. El x-data va en el <form> de quien incluye esto. {% endcomment %}
+{{ form.non_field_errors }}
+{% for campo in form.visible_fields %}
+  <div{% if campo.field.x_show %} x-show="{{ campo.field.x_show|safe }}" x-cloak{% endif %}>
+    {{ campo.as_field_group }}
+  </div>
+{% endfor %}
+{% for campo in form.hidden_fields %}{{ campo }}{% endfor %}

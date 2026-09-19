@@ -28,7 +28,9 @@ def _admin_logueado(client, con_arbol=False):
 
 
 def test_registrar_por_htmx_devuelve_un_fragmento_y_no_la_pagina(client):
-    _admin_logueado(client)
+    # Con arbol: el formulario lista las lineas del mes, y proyectar el mes
+    # exige la categoria de ingreso sembrada.
+    _admin_logueado(client, con_arbol=True)
 
     entera = client.get(reverse("budget:registrar"))
     trozo = client.get(reverse("budget:registrar"), HTTP_HX_REQUEST="true")
@@ -61,7 +63,30 @@ def test_un_gasto_guardado_por_htmx_devuelve_los_movimientos_al_dia(client):
     from apps.budget.models import Transaction
     guardada = Transaction.objects.for_household(hogar).get()
     assert guardada.amount == Decimal("12.50")
-    assert str(guardada.amount) in respuesta.content.decode()
+    html = respuesta.content.decode()
+    assert str(guardada.amount) in html
+    # Los movimientos viajan FUERA DE BANDA: el formulario del modal se envia
+    # desde cualquier pantalla, y solo Overview tiene #recientes. Con
+    # hx-target="#recientes", htmx no encontraba el destino en "This month" y
+    # no enviaba nada — "Record it" no hacia nada.
+    assert 'id="recientes"' in html and 'hx-swap-oob="true"' in html
+    # Y en su sitio vuelve un formulario limpio, por si el modal sigue abierto.
+    assert "<form" in html and 'value="12.50"' not in html
+
+
+def test_el_formulario_del_modal_se_sustituye_a_si_mismo(client):
+    """hx-target="this": el destino existe en toda pantalla. Un POST invalido
+    devuelve el formulario con sus errores en el mismo sitio, no dentro de la
+    lista de movimientos."""
+    _admin_logueado(client, con_arbol=True)
+
+    trozo = client.get(reverse("budget:registrar"), HTTP_HX_REQUEST="true").content.decode()
+    assert 'hx-target="this"' in trozo and 'hx-swap="outerHTML"' in trozo
+    assert 'hx-target="#recientes"' not in trozo
+
+    invalido = client.post(reverse("budget:registrar"), {"amount": "12.50"},
+                           HTTP_HX_REQUEST="true").content.decode()
+    assert "<form" in invalido and 'id="recientes"' not in invalido
 
 
 def test_un_hogar_expirado_no_puede_registrar_ni_por_htmx(client):
@@ -93,7 +118,7 @@ def test_un_hogar_expirado_si_puede_LEER_por_htmx(client):
 
     from django.utils import timezone
 
-    hogar, _user = _admin_logueado(client)
+    hogar, _user = _admin_logueado(client, con_arbol=True)
     hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
     hogar.subscription.save()
 

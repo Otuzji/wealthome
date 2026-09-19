@@ -1,7 +1,15 @@
 {% load i18n %}
+{% comment %} hx-target="this": el formulario se sustituye a si mismo, que es
+   un destino que existe en TODA pantalla. Apuntaba a #recientes, que solo
+   tiene Overview: desde "This month" htmx no encontraba el destino y no
+   enviaba nada. Los movimientos al dia viajan fuera de banda (abajo) y solo
+   se aplican donde hay un #recientes. {% endcomment %}
 <form class="formulario" hx-post="{% url 'budget:registrar' %}"
-      hx-target="#recientes" hx-swap="outerHTML">
+      hx-target="this" hx-swap="outerHTML" x-data="{{ form.x_data|safe }}">
   {% csrf_token %}
-  {{ form.as_div }}
+  {% include "budget/_fragmentos/campos.html" %}
   <button class="btn btn--primary" type="submit">{% translate "Record it" %}</button>
 </form>
+{% if recientes_oob is not None %}
+  {% include "budget/_fragmentos/recientes.html" with recientes=recientes_oob oob=True %}
+{% endif %}
