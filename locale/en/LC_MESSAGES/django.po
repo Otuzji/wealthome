@@ -1572,3 +1572,29 @@ msgstr "Resend"
 #: templates/households/ajustes.html
 msgid "Revoke"
 msgstr "Revoke"
+
+#: templates/households/aceptar.html
+#, python-format
+msgid "%(quien)s has invited you to manage the family budget together in %(hogar)s on Wealthome."
+msgstr "%(quien)s has invited you to manage the family budget together in %(hogar)s on Wealthome."
+
+#: templates/households/aceptar.html
+msgid "Create my account and join"
+msgstr "Create my account and join"
+
+#: templates/households/aceptar.html
+msgid "Create your account"
+msgstr "Create your account"
+
+#: templates/households/aceptar.html
+msgid "It looks like you already have an account with this email address."
+msgstr "It looks like you already have an account with this email address."
+
+#: templates/households/aceptar.html
+#, python-format
+msgid "Join %(hogar)s"
+msgstr "Join %(hogar)s"
+
+#: templates/households/aceptar.html
+msgid "Sign in to accept the invitation"
+msgstr "Sign in to accept the invitation"

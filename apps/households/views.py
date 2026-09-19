@@ -1,13 +1,15 @@
 import smtplib
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model, login
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils.translation import gettext as _
 
 from .emails import enviar_invitacion
+from apps.accounts.forms import RegistroInvitadoForm
+
 from .forms import InvitarForm, PermisosForm
 from .models import Invitation, Membership
 from .permissions import con_hogar, membresia_actual, solo_admin
@@ -15,10 +17,14 @@ from .services import (
     HouseholdLleno,
     InvitacionInvalida,
     aceptar_invitacion,
+    invitacion_por_token,
     invitaciones_pendientes,
     invitar,
+    registrar_invitado,
     revocar_invitacion,
 )
+
+User = get_user_model()
 
 
 @con_hogar
@@ -112,15 +118,52 @@ def reenviar(request, hogar, pk):
     return redirect("households:ajustes")
 
 
-@login_required
 def aceptar(request, token):
-    """La única vista sin @con_hogar, y a propósito: quien acepta una
-    invitación todavía no pertenece a ningún hogar. Resolver el hogar antes
-    de aceptar sería negarle la entrada a todo invitado nuevo."""
+    """La única vista del hogar sin guardia de sesión, y a propósito: quien
+    llega por el enlace puede no tener cuenta todavía. Con sesión, acepta;
+    sin ella, ve quién le invita y crea su cuenta como miembro de ese hogar
+    (o va a iniciar sesión si ya tiene una)."""
+    if request.user.is_authenticated:
+        return _aceptar_con_sesion(request, token)
+    return _aceptar_sin_sesion(request, token)
+
+
+def _contexto_invitacion(token):
+    try:
+        invitacion = invitacion_por_token(token)
+    except InvitacionInvalida as exc:
+        return {"token": token, "error": str(exc)}
+    return {"token": token, "invitacion": invitacion}
+
+
+def _aceptar_con_sesion(request, token):
+    contexto = _contexto_invitacion(token)
     if request.method == "POST":
         try:
             aceptar_invitacion(request.user, token)
         except (InvitacionInvalida, HouseholdLleno) as exc:
-            return render(request, "households/aceptar.html", {"error": str(exc), "token": token})
+            contexto["error"] = str(exc)
+            return render(request, "households/aceptar.html", contexto)
         return redirect("households:ajustes")
-    return render(request, "households/aceptar.html", {"token": token})
+    return render(request, "households/aceptar.html", contexto)
+
+
+def _aceptar_sin_sesion(request, token):
+    contexto = _contexto_invitacion(token)
+    invitacion = contexto.get("invitacion")
+    if invitacion is None:
+        return render(request, "households/aceptar.html", contexto)
+
+    contexto["ya_tiene_cuenta"] = User.objects.filter(email__iexact=invitacion.email).exists()
+    contexto["url_login"] = f"{reverse('accounts:login')}?next={request.path}"
+    form = RegistroInvitadoForm(request.POST or None, initial={"email": invitacion.email})
+    if request.method == "POST" and form.is_valid():
+        try:
+            user = registrar_invitado(form, token)
+        except (InvitacionInvalida, HouseholdLleno) as exc:
+            contexto["error"] = str(exc)
+        else:
+            login(request, user)
+            return redirect("accounts:inicio")
+    contexto["form"] = form
+    return render(request, "households/aceptar.html", contexto)

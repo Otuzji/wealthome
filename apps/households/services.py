@@ -65,6 +65,32 @@ def invitar(invitador, household, email, language):
     )
 
 
+def invitacion_por_token(token):
+    """La invitación si existe y sigue viva; si no, InvitacionInvalida con el
+    motivo. Es la misma comprobación que hace `aceptar_invitacion`, expuesta
+    para la página que el invitado ve ANTES de tener cuenta."""
+    try:
+        invitacion = Invitation.objects.select_related("household", "invited_by").get(token=token)
+    except Invitation.DoesNotExist:
+        raise InvitacionInvalida(_("This invitation link is not valid."))
+    if not invitacion.is_valid():
+        raise InvitacionInvalida(_("This invitation has expired or was already used."))
+    return invitacion
+
+
+@transaction.atomic
+def registrar_invitado(form, token):
+    """Crea la cuenta y la mete en el hogar en la misma transacción: si la
+    invitación caducó entre el GET y el POST, no queda un usuario huérfano
+    sin hogar. El perfil nace en el idioma en que se escribió la invitación."""
+    invitacion = invitacion_por_token(token)
+    user = form.crear_usuario()
+    aceptar_invitacion(user, token)
+    user.profile.language = invitacion.language
+    user.profile.save(update_fields=["language"])
+    return user
+
+
 @transaction.atomic
 def aceptar_invitacion(user, token):
     try:

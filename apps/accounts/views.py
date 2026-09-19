@@ -21,11 +21,7 @@ def registro(request):
         form = RegistroForm(request.POST)
         if form.is_valid():
             with transaction.atomic():
-                user = User.objects.create_user(
-                    email=form.cleaned_data["email"],
-                    password=form.cleaned_data["password1"],
-                    display_name=form.cleaned_data["display_name"],
-                )
+                user = form.crear_usuario()
                 crear_hogar(user, form.cleaned_data["household_name"], form.cleaned_data["family_size"])
             login(request, user)
             # Al paso 2 del asistente y no a la portada: el paso 1 acaba de
