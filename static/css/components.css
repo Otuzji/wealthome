@@ -145,6 +145,11 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .meta__este-mes { font-variant-numeric: tabular-nums; }
 .meta__este-mes--al-dia { color: var(--accent-strong); font-weight: var(--font-weight-strong); }
 .meta__aviso { color: var(--text-muted); font-size: 0.9em; }
+/* La tabla de aportes cabe en 400px: quien aporto va debajo de la fecha y
+   el relleno es mas corto que el de una tabla a todo el ancho. */
+.meta__aportes td { padding: 8px 6px; vertical-align: middle; }
+.meta__fecha { white-space: nowrap; }
+.meta__quien { color: var(--text-muted); font-size: 0.85em; }
 .seccion__titulo {
   grid-column: 1 / -1; margin: 8px 0 -8px; font-size: 0.85em;
   color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;

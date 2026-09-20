@@ -79,7 +79,7 @@
   <h3>{% translate "Contributions" %}</h3>
   {% if fila.aportes %}
     <div class="tabla__envoltura">
-      <table class="tabla">
+      <table class="tabla meta__aportes">
         {% for aporte, editable in fila.aportes|slice:":5" %}
           {% include "budget/_fragmentos/meta_aporte_fila.html" %}
         {% endfor %}
@@ -87,7 +87,7 @@
       {% if fila.aportes|length > 5 %}
         <details>
           <summary>{% translate "Show all" %}</summary>
-          <table class="tabla">
+          <table class="tabla meta__aportes">
             {% for aporte, editable in fila.aportes|slice:"5:" %}
               {% include "budget/_fragmentos/meta_aporte_fila.html" %}
             {% endfor %}

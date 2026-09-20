@@ -1,10 +1,15 @@
 {% load i18n money %}
+{% comment %} Quien aporto va DEBAJO de la fecha y no en su propia columna: con
+   fecha, quien, importe y los dos iconos, "From the monthly split" se partia
+   en cuatro lineas a 400px. {% endcomment %}
 <tr>
-  <td>{{ aporte.date }}</td>
   <td>
-    {% if aporte.origen == "cascade" %}{% translate "From the monthly split" %}
-    {% elif aporte.member %}{{ aporte.member.user }}
-    {% else %}{% translate "The household" %}{% endif %}
+    <div class="meta__fecha">{{ aporte.date }}</div>
+    <div class="meta__quien">
+      {% if aporte.origen == "cascade" %}{% translate "From the monthly split" %}
+      {% elif aporte.member %}{{ aporte.member.user }}
+      {% else %}{% translate "The household" %}{% endif %}
+    </div>
   </td>
   <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
   <td>
