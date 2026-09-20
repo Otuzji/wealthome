@@ -53,6 +53,15 @@ class Goal(HouseholdScoped):
         if self.contribution_mode == motor_goals.BY_MONTHLY_AMOUNT and not self.monthly_amount:
             raise ValidationError({"monthly_amount": _("Say how much you will put in each month.")})
 
+    @property
+    def esta_activa(self):
+        return self.status == self.ACTIVE
+
+    def alcanzada(self, acumulado):
+        """Cubierta con lo aportado. Es lo UNICO que decide `reached`: la
+        fecha objetivo no cuenta, una meta tarde sigue activa."""
+        return acumulado >= self.target_amount
+
     def acumulado(self):
         """Lo aportado a esta meta hasta hoy.
 
