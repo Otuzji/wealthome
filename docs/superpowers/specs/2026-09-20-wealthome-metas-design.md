@@ -1,7 +1,7 @@
 # Wealthome — Metas: aportar, corregir y cerrar el ciclo
 
 **Fecha:** 2026-09-20
-**Estado:** Diseño aprobado, pendiente de plan de implementación
+**Estado:** Implementado en la rama `ui/navegacion-y-tiles` (2026-09-20)
 **Depende de:** `2026-08-30-wealthome-nucleo-financiero-design.md` (§3.3 Goal y
 GoalContribution, §4.5 la cascada), `2026-09-03-wealthome-motor-financiero-design.md`
 (§4.6 `engine/goals.py`), y de la rama `ui/navegacion-y-tiles` con el registro
