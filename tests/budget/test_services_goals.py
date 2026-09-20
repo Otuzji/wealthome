@@ -158,3 +158,135 @@ def test_las_demas_transiciones_se_rechazan(hogar, desde, hasta):
 
     meta.refresh_from_db()
     assert meta.status == desde
+
+
+# --- resumen ------------------------------------------------------------------
+
+from django.db.models import Prefetch  # noqa: E402
+
+from apps.budget.engine.goals import BY_MONTHLY_AMOUNT  # noqa: E402
+from tests.factories_budget import AllocationRuleFactory  # noqa: E402
+
+
+def _con_aportes(hogar):
+    return Goal.objects.for_household(hogar).prefetch_related(
+        Prefetch(
+            "contributions",
+            queryset=GoalContribution.objects.for_household(hogar)
+            .select_related("member__user", "budget_month"),
+        )
+    )
+
+
+def test_resumen_suma_solo_lo_del_mes_de_hoy_en_este_mes(hogar):
+    hoy = date(2026, 9, 20)
+    septiembre = BudgetMonthFactory(household=hogar, year=2026, month=9)
+    agosto = BudgetMonthFactory(household=hogar, year=2026, month=8)
+    meta = GoalFactory(household=hogar, target_amount=Decimal("1000.00"))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("100.00"),
+                            date=date(2026, 9, 3), budget_month=septiembre)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("70.00"),
+                            date=date(2026, 8, 3), budget_month=agosto)
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar), hoy=hoy)
+
+    assert fila["acumulado"] == Decimal("170.00")
+    assert fila["este_mes"] == Decimal("100.00")
+
+
+def test_resumen_sin_mes_vivido_deja_este_mes_a_cero(hogar):
+    meta = GoalFactory(household=hogar)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("10.00"))
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar), hoy=date(2026, 9, 20))
+
+    assert fila["este_mes"] == Decimal("0.00")
+
+
+def test_resumen_sabe_si_una_regla_de_reparto_la_alimenta(hogar):
+    con = GoalFactory(household=hogar)
+    sin = GoalFactory(household=hogar)
+    AllocationRuleFactory(household=hogar, order=1, target_type="goal", target_goal=con,
+                          method="fixed", amount=Decimal("50.00"))
+    apagada = GoalFactory(household=hogar)
+    AllocationRuleFactory(household=hogar, order=2, target_type="goal", target_goal=apagada,
+                          method="fixed", amount=Decimal("50.00"), is_active=False)
+
+    por_meta = {f["meta"].pk: f["tiene_regla"]
+                for f in services_goals.resumen(hogar, _con_aportes(hogar))}
+
+    assert por_meta == {con.pk: True, sin.pk: False, apagada.pk: False}
+
+
+def test_resumen_cuenta_los_meses_que_faltan(hogar):
+    meta = GoalFactory(household=hogar, contribution_mode=BY_MONTHLY_AMOUNT,
+                       target_amount=Decimal("300.00"), monthly_amount=Decimal("100.00"),
+                       target_date=None)
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar), hoy=date(2026, 9, 20))
+
+    # 300 a 100 por mes: hoy, en un mes y en dos -> llega en noviembre.
+    assert fila["fecha"] == date(2026, 11, 20)
+    assert fila["meses_restantes"] == 2
+
+
+def test_resumen_marca_que_aportes_se_pueden_tocar(hogar):
+    # El mes se cierra DESPUES de sembrar el aporte: la guarda del modelo no
+    # deja escribir contra un mes cerrado, ni siquiera desde una factory.
+    cerrado = BudgetMonthFactory(household=hogar, year=2026, month=3)
+    abierto = BudgetMonthFactory(household=hogar, year=2026, month=9)
+    meta = GoalFactory(household=hogar)
+    manual_abierto = GoalContributionFactory(household=hogar, goal=meta, date=date(2026, 9, 1),
+                                             budget_month=abierto)
+    manual_cerrado = GoalContributionFactory(household=hogar, goal=meta, date=date(2026, 3, 1),
+                                             budget_month=cerrado)
+    cerrado.status = BudgetMonth.CLOSED
+    cerrado.save(update_fields=["status"])
+    sin_mes = GoalContributionFactory(household=hogar, goal=meta, date=date(2020, 1, 1))
+    cascada = GoalContribution.unscoped.create(
+        household=hogar, goal=meta, amount=Decimal("5.00"), date=date(2026, 9, 30),
+        member=None, origen="cascade", budget_month=abierto,
+    )
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
+
+    editable = {a.pk: e for a, e in fila["aportes"]}
+    assert editable == {manual_abierto.pk: True, manual_cerrado.pk: False,
+                        sin_mes.pk: True, cascada.pk: False}
+    assert fila["se_puede_borrar"] is False
+
+
+def test_una_meta_sin_cascada_se_puede_borrar(hogar):
+    meta = GoalFactory(household=hogar)
+    GoalContributionFactory(household=hogar, goal=meta)
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
+
+    assert fila["se_puede_borrar"] is True
+
+
+def test_resumen_dice_cuando_se_alcanzo(hogar):
+    meta = GoalFactory(household=hogar, target_amount=Decimal("100.00"), status=Goal.REACHED)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("60.00"), date=date(2026, 1, 1))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("40.00"), date=date(2026, 2, 1))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("25.00"), date=date(2026, 3, 1))
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
+
+    assert fila["alcanzada_el"] == date(2026, 2, 1)
+    assert fila["porcentaje"] == 125
+    assert fila["porcentaje_barra"] == 100
+
+
+def test_resumen_no_hace_una_consulta_por_meta(hogar, django_assert_num_queries):
+    for _i in range(20):
+        meta = GoalFactory(household=hogar)
+        for _j in range(5):
+            GoalContributionFactory(household=hogar, goal=meta)
+    metas = list(_con_aportes(hogar))
+
+    # Las reglas de reparto y el mes de hoy: dos, y no crecen con las metas.
+    with django_assert_num_queries(2):
+        filas = services_goals.resumen(hogar, metas)
+
+    assert len(filas) == 20

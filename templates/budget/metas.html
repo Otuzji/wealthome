@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n money %}
+{% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate "Goals" %} · Wealthome{% endblock %}
 {% block content %}
 <header class="pagina__cabecera">
@@ -10,27 +10,21 @@
   {% endif %}
 </header>
 
-{% for fila in filas %}
-<section class="card">
-  <h2>{{ fila.meta.name }}</h2>
-
-  <div class="progreso">
-    <div class="progreso__relleno" style="width: {{ fila.porcentaje_barra }}%"></div>
-  </div>
-  <p>
-    {% blocktranslate with hecho=fila.acumulado|money:hogar.currency objetivo=fila.meta.target_amount|money:hogar.currency pct=fila.porcentaje %}{{ hecho }} of {{ objetivo }} — {{ pct }}%{% endblocktranslate %}
-  </p>
-
-  {% if fila.meta.contribution_mode == "by_target_date" %}
-    <p>{% blocktranslate with importe=fila.aporte|money:hogar.currency %}Put in {{ importe }} a month to get there on time.{% endblocktranslate %}</p>
-  {% else %}
-    <p>{% blocktranslate with cuando=fila.fecha %}At this rate you get there in {{ cuando }}.{% endblocktranslate %}</p>
-  {% endif %}
-
-  <h3>{% translate "Contributions" %}</h3>
-  {% include "budget/_fragmentos/aportes.html" with meta=fila.meta aportes=fila.meta.contributions.all %}
-</section>
+{% for fila in activas %}
+  {% include "budget/_fragmentos/meta_tarjeta.html" %}
 {% empty %}
-<section class="card card--ancho"><p>{% translate "No goals yet." %}</p></section>
+  {% if not alcanzadas and not abandonadas %}
+    <section class="card card--ancho"><p>{% translate "No goals yet." %}</p></section>
+  {% endif %}
 {% endfor %}
+
+{% if alcanzadas %}
+  <h2 class="seccion__titulo">{% translate "Reached" %}</h2>
+  {% for fila in alcanzadas %}{% include "budget/_fragmentos/meta_tarjeta.html" %}{% endfor %}
+{% endif %}
+
+{% if abandonadas %}
+  <h2 class="seccion__titulo">{% translate "Abandoned" %}</h2>
+  {% for fila in abandonadas %}{% include "budget/_fragmentos/meta_tarjeta.html" %}{% endfor %}
+{% endif %}
 {% endblock %}

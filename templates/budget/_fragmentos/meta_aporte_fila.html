@@ -1,0 +1,10 @@
+{% load i18n money %}
+<tr>
+  <td>{{ aporte.date }}</td>
+  <td>
+    {% if aporte.origen == "cascade" %}{% translate "From the monthly split" %}
+    {% elif aporte.member %}{{ aporte.member.user }}
+    {% else %}{% translate "The household" %}{% endif %}
+  </td>
+  <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
+</tr>

@@ -1,0 +1,78 @@
+{% load i18n money %}
+{% comment %} Una meta. Lleva id para que, al aportar desde el modal del [+],
+   la vista devuelva ESTA tarjeta fuera de banda y htmx la sustituya en Metas;
+   en cualquier otra pantalla no hay un id que case y se ignora, como los
+   movimientos recientes del gasto. {% endcomment %}
+<section id="meta-{{ fila.meta.pk }}"
+         class="card{% if fila.meta.status == 'abandoned' %} card--apagada{% endif %}"
+         {% if oob %}hx-swap-oob="true"{% endif %}>
+  <header class="meta__cabecera">
+    <h2>
+      {{ fila.meta.name }}
+      {% if fila.meta.status == 'reached' %}
+        <span class="pildora pildora--bien meta__estado">{% translate "Reached" %}</span>
+      {% elif fila.meta.status == 'abandoned' %}
+        <span class="pildora meta__estado">{% translate "Abandoned" %}</span>
+      {% endif %}
+    </h2>
+  </header>
+
+  <div class="progreso">
+    <div class="progreso__relleno" style="width: {{ fila.porcentaje_barra }}%"></div>
+  </div>
+  <p>
+    {% blocktranslate with hecho=fila.acumulado|money:hogar.currency objetivo=fila.meta.target_amount|money:hogar.currency pct=fila.porcentaje %}{{ hecho }} of {{ objetivo }} — {{ pct }}%{% endblocktranslate %}
+  </p>
+
+  {% if fila.meta.status == 'reached' %}
+    <p class="meta__logro">
+      {% if fila.alcanzada_el %}
+        {% blocktranslate with cuando=fila.alcanzada_el|date:"j F Y" %}You got there on {{ cuando }} 🎉{% endblocktranslate %}
+      {% else %}
+        {% translate "You got there 🎉" %}
+      {% endif %}
+    </p>
+  {% elif fila.meta.status == 'active' %}
+    {% if fila.meta.contribution_mode == "by_target_date" %}
+      <p>{% blocktranslate with importe=fila.aporte|money:hogar.currency cuando=fila.fecha|date:"F Y" %}Put in {{ importe }} a month to get there by {{ cuando }}.{% endblocktranslate %}</p>
+    {% else %}
+      <p>{% blocktranslate count meses=fila.meses_restantes with cuando=fila.fecha|date:"F Y" %}At this rate you get there in {{ meses }} month · {{ cuando }}.{% plural %}At this rate you get there in {{ meses }} months · {{ cuando }}.{% endblocktranslate %}</p>
+    {% endif %}
+    <p class="meta__este-mes{% if fila.este_mes >= fila.aporte %} meta__este-mes--al-dia{% endif %}">
+      {% blocktranslate with hecho=fila.este_mes|money:hogar.currency sugerido=fila.aporte|money:hogar.currency %}This month: {{ hecho }} of the {{ sugerido }} suggested{% endblocktranslate %}
+    </p>
+    {% if fila.meta.scope == "personal" %}
+      <p class="meta__aviso">{% translate "Personal goal: only manual contributions." %}</p>
+    {% elif not fila.tiene_regla %}
+      <p class="meta__aviso">
+        {% translate "Nothing feeds this goal automatically —" %}
+        <a href="{% url 'budget:reparto_nuevo' %}?target_type=goal&amp;target_goal={{ fila.meta.pk }}">{% translate "add a split rule" %}</a>
+      </p>
+    {% endif %}
+  {% elif fila.tiene_regla %}
+    <p class="meta__aviso">{% translate "A split rule still feeds it — remove it in Budget setup." %}</p>
+  {% endif %}
+
+  <h3>{% translate "Contributions" %}</h3>
+  {% if fila.aportes %}
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        {% for aporte, editable in fila.aportes|slice:":5" %}
+          {% include "budget/_fragmentos/meta_aporte_fila.html" %}
+        {% endfor %}
+      </table>
+      {% if fila.aportes|length > 5 %}
+        <details>
+          <summary>{% translate "Show all" %}</summary>
+          <table class="tabla">
+            {% for aporte, editable in fila.aportes|slice:"5:" %}
+              {% include "budget/_fragmentos/meta_aporte_fila.html" %}
+            {% endfor %}
+          </table>
+        </details>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="meta__aviso">{% translate "Nothing yet." %}</p>
+  {% endif %}
+</section>

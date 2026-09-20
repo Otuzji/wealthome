@@ -132,6 +132,24 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .pildora--bien { color: var(--accent-strong); }
 .pildora--mal { color: var(--danger); }
 
+/* ---------- metas ----------
+   La pildora de estado va dentro del h2 para no ocupar una linea propia; la
+   tarjeta abandonada se atenua entera, no se esconde: sigue siendo un dato, y
+   al pasar por encima vuelve a verse para leerla o reactivarla. */
+.meta__estado { margin-left: 8px; font-size: 0.7em; vertical-align: middle; }
+.card--apagada { opacity: 0.6; }
+.card--apagada:hover, .card--apagada:focus-within { opacity: 1; }
+.meta__cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.meta__cabecera h2 { margin: 0 0 12px; }
+.meta__logro { font-weight: var(--font-weight-strong); }
+.meta__este-mes { font-variant-numeric: tabular-nums; }
+.meta__este-mes--al-dia { color: var(--accent-strong); font-weight: var(--font-weight-strong); }
+.meta__aviso { color: var(--text-muted); font-size: 0.9em; }
+.seccion__titulo {
+  grid-column: 1 / -1; margin: 8px 0 -8px; font-size: 0.85em;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+
 /* ---------- tarjeta de cifra ---------- */
 .cifra {
   background: var(--surface);

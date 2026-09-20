@@ -40,7 +40,12 @@ CONSULTAS_MES = 17
 # consulta por meta. Ahora acumulado() suma en Python cuando las aportaciones
 # vienen prefetched, y el numero NO crece con las metas: 6 con cinco y 6 con
 # veinte. Medido las dos veces.
-CONSULTAS_METAS = 6
+#
+# SUBIDO de 6 a 8 con la tarjeta nueva: resumen() lee las reglas de reparto
+# (para decir que alimenta cada meta) y el mes de hoy (para "This month"), una
+# consulta cada una y ninguna crece con las metas. Medido con cinco y con
+# veinte: test_resumen_no_hace_una_consulta_por_meta lo vigila.
+CONSULTAS_METAS = 8
 # Fijado en la Tarea 19, midiendo. El Overview agrega en Python sobre los
 # mismos dos querysets que ya trae el mes, mas los ultimos cierres para la
 # grafica del balance: el tope no debe crecer con el numero de movimientos.
