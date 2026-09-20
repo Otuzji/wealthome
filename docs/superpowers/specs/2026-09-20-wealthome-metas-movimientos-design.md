@@ -1,7 +1,7 @@
 # Wealthome — Metas II: el fondo abierto, retirar, transferir y el ahorro en Balance
 
 **Fecha:** 2026-09-20
-**Estado:** Diseño aprobado, pendiente de plan de implementación
+**Estado:** Implementado en la rama `ui/navegacion-y-tiles` (2026-09-20)
 **Depende de:** `2026-09-20-wealthome-metas-design.md` (implementado en `ui/navegacion-y-tiles`).
 
 Al usar las metas con casos reales salieron tres huecos: no hay forma de tener un fondo sin
