@@ -14,7 +14,18 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import services
-from .models import AllocationRule, Goal, GoalContribution
+from .models import (
+    CASCADE, MANUAL, TRANSFER_IN, TRANSFER_OUT, WITHDRAWAL, AllocationRule, Goal,
+    GoalContribution,
+)
+
+
+class SaldoInsuficiente(ValueError):
+    """Se quiso sacar mas de lo que hay (o nada)."""
+
+
+class SaldoPendiente(ValueError):
+    """Se quiso quitar una meta que todavia tiene dinero."""
 
 # Las transiciones que pide el usuario. active -> reached y reached -> active
 # no estan: las decide recalcular_estado a partir de lo aportado.
@@ -24,32 +35,96 @@ TRANSICIONES_A_MANO = {
 }
 
 
-@transaction.atomic
-def aportar(hogar, meta, amount, date, member, origen="manual"):
-    """Un aporte con fecha. El mes se resuelve por la fecha y NO se crea: un
-    aporte fechado en un mes que el hogar no vivio queda sin mes (y por tanto
-    no puede chocar con un cierre). `MesCerrado` sube tal cual."""
-    aporte = GoalContribution(
+def _movimiento(hogar, meta, amount, date, member, origen, note="", counterpart=None):
+    """Una fila de movimiento. El mes se resuelve por la fecha y NO se crea:
+    un movimiento fechado en un mes que el hogar no vivio queda sin mes (y por
+    tanto no puede chocar con un cierre). `MesCerrado` sube tal cual."""
+    fila = GoalContribution(
         household=hogar, goal=meta, amount=amount, date=date, member=member,
-        origen=origen, budget_month=services.mes_de_fecha(hogar, date),
+        origen=origen, note=note, counterpart=counterpart,
+        budget_month=services.mes_de_fecha(hogar, date),
     )
-    aporte.full_clean()
-    aporte.save()
+    fila.full_clean()
+    fila.save()
+    return fila
+
+
+def _exigir_saldo(meta, amount):
+    if amount is None or amount <= 0:
+        raise SaldoInsuficiente("Hay que sacar mas de cero.")
+    if amount > meta.acumulado():
+        raise SaldoInsuficiente(f"La meta {meta} no tiene {amount}.")
+
+
+@transaction.atomic
+def aportar(hogar, meta, amount, date, member, origen=MANUAL, note=""):
+    """Un aporte con fecha: a mano (dinero de fuera del presupuesto) o de la
+    cascada. Si cubre el objetivo, la meta pasa a alcanzada."""
+    aporte = _movimiento(hogar, meta, amount, date, member, origen, note)
     recalcular_estado(meta)
     return aporte
 
 
-def recalcular_estado(meta, acumulado=None):
+@transaction.atomic
+def retirar(hogar, meta, amount, date, member, note=""):
+    """Sacar dinero de una meta: "ya lo use". Sale de la app, no vuelve al
+    mes. Una meta alcanzada sigue alcanzada aunque se vacie: se cumplio."""
+    _exigir_saldo(meta, amount)
+    return _movimiento(hogar, meta, -amount, date, member, WITHDRAWAL, note)
+
+
+@transaction.atomic
+def transferir(hogar, origen, destino, amount, date, member, note=""):
+    """Mover saldo de una meta a otra activa. Dos filas enlazadas por
+    `counterpart`: borrar una borra la otra y las dos metas siguen cuadrando.
+    Devuelve (salida, entrada)."""
+    if origen.pk == destino.pk:
+        raise ValueError("Una meta no se transfiere a si misma.")
+    if destino.status != Goal.ACTIVE:
+        raise ValueError(f"La meta {destino} no esta activa.")
+    _exigir_saldo(origen, amount)
+    salida = _movimiento(hogar, origen, -amount, date, member, TRANSFER_OUT, note)
+    entrada = _movimiento(hogar, destino, amount, date, member, TRANSFER_IN, note,
+                          counterpart=salida)
+    salida.counterpart = entrada
+    salida.save(update_fields=["counterpart"])
+    recalcular_estado(origen, bajar=False)
+    recalcular_estado(destino)
+    return salida, entrada
+
+
+def quitar(meta):
+    """Borrar una meta, o archivarla si un cierre la referencia. Solo con el
+    saldo en cero: con dinero dentro, primero se retira o se transfiere.
+    Devuelve "deleted" o "archived"."""
+    if meta.acumulado() != 0:
+        raise SaldoPendiente(f"La meta {meta} todavia tiene saldo.")
+    if meta.contributions.filter(origen=CASCADE).exists():
+        # AllocationRule.target_goal es CASCADE y MonthlyAllocation.rule es
+        # RESTRICT: el mes cerrado conto con ese reparto. Se guarda fuera de
+        # Goals y sigue contando en Balance.
+        meta.status = Goal.ARCHIVED
+        meta.save(update_fields=["status"])
+        return "archived"
+    meta.delete()
+    return "deleted"
+
+
+def recalcular_estado(meta, acumulado=None, bajar=True):
     """Solo active <-> reached. Devuelve si cambio.
 
     `acumulado` se puede pasar ya sumado: quien pinta la lista lo tiene.
+    Con `bajar=False` una alcanzada no vuelve a activa: es lo que pasa al
+    sacar dinero de ella, que se cumplio y ya se uso.
     """
-    if meta.status == Goal.ABANDONED:
+    if meta.status in (Goal.ABANDONED, Goal.ARCHIVED):
         return False
     if acumulado is None:
         acumulado = meta.acumulado()
     nuevo = Goal.REACHED if meta.alcanzada(acumulado) else Goal.ACTIVE
     if nuevo == meta.status:
+        return False
+    if nuevo == Goal.ACTIVE and not bajar:
         return False
     meta.status = nuevo
     meta.save(update_fields=["status"])

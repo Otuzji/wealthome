@@ -352,3 +352,172 @@ def test_el_signo_del_movimiento_va_con_su_origen(hogar, origen, importe, valido
         with pytest.raises(ValidationError) as exc:
             movimiento.full_clean()
         assert "amount" in exc.value.message_dict
+
+
+# --- retirar, transferir, quitar ---------------------------------------------
+
+
+def _con_saldo(hogar, saldo="500.00", **campos):
+    meta = GoalFactory(household=hogar, **campos)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal(saldo))
+    return meta
+
+
+def test_retirar_escribe_un_movimiento_negativo_con_su_motivo(hogar):
+    meta = _con_saldo(hogar)
+    miembro = MembershipFactory(household=hogar)
+
+    retiro = services_goals.retirar(hogar, meta, Decimal("120.00"), date(2026, 3, 5),
+                                    miembro, note="Vuelos")
+
+    assert retiro.amount == Decimal("-120.00")
+    assert retiro.origen == "withdrawal"
+    assert retiro.note == "Vuelos"
+    assert retiro.member == miembro
+    assert meta.acumulado() == Decimal("380.00")
+
+
+@pytest.mark.parametrize("importe", ["500.01", "0.00", "-10.00"])
+def test_no_se_retira_mas_del_saldo_ni_cero(hogar, importe):
+    meta = _con_saldo(hogar)
+
+    with pytest.raises(services_goals.SaldoInsuficiente):
+        services_goals.retirar(hogar, meta, Decimal(importe), date(2026, 3, 5),
+                               MembershipFactory(household=hogar), note="")
+
+    assert meta.acumulado() == Decimal("500.00")
+
+
+def test_retirar_contra_un_mes_cerrado_revienta(hogar):
+    BudgetMonthFactory(household=hogar, year=2026, month=3, status=BudgetMonth.CLOSED)
+    meta = _con_saldo(hogar)
+
+    with pytest.raises(MesCerrado):
+        services_goals.retirar(hogar, meta, Decimal("10.00"), date(2026, 3, 5),
+                               MembershipFactory(household=hogar), note="")
+
+
+def test_retirar_no_baja_una_meta_alcanzada(hogar):
+    """Se cumplio y se uso: sigue cumplida, aunque el saldo quede en cero."""
+    meta = _con_saldo(hogar, target_amount=Decimal("500.00"), status=Goal.REACHED)
+
+    services_goals.retirar(hogar, meta, Decimal("500.00"), date(2026, 3, 5),
+                           MembershipFactory(household=hogar), note="Ya viajamos")
+
+    meta.refresh_from_db()
+    assert meta.status == Goal.REACHED
+    assert meta.acumulado() == Decimal("0.00")
+
+
+def test_transferir_escribe_los_dos_lados_enlazados(hogar):
+    origen = _con_saldo(hogar)
+    destino = GoalFactory(household=hogar, target_amount=Decimal("1000.00"))
+    miembro = MembershipFactory(household=hogar)
+
+    salida, entrada = services_goals.transferir(
+        hogar, origen, destino, Decimal("200.00"), date(2026, 3, 5), miembro, note="Al viaje"
+    )
+
+    assert (salida.origen, salida.amount, salida.goal) == ("transfer_out", Decimal("-200.00"), origen)
+    assert (entrada.origen, entrada.amount, entrada.goal) == ("transfer_in", Decimal("200.00"), destino)
+    assert salida.counterpart == entrada and entrada.counterpart == salida
+    assert salida.note == entrada.note == "Al viaje"
+    assert origen.acumulado() == Decimal("300.00")
+    assert destino.acumulado() == Decimal("200.00")
+
+
+def test_transferir_puede_cubrir_el_destino(hogar):
+    origen = _con_saldo(hogar)
+    destino = GoalFactory(household=hogar, target_amount=Decimal("100.00"))
+
+    services_goals.transferir(hogar, origen, destino, Decimal("100.00"), date(2026, 3, 5),
+                              MembershipFactory(household=hogar), note="")
+
+    destino.refresh_from_db()
+    assert destino.status == Goal.REACHED
+
+
+def test_transferir_no_baja_el_origen_alcanzado(hogar):
+    origen = _con_saldo(hogar, target_amount=Decimal("500.00"), status=Goal.REACHED)
+    destino = GoalFactory(household=hogar)
+
+    services_goals.transferir(hogar, origen, destino, Decimal("500.00"), date(2026, 3, 5),
+                              MembershipFactory(household=hogar), note="")
+
+    origen.refresh_from_db()
+    assert origen.status == Goal.REACHED
+
+
+@pytest.mark.parametrize("estado", [Goal.REACHED, Goal.ABANDONED, Goal.ARCHIVED])
+def test_solo_se_transfiere_a_una_meta_activa(hogar, estado):
+    origen = _con_saldo(hogar)
+    destino = GoalFactory(household=hogar, status=estado)
+
+    with pytest.raises(ValueError):
+        services_goals.transferir(hogar, origen, destino, Decimal("10.00"), date(2026, 3, 5),
+                                  MembershipFactory(household=hogar), note="")
+
+    assert origen.acumulado() == Decimal("500.00")
+    assert not destino.contributions.exists()
+
+
+def test_no_se_transfiere_a_la_misma_meta_ni_mas_del_saldo(hogar):
+    origen = _con_saldo(hogar)
+    destino = GoalFactory(household=hogar)
+    miembro = MembershipFactory(household=hogar)
+
+    with pytest.raises(ValueError):
+        services_goals.transferir(hogar, origen, origen, Decimal("10.00"), date(2026, 3, 5), miembro, note="")
+    with pytest.raises(services_goals.SaldoInsuficiente):
+        services_goals.transferir(hogar, origen, destino, Decimal("500.01"), date(2026, 3, 5), miembro, note="")
+
+    assert origen.contributions.count() == 1
+
+
+def test_quitar_exige_saldo_cero(hogar):
+    meta = _con_saldo(hogar)
+
+    with pytest.raises(services_goals.SaldoPendiente):
+        services_goals.quitar(meta)
+
+    assert Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
+
+
+def test_quitar_borra_una_meta_sin_cascada(hogar):
+    meta = _con_saldo(hogar)
+    services_goals.retirar(hogar, meta, Decimal("500.00"), date(2026, 3, 5),
+                           MembershipFactory(household=hogar), note="")
+
+    assert services_goals.quitar(meta) == "deleted"
+    assert not Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
+
+
+def test_quitar_archiva_una_meta_que_recibio_cascada(hogar):
+    meta = GoalFactory(household=hogar)
+    GoalContribution.unscoped.create(household=hogar, goal=meta, amount=Decimal("50.00"),
+                                     date=date(2026, 3, 31), member=None, origen="cascade")
+    services_goals.retirar(hogar, meta, Decimal("50.00"), date(2026, 4, 1),
+                           MembershipFactory(household=hogar), note="")
+
+    assert services_goals.quitar(meta) == "archived"
+    meta.refresh_from_db()
+    assert meta.status == Goal.ARCHIVED
+    assert meta.contributions.count() == 2
+
+
+def test_recalcular_con_bajar_false_no_reabre(hogar):
+    meta = GoalFactory(household=hogar, target_amount=Decimal("100.00"), status=Goal.REACHED)
+
+    assert services_goals.recalcular_estado(meta, acumulado=Decimal("0.00"), bajar=False) is False
+    assert meta.status == Goal.REACHED
+
+
+def test_un_fondo_nunca_se_da_por_alcanzado(hogar):
+    fondo = _fondo(hogar)
+
+    services_goals.aportar(hogar, fondo, Decimal("99999.00"), date(2026, 3, 1),
+                           MembershipFactory(household=hogar), note="Un bono")
+
+    fondo.refresh_from_db()
+    assert fondo.status == Goal.ACTIVE
+    assert fondo.contributions.get().note == "Un bono"
