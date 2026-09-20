@@ -13,7 +13,10 @@ from .money import DOS_DECIMALES, centavos
 
 BY_TARGET_DATE = "by_target_date"
 BY_MONTHLY_AMOUNT = "by_monthly_amount"
-MODOS_DE_META = (BY_TARGET_DATE, BY_MONTHLY_AMOUNT)
+# El fondo abierto: sin objetivo ni fecha, solo un saldo al que se abona. No
+# hay tercer dato que derivar; el aporte es el que el usuario fijo, si fijo.
+OPEN_FUND = "open_fund"
+MODOS_DE_META = (BY_TARGET_DATE, BY_MONTHLY_AMOUNT, OPEN_FUND)
 
 
 def _meses_hasta(desde, hasta):
@@ -44,6 +47,10 @@ def derivar(modo, objetivo, acumulado, desde, fecha_objetivo=None, aporte_mensua
     """
     if modo not in MODOS_DE_META:
         raise ValueError(f"Modo de meta desconocido: {modo!r}")
+
+    if modo == OPEN_FUND:
+        aporte = centavos(aporte_mensual) if aporte_mensual else Decimal("0.00")
+        return aporte, None
 
     falta = centavos(objetivo) - centavos(acumulado)
     if falta <= 0:

@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.budget.engine.goals import BY_MONTHLY_AMOUNT, BY_TARGET_DATE, derivar
+from apps.budget.engine.goals import BY_MONTHLY_AMOUNT, BY_TARGET_DATE, OPEN_FUND, derivar
 
 
 def test_por_fecha_objetivo_deriva_el_aporte_mensual():
@@ -162,3 +162,24 @@ def test_un_modo_desconocido_en_meta_alcanzada_revienta():
             acumulado=Decimal("1000.00"),
             desde=date(2026, 1, 1),
         )
+
+
+# --- el fondo abierto ---------------------------------------------------------
+
+
+def test_un_fondo_abierto_devuelve_su_aporte_y_ninguna_fecha():
+    """Sin objetivo no hay nada que derivar: el aporte es el que el usuario
+    fijo, y la fecha de llegada no existe."""
+    aporte, fecha = derivar(OPEN_FUND, objetivo=None, acumulado=Decimal("350.00"),
+                            desde=date(2026, 9, 20), aporte_mensual=Decimal("200.00"))
+
+    assert aporte == Decimal("200.00")
+    assert fecha is None
+
+
+def test_un_fondo_abierto_sin_aporte_fijado_da_cero():
+    aporte, fecha = derivar(OPEN_FUND, objetivo=None, acumulado=Decimal("0.00"),
+                            desde=date(2026, 9, 20))
+
+    assert aporte == Decimal("0.00")
+    assert fecha is None

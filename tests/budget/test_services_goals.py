@@ -290,3 +290,65 @@ def test_resumen_no_hace_una_consulta_por_meta(hogar, django_assert_num_queries)
         filas = services_goals.resumen(hogar, metas)
 
     assert len(filas) == 20
+
+
+# --- el modelo: modos y signo de los movimientos -------------------------------
+
+from django.core.exceptions import ValidationError  # noqa: E402
+
+from apps.budget.engine.goals import BY_TARGET_DATE, OPEN_FUND  # noqa: E402
+
+
+def _fondo(hogar, **campos):
+    base = dict(household=hogar, contribution_mode=OPEN_FUND, target_amount=None,
+                target_date=None)
+    base.update(campos)
+    return GoalFactory(**base)
+
+
+def test_un_fondo_abierto_no_necesita_objetivo_ni_fecha(hogar):
+    fondo = _fondo(hogar, monthly_amount=Decimal("200.00"))
+
+    fondo.full_clean()
+
+    assert fondo.es_fondo is True
+    assert fondo.alcanzada(Decimal("999999.00")) is False
+
+
+def test_un_fondo_abierto_rechaza_un_objetivo(hogar):
+    fondo = _fondo(hogar, target_amount=Decimal("100.00"))
+
+    with pytest.raises(ValidationError) as exc:
+        fondo.full_clean()
+
+    assert "target_amount" in exc.value.message_dict
+
+
+def test_una_meta_por_fecha_sigue_exigiendo_objetivo(hogar):
+    meta = GoalFactory(household=hogar, contribution_mode=BY_TARGET_DATE,
+                       target_amount=None, target_date=date(2027, 1, 1))
+
+    with pytest.raises(ValidationError) as exc:
+        meta.full_clean()
+
+    assert "target_amount" in exc.value.message_dict
+
+
+@pytest.mark.parametrize("origen,importe,valido", [
+    ("manual", "10.00", True), ("manual", "-10.00", False),
+    ("cascade", "10.00", True), ("transfer_in", "10.00", True),
+    ("withdrawal", "-10.00", True), ("withdrawal", "10.00", False),
+    ("transfer_out", "-10.00", True), ("transfer_out", "10.00", False),
+    ("manual", "0.00", False),
+])
+def test_el_signo_del_movimiento_va_con_su_origen(hogar, origen, importe, valido):
+    meta = GoalFactory(household=hogar)
+    movimiento = GoalContribution(household=hogar, goal=meta, origen=origen,
+                                  amount=Decimal(importe), date=date(2026, 3, 1))
+
+    if valido:
+        movimiento.full_clean()
+    else:
+        with pytest.raises(ValidationError) as exc:
+            movimiento.full_clean()
+        assert "amount" in exc.value.message_dict
