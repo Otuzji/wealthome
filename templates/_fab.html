@@ -4,7 +4,7 @@ toda pantalla. Boton flotante abajo a la derecha, el patron nativo.
 
 Es un <a> y no un <button>: sin JavaScript lleva a /budget/spend/, que es la
 misma vista como pagina entera (y desde alli se pasa al ingreso). Con
-JavaScript abre el modal con el SELECTOR: gasto o ingreso. Cada opcion pide
+JavaScript abre el modal con el SELECTOR: gasto, ingreso o aporte a una meta. Cada opcion pide
 por htmx su formulario y lo mete en el modal; el titulo viaja con el
 formulario, fuera de banda. El selector es HTML de esta pagina, sin peticion:
 vive en un <template> y se copia al cuerpo cada vez que el modal se abre,
@@ -53,6 +53,13 @@ nadie iba a mirar es una peticion de menos. {% endcomment %}
       <span class="selector__icono" aria-hidden="true">+</span>
       <span class="selector__texto">{% translate "An income" %}</span>
       <span class="selector__pista">{% translate "Money that came in" %}</span>
+    </button>
+    <button class="selector__opcion selector__opcion--meta" type="button"
+            hx-get="{% url 'budget:aportar' %}"
+            hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML">
+      <span class="selector__icono" aria-hidden="true">◎</span>
+      <span class="selector__texto">{% translate "A goal contribution" %}</span>
+      <span class="selector__pista">{% translate "Money you set aside" %}</span>
     </button>
   </div>
 </template>

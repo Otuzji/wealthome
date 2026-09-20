@@ -357,6 +357,7 @@
 }
 .selector__opcion--gasto .selector__icono { background: var(--outflow); }
 .selector__opcion--ingreso .selector__icono { background: var(--accent); }
+.selector__opcion--meta .selector__icono { background: var(--accent-strong); }
 .selector__texto { font-weight: var(--font-weight-strong); }
 .selector__pista { color: var(--text-muted); font-size: 0.875em; }
 .formulario__acciones { display: flex; gap: 12px; align-items: center; }

@@ -7,11 +7,13 @@ ambito, y a el se vuelve.
 
 from django.db.models import Prefetch
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
-from . import services, services_goals
+from . import services_goals
 from .forms import GoalContributionForm, GoalForm
 from .models import Goal, GoalContribution, MesCerrado
 from .scopes import acotar_por_dueno, validar
@@ -57,25 +59,52 @@ def meta_nueva(request, hogar):
                  destino="budget:metas", destino_args=("household",))
 
 
+def _fila(hogar, meta):
+    """La fila de resumen() de UNA meta, para devolver su tarjeta."""
+    consulta = _con_aportes(Goal.objects.for_household(hogar).filter(pk=meta.pk), hogar)
+    return services_goals.resumen(hogar, consulta)[0]
+
+
 @requiere_permiso("can_edit_budget")
 def aportar(request, hogar):
-    """Mismo patron que `registrar`, para no inventar un segundo."""
+    """Mismo patron que `registrar`: por htmx devuelve el fragmento y, al
+    guardar, el formulario limpio con la tarjeta de la meta FUERA DE BANDA
+    (solo Metas tiene ese id; desde otra pantalla htmx la ignora) y la
+    cabecera que cierra el modal. Sin htmx, la pagina entera y de vuelta a
+    Metas del ambito de la meta."""
     es_htmx = request.headers.get("HX-Request") == "true"
+    membresia = membresia_actual(request)
+    hoy = timezone.localdate()
+    initial = {"date": hoy}
+    if request.GET.get("goal", "").isdigit():
+        initial["goal"] = int(request.GET["goal"])
     form = GoalContributionForm(request.POST or None, household=hogar,
-                                membresia=membresia_actual(request))
+                                membresia=membresia, initial=initial)
+    contexto = {"titulo": _("Add to a goal"),
+                "cancelar": reverse("budget:metas", args=["household"])}
     if request.method == "POST" and form.is_valid():
-        aporte = form.save(commit=False)
-        aporte.household = hogar
-        aporte.member = membresia_actual(request)
-        aporte.budget_month = services.mes_de_fecha(hogar, aporte.date)
+        datos = form.cleaned_data
         try:
-            aporte.full_clean()
-            aporte.save()
+            aporte = services_goals.aportar(
+                hogar, datos["goal"], datos["amount"], datos["date"], membresia
+            )
         except MesCerrado:
             form.add_error(None, _("This month is already closed."))
         else:
-            return redirect("budget:metas", "household")
+            if es_htmx:
+                limpio = GoalContributionForm(household=hogar, membresia=membresia,
+                                              initial={"date": hoy})
+                respuesta = render(request, "budget/_fragmentos/aporte_form.html", {
+                    "form": limpio, "tarjeta_oob": _fila(hogar, aporte.goal), **contexto,
+                })
+                respuesta["HX-Trigger"] = "gasto-registrado"
+                return respuesta
+            return redirect("budget:metas", aporte.goal.scope)
 
     plantilla = ("budget/_fragmentos/aporte_form.html" if es_htmx
                  else "budget/formulario.html")
-    return render(request, plantilla, {"form": form, "titulo": _("Add to a goal")})
+    return render(request, plantilla, {
+        # Una exists() solo al pintar el formulario, no por pagina: es lo que
+        # permite que el selector del [+] ofrezca siempre la tercera opcion.
+        "form": form, "sin_metas": not form.fields["goal"].queryset.exists(), **contexto,
+    })

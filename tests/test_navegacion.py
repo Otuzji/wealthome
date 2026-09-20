@@ -328,6 +328,17 @@ def test_el_fab_llega_al_html_solo_cuando_toca(client):
     assert 'class="fab"' in cuerpo
 
 
+@pytest.mark.django_db
+def test_el_selector_del_fab_ofrece_aportar_a_una_meta(client):
+    """Tercera opcion siempre: sin metas activas es el formulario quien lo
+    dice, y el menu no paga una consulta por pagina para saberlo."""
+    _sesion(client, ADMIN)
+    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert "selector__opcion--meta" in cuerpo
+    assert reverse("budget:aportar") in cuerpo
+
+
 # ---------- el ciclo de vida del mes ----------
 
 @pytest.mark.django_db

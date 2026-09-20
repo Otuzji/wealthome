@@ -1,7 +1,28 @@
 {% load i18n %}
+{% comment %} Como gasto_form.html: el titulo del modal viaja fuera de banda,
+   el formulario se sustituye a si mismo, y tras guardar la vista manda la
+   tarjeta de la meta tambien fuera de banda para que Metas se refresque sin
+   recargar. Sin metas activas no hay <select> que ensenar: se dice y se
+   ofrece crear una. {% endcomment %}
+<h2 id="modal-gasto-titulo" hx-swap-oob="true">{{ titulo }}</h2>
+{% if sin_metas %}
+  <div class="formulario">
+    <p>{% translate "No active goals yet." %}</p>
+    <a class="btn btn--primary" href="{% url 'budget:meta_nueva' %}">{% translate "New goal" %}</a>
+  </div>
+{% else %}
 <form class="formulario" hx-post="{% url 'budget:aportar' %}"
-      hx-target="closest .card" hx-swap="beforeend">
+      hx-target="this" hx-swap="outerHTML">
   {% csrf_token %}
-  {{ form.as_div }}
-  <button class="btn btn--primary" type="submit">{% translate "Add it" %}</button>
+  {% include "budget/_fragmentos/campos.html" %}
+  <div class="formulario__acciones">
+    <button class="btn btn--primary" type="submit">{% translate "Add it" %}</button>
+    <button class="btn btn--sutil" type="button" onclick="abrirSelectorDeRegistro()">
+      {% translate "Back" %}
+    </button>
+  </div>
 </form>
+{% endif %}
+{% if tarjeta_oob %}
+  {% include "budget/_fragmentos/meta_tarjeta.html" with fila=tarjeta_oob oob=True %}
+{% endif %}

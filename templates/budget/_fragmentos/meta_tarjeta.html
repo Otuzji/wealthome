@@ -41,6 +41,19 @@
     <p class="meta__este-mes{% if fila.este_mes >= fila.aporte %} meta__este-mes--al-dia{% endif %}">
       {% blocktranslate with hecho=fila.este_mes|money:hogar.currency sugerido=fila.aporte|money:hogar.currency %}This month: {{ hecho }} of the {{ sugerido }} suggested{% endblocktranslate %}
     </p>
+    {% if nav_membresia.can_edit_budget and nav_puede_escribir %}
+      <p>
+        {% comment %} Sin JS lleva a la pagina entera del aporte con la meta
+           puesta. Con el modal del [+] presente, pide el formulario por htmx
+           al cuerpo del modal y lo abre, como las opciones del selector. {% endcomment %}
+        <a class="btn btn--primary" href="{% url 'budget:aportar' %}?goal={{ fila.meta.pk }}"
+           {% if nav_fab %}hx-get="{% url 'budget:aportar' %}?goal={{ fila.meta.pk }}"
+           hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML"
+           onclick="document.getElementById('modal-gasto').showModal()"{% endif %}>
+          {% translate "Add to it" %}
+        </a>
+      </p>
+    {% endif %}
     {% if fila.meta.scope == "personal" %}
       <p class="meta__aviso">{% translate "Personal goal: only manual contributions." %}</p>
     {% elif not fila.tiene_regla %}

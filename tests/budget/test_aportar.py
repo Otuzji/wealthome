@@ -87,3 +87,129 @@ def test_un_importe_de_cero_se_rechaza(admin_con_hogar):
 
     assert not form.is_valid()
     assert "amount" in form.errors
+
+
+# --- aportar ------------------------------------------------------------------
+
+HTMX = {"HTTP_HX_REQUEST": "true"}
+
+
+def test_aportar_exige_can_edit_budget(client, admin_con_hogar):
+    _user, hogar = admin_con_hogar
+    client.force_login(_miembro(hogar, can_edit_budget=False).user)
+
+    assert client.get(reverse("budget:aportar")).status_code == 403
+    assert client.post(reverse("budget:aportar"), {}).status_code == 403
+
+
+def test_por_htmx_llega_el_fragmento_con_el_titulo_fuera_de_banda(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    GoalFactory(household=hogar)
+    client.force_login(user)
+
+    html = client.get(reverse("budget:aportar"), **HTMX).content.decode()
+
+    assert 'id="modal-gasto-titulo" hx-swap-oob="true"' in html
+    assert "Add to a goal" in html
+    assert "hx-post" in html
+    assert "<html" not in html
+
+
+def test_sin_metas_activas_el_fragmento_lo_dice_en_vez_de_un_select_vacio(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    GoalFactory(household=hogar, status=Goal.REACHED)
+    client.force_login(user)
+
+    html = client.get(reverse("budget:aportar"), **HTMX).content.decode()
+
+    assert "No active goals yet" in html
+    assert reverse("budget:meta_nueva") in html
+    assert "<select" not in html
+
+
+def test_goal_en_la_query_preselecciona_la_meta(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:aportar") + f"?goal={meta.pk}", **HTMX)
+
+    assert respuesta.context["form"]["goal"].value() == meta.pk
+
+
+def test_un_aporte_por_htmx_devuelve_la_tarjeta_fuera_de_banda_y_cierra_el_modal(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("1000.00"))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aportar"), {
+        "goal": meta.pk, "amount": "150.00", "date": timezone.localdate().isoformat(),
+    }, **HTMX)
+
+    assert respuesta.status_code == 200
+    assert respuesta["HX-Trigger"] == "gasto-registrado"
+    html = respuesta.content.decode()
+    assert f'id="meta-{meta.pk}"' in html and "hx-swap-oob" in html
+    assert "150" in html
+    aporte = meta.contributions.get()
+    assert aporte.member == _mia(hogar, user)
+    assert aporte.origen == "manual"
+    # Y el formulario vuelve limpio, con la fecha de hoy.
+    assert respuesta.context["form"]["date"].value() == timezone.localdate()
+
+
+def test_un_aporte_por_la_pagina_entera_vuelve_a_metas_del_ambito(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, scope="personal", owner=_mia(hogar, user))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aportar"), {
+        "goal": meta.pk, "amount": "20.00", "date": timezone.localdate().isoformat(),
+    })
+
+    assert respuesta.status_code == 302
+    assert respuesta["Location"] == reverse("budget:metas", args=["personal"])
+
+
+def test_aportar_a_la_meta_personal_de_otro_se_rechaza(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    ajena = GoalFactory(household=hogar, scope="personal", owner=_miembro(hogar))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aportar"), {
+        "goal": ajena.pk, "amount": "20.00", "date": timezone.localdate().isoformat(),
+    })
+
+    assert respuesta.status_code == 200
+    assert "goal" in respuesta.context["form"].errors
+    assert not ajena.contributions.exists()
+
+
+def test_aportar_en_un_mes_cerrado_lo_dice_el_formulario(client, admin_con_hogar):
+    from apps.budget.models import BudgetMonth
+    from tests.factories_budget import BudgetMonthFactory
+
+    user, hogar = admin_con_hogar
+    BudgetMonthFactory(household=hogar, year=2026, month=1, status=BudgetMonth.CLOSED)
+    meta = GoalFactory(household=hogar)
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aportar"), {
+        "goal": meta.pk, "amount": "20.00", "date": "2026-01-15",
+    })
+
+    assert respuesta.status_code == 200
+    assert "This month is already closed." in respuesta.content.decode()
+    assert not meta.contributions.exists()
+
+
+def test_la_tarjeta_activa_ofrece_aportar_y_la_alcanzada_no(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    activa = GoalFactory(household=hogar)
+    GoalFactory(household=hogar, status=Goal.REACHED)
+    client.force_login(user)
+
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+
+    assert html.count("Add to it") == 1
+    assert f"?goal={activa.pk}" in html
