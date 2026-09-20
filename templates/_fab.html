@@ -3,20 +3,23 @@
 toda pantalla. Boton flotante abajo a la derecha, el patron nativo.
 
 Es un <a> y no un <button>: sin JavaScript lleva a /budget/spend/, que es la
-misma vista como pagina entera. Con JavaScript, htmx cancela la navegacion,
-pide el fragmento del formulario y lo mete en el modal.
+misma vista como pagina entera (y desde alli se pasa al ingreso). Con
+JavaScript abre el modal con el SELECTOR: gasto o ingreso. Cada opcion pide
+por htmx su formulario y lo mete en el modal; el titulo viaja con el
+formulario, fuera de banda. El selector es HTML de esta pagina, sin peticion:
+vive en un <template> y se copia al cuerpo cada vez que el modal se abre,
+para que despues de registrar algo vuelva a preguntar.
 
-El registro de gasto va en un MODAL y no en una tarjeta fija: no tiene por que
-ocupar media pantalla mientras miras las cifras. <dialog> nativo y no una
-libreria: trae la tecla Esc, el foco atrapado y el fondo inerte sin JavaScript
-nuestro. El formulario se pide al ABRIR y no al cargar la pagina: una peticion
-que nadie iba a mirar es una peticion de menos. {% endcomment %}
+El registro va en un MODAL y no en una tarjeta fija: no tiene por que ocupar
+media pantalla mientras miras las cifras. <dialog> nativo y no una libreria:
+trae la tecla Esc, el foco atrapado y el fondo inerte sin JavaScript nuestro.
+El formulario se pide al ELEGIR y no al cargar la pagina: una peticion que
+nadie iba a mirar es una peticion de menos. {% endcomment %}
 {% if nav_fab %}
+{% translate "What do you want to record?" as pregunta_del_selector %}
 <a class="fab" href="{% url 'budget:registrar' %}"
-   hx-get="{% url 'budget:registrar' %}"
-   hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML"
-   onclick="document.getElementById('modal-gasto').showModal()"
-   aria-label="{% translate 'Record a spend' %}" title="{% translate 'Record a spend' %}">
+   onclick="event.preventDefault(); abrirSelectorDeRegistro(); document.getElementById('modal-gasto').showModal()"
+   aria-label="{% translate 'Record something' %}" title="{% translate 'Record something' %}">
   <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
        stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
     <path d="M12 5v14"/><path d="M5 12h14"/>
@@ -26,7 +29,7 @@ que nadie iba a mirar es una peticion de menos. {% endcomment %}
 <dialog id="modal-gasto" class="modal">
   <div class="modal__caja">
     <div class="modal__cabecera">
-      <h2>{% translate "Record a spend" %}</h2>
+      <h2 id="modal-gasto-titulo">{{ pregunta_del_selector }}</h2>
       <button class="btn btn--sutil modal__cerrar" type="button"
               onclick="document.getElementById('modal-gasto').close()"
               aria-label="{% translate 'Close' %}">&times;</button>
@@ -35,7 +38,36 @@ que nadie iba a mirar es una peticion de menos. {% endcomment %}
   </div>
 </dialog>
 
+<template id="modal-gasto-selector">
+  <div class="selector">
+    <button class="selector__opcion selector__opcion--gasto" type="button"
+            hx-get="{% url 'budget:registrar' %}"
+            hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML">
+      <span class="selector__icono" aria-hidden="true">−</span>
+      <span class="selector__texto">{% translate "A spend" %}</span>
+      <span class="selector__pista">{% translate "Something you paid" %}</span>
+    </button>
+    <button class="selector__opcion selector__opcion--ingreso" type="button"
+            hx-get="{% url 'budget:registrar_ingreso' %}"
+            hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML">
+      <span class="selector__icono" aria-hidden="true">+</span>
+      <span class="selector__texto">{% translate "An income" %}</span>
+      <span class="selector__pista">{% translate "Money that came in" %}</span>
+    </button>
+  </div>
+</template>
+
 <script>
+  // Pone el selector en el cuerpo del modal y restaura el titulo de la
+  // pregunta. Lo llama el [+] al abrir y el "Back" de cada formulario. Los
+  // botones recien copiados llevan hx-get: htmx.process los hace funcionar.
+  function abrirSelectorDeRegistro() {
+    var cuerpo = document.getElementById("modal-gasto-cuerpo");
+    cuerpo.replaceChildren(document.getElementById("modal-gasto-selector").content.cloneNode(true));
+    htmx.process(cuerpo);
+    document.getElementById("modal-gasto-titulo").textContent = "{{ pregunta_del_selector|escapejs }}";
+  }
+
   // El modal se cierra cuando el SERVIDOR dice que el gasto entro: la vista
   // manda la cabecera HX-Trigger: gasto-registrado, y htmx la convierte en este
   // evento. Es lo unico que sabe de verdad si se guardo.

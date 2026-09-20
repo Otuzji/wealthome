@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views_goals, views_month, views_overview, views_setup, wizards
+from .models.catalog import INCOME
 
 app_name = "budget"
 
@@ -20,7 +21,12 @@ urlpatterns = [
     path("setup/expense/<int:pk>/delete/", views_setup.gasto_borrar, name="gasto_borrar"),
     path("setup/split/<int:pk>/", views_setup.reparto_editar, name="reparto_editar"),
     path("setup/split/<int:pk>/delete/", views_setup.reparto_borrar, name="reparto_borrar"),
+    # Gasto e ingreso, la misma vista: solo cambia que lineas ofrece.
     path("spend/", views_month.registrar, name="registrar"),
+    path("income/", views_month.registrar, {"kind": INCOME}, name="registrar_ingreso"),
+    # Corregir o quitar un registro mal tecleado, desde "What actually happened".
+    path("spend/<int:pk>/", views_month.registro_editar, name="registro_editar"),
+    path("spend/<int:pk>/delete/", views_month.registro_borrar, name="registro_borrar"),
     path("line/new/", views_month.linea_nueva, name="linea_nueva"),
     path("split/reorder/", wizards.reordenar_reglas, name="reordenar_reglas"),
     path("welcome/<int:paso>/", wizards.incorporacion, name="incorporacion"),

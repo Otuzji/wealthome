@@ -1068,6 +1068,82 @@ msgstr "Rien d'enregistré pour l'instant."
 msgid "Record a spend"
 msgstr "Enregistrer une dépense"
 
+#: templates/_fab.html
+msgid "Record something"
+msgstr "Enregistrer quelque chose"
+
+#: templates/_fab.html
+msgid "What do you want to record?"
+msgstr "Que voulez-vous enregistrer ?"
+
+#: templates/_fab.html
+msgid "A spend"
+msgstr "Une dépense"
+
+#: templates/_fab.html
+msgid "Something you paid"
+msgstr "Quelque chose que vous avez payé"
+
+#: templates/_fab.html
+msgid "An income"
+msgstr "Un revenu"
+
+#: templates/_fab.html
+msgid "Money that came in"
+msgstr "De l'argent qui est entré"
+
+#: apps/budget/views_month.py
+msgid "Record an income"
+msgstr "Enregistrer un revenu"
+
+#: templates/budget/_fragmentos/cifras.html
+msgid "Cash Float"
+msgstr "Trésorerie disponible"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Savings"
+msgstr "Épargne"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Total Cash Float"
+msgstr "Trésorerie disponible totale"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "What came in minus what went out, so far."
+msgstr "Ce qui est entré moins ce qui est sorti, à ce jour."
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Pending Expenses"
+msgstr "Dépenses en attente"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Unassigned"
+msgstr "Non attribué"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "What is still to pay is more than what is in hand: nothing goes to savings or allowances yet."
+msgstr "Ce qui reste à payer dépasse ce qu'il y a en caisse : rien ne va encore à l'épargne ni aux allocations."
+
+#: apps/budget/views_month.py
+msgid "Edit record"
+msgstr "Corriger l'enregistrement"
+
+#: templates/budget/_fragmentos/acciones_registro.html
+msgid "Remove this record? Its one-off line goes with it."
+msgstr "Retirer cet enregistrement ? Sa ligne ponctuelle part avec lui."
+
+#: apps/budget/forms.py
+msgid "How it will show in the plan. Empty: the category."
+msgstr "Comment ça apparaîtra dans le plan. Vide : la catégorie."
+
+#: templates/budget/gasto.html
+msgid "Record a spend instead"
+msgstr "Enregistrer plutôt une dépense"
+
+#: templates/budget/gasto.html
+msgid "Record an income instead"
+msgstr "Enregistrer plutôt un revenu"
+
 #: apps/budget/forms.py
 msgid "Where"
 msgstr "Où"

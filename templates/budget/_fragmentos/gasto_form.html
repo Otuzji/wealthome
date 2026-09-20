@@ -3,12 +3,22 @@
    un destino que existe en TODA pantalla. Apuntaba a #recientes, que solo
    tiene Overview: desde "This month" htmx no encontraba el destino y no
    enviaba nada. Los movimientos al dia viajan fuera de banda (abajo) y solo
-   se aplican donde hay un #recientes. {% endcomment %}
-<form class="formulario" hx-post="{% url 'budget:registrar' %}"
+   se aplican donde hay un #recientes.
+
+   El titulo del modal viaja tambien fuera de banda: el mismo modal sirve el
+   gasto y el ingreso, y quien sabe cual es el servidor. Sin modal (la pagina
+   entera no lo tiene) htmx no encuentra el id y lo ignora. {% endcomment %}
+<h2 id="modal-gasto-titulo" hx-swap-oob="true">{{ titulo }}</h2>
+<form class="formulario" hx-post="{{ request.path }}"
       hx-target="this" hx-swap="outerHTML" x-data="{{ form.x_data|safe }}">
   {% csrf_token %}
   {% include "budget/_fragmentos/campos.html" %}
-  <button class="btn btn--primary" type="submit">{% translate "Record it" %}</button>
+  <div class="formulario__acciones">
+    <button class="btn btn--primary" type="submit">{% translate "Record it" %}</button>
+    <button class="btn btn--sutil" type="button" onclick="abrirSelectorDeRegistro()">
+      {% translate "Back" %}
+    </button>
+  </div>
 </form>
 {% if recientes_oob is not None %}
   {% include "budget/_fragmentos/recientes.html" with recientes=recientes_oob oob=True %}

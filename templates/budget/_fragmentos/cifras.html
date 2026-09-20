@@ -1,18 +1,31 @@
 {% load i18n money %}
 {% comment %} Las tres cifras de cabecera, las mismas en Overview y en This month.
    Cada cifra es una tarjeta propia y no tres dentro de una: en el mosaico, una
-   tarjeta dentro de otra es relieve sobre relieve. {% endcomment %}
+   tarjeta dentro de otra es relieve sobre relieve.
+
+   Lo REAL en grande y lo planeado en pequeno a su lado: lo que de verdad entro
+   y salio es la cifra que se viene a mirar; el plan es la referencia. El
+   sobrante real se pone en rojo cuando salio mas de lo que entro. {% endcomment %}
 <div class="cifras">
   <div class="cifra">
     <div class="cifra__etiqueta">{% translate "Total Incomes" %}</div>
-    <div class="cifra__valor cifra__valor--ingreso">{{ totales.ingresos|money:hogar.currency }}</div>
+    <div class="cifra__linea">
+      <span class="cifra__valor cifra__valor--ingreso">{{ totales.ingresos_real|money:hogar.currency }}</span>
+      <span class="cifra__plan">{{ totales.ingresos|money:hogar.currency }} {% translate "planned" %}</span>
+    </div>
   </div>
   <div class="cifra">
     <div class="cifra__etiqueta">{% translate "Total Expenses" %}</div>
-    <div class="cifra__valor cifra__valor--egreso">{{ totales.egresos|money:hogar.currency }}</div>
+    <div class="cifra__linea">
+      <span class="cifra__valor cifra__valor--egreso">{{ totales.egresos_real|money:hogar.currency }}</span>
+      <span class="cifra__plan">{{ totales.egresos|money:hogar.currency }} {% translate "planned" %}</span>
+    </div>
   </div>
   <div class="cifra">
-    <div class="cifra__etiqueta">{% translate "Left over" %}</div>
-    <div class="cifra__valor {% if totales.sobrante < 0 %}cifra__valor--mal{% endif %}">{{ totales.sobrante|money:hogar.currency }}</div>
+    <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
+    <div class="cifra__linea">
+      <span class="cifra__valor {% if totales.sobrante_real < 0 %}cifra__valor--mal{% endif %}">{{ totales.sobrante_real|money:hogar.currency }}</span>
+      <span class="cifra__plan">{{ totales.sobrante|money:hogar.currency }} {% translate "planned" %}</span>
+    </div>
   </div>
 </div>

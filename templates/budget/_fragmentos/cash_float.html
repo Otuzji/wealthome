@@ -1,0 +1,46 @@
+{% load i18n money %}
+{% comment %} La tarjeta Cash Float de This month, a todo el ancho debajo del
+   plan: el dinero en mano y a que esta destinado, en vivo. Primero lo que
+   falta pagar del plan; de lo que queda, lo que las reglas de reparto mandan
+   a ahorro y a la mesada de cada miembro. Solo en el ambito del hogar. {% endcomment %}
+<section class="card mes__flotante">
+  <h2>{% translate "Cash Float" %}</h2>
+  <div class="flotante">
+    <div class="flotante__total">
+      <div class="cifra__etiqueta">{% translate "Total Cash Float" %}</div>
+      <div class="cifra__valor {% if flotante.total < 0 %}cifra__valor--mal{% endif %}">{{ flotante.total|money:hogar.currency }}</div>
+      <p class="campo__ayuda">{% translate "What came in minus what went out, so far." %}</p>
+    </div>
+    <dl class="flotante__destinos">
+      <div class="flotante__fila">
+        <dt>{% translate "Pending Expenses" %}</dt>
+        <dd class="numero {% if flotante.falta %}importe--mal{% endif %}">{{ flotante.pendiente|money:hogar.currency }}</dd>
+      </div>
+      <div class="flotante__fila">
+        <dt>{% translate "Savings" %}</dt>
+        <dd class="numero importe--ingreso">{{ flotante.ahorro|money:hogar.currency }}</dd>
+      </div>
+      {% if flotante.mesadas %}
+        <div class="flotante__fila">
+          <dt>{% translate "Allowance" %}</dt>
+          <dd class="numero">{{ flotante.mesada_total|money:hogar.currency }}</dd>
+        </div>
+        {% for nombre, importe in flotante.mesadas %}
+          <div class="flotante__fila flotante__fila--miembro">
+            <dt>{{ nombre }}</dt>
+            <dd class="numero">{{ importe|money:hogar.currency }}</dd>
+          </div>
+        {% endfor %}
+      {% endif %}
+      {% if flotante.sin_asignar %}
+        <div class="flotante__fila">
+          <dt>{% translate "Unassigned" %}</dt>
+          <dd class="numero">{{ flotante.sin_asignar|money:hogar.currency }}</dd>
+        </div>
+      {% endif %}
+    </dl>
+    {% if flotante.falta %}
+      <p class="campo__ayuda flotante__aviso">{% translate "What is still to pay is more than what is in hand: nothing goes to savings or allowances yet." %}</p>
+    {% endif %}
+  </div>
+</section>

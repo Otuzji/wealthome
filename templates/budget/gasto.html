@@ -1,13 +1,30 @@
 {% extends "base.html" %}{% load i18n %}
-{% block title %}{% translate "Record a spend" %} · Wealthome{% endblock %}
+{% comment %} La pagina entera, para quien llega sin JavaScript o por la URL, y
+   la de corregir un registro (`editando`). Sirve el gasto y el ingreso; el
+   enlace de abajo cambia al otro, salvo al corregir: un registro no cambia
+   de tipo. {% endcomment %}
+{% block title %}{{ titulo }} · Wealthome{% endblock %}
 {% block content %}
 <section class="card card--formulario formulario">
-  <h1>{% translate "Record a spend" %}</h1>
+  <h1>{{ titulo }}</h1>
   <form method="post" x-data="{{ form.x_data|safe }}">
     {% csrf_token %}
     {% include "budget/_fragmentos/campos.html" %}
     <button class="btn btn--primary btn--bloque" type="submit">{% translate "Save" %}</button>
-    <a class="btn btn--sutil" href="{% url 'budget:mes' 'household' %}">{% translate "Cancel" %}</a>
+    {% if editando %}
+      <a class="btn btn--sutil" href="{% url 'budget:mes' 'household' mes_fila.year mes_fila.month %}">{% translate "Cancel" %}</a>
+    {% else %}
+      <a class="btn btn--sutil" href="{% url 'budget:mes' 'household' %}">{% translate "Cancel" %}</a>
+    {% endif %}
   </form>
+  {% if not editando %}
+    <p class="campo__ayuda">
+      {% if kind == "income" %}
+        <a href="{% url 'budget:registrar' %}">{% translate "Record a spend instead" %}</a>
+      {% else %}
+        <a href="{% url 'budget:registrar_ingreso' %}">{% translate "Record an income instead" %}</a>
+      {% endif %}
+    </p>
+  {% endif %}
 </section>
 {% endblock %}

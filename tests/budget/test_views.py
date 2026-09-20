@@ -1099,7 +1099,9 @@ def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
     """
     from django.utils import timezone
 
-    from tests.factories_budget import BudgetLineFactory, BudgetMonthFactory
+    from tests.factories_budget import (
+        BudgetLineFactory, BudgetMonthFactory, TransactionFactory,
+    )
 
     user, hogar = admin_con_hogar
     client.force_login(user)
@@ -1111,6 +1113,11 @@ def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
                       kind="income", planned_amount=Decimal("3000.00"))
     BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
                       kind="expense", planned_amount=Decimal("1800.00"))
+    miembro = hogar.active_memberships().first()
+    TransactionFactory(household=hogar, budget_month=mes, category=entra,
+                       member=miembro, amount=Decimal("2500.00"), date=hoy)
+    TransactionFactory(household=hogar, budget_month=mes, category=sale,
+                       member=miembro, amount=Decimal("400.00"), date=hoy)
 
     respuesta = client.get(reverse("budget:overview", args=["household"]))
     totales = respuesta.context["totales"]
@@ -1118,8 +1125,14 @@ def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
     assert totales["ingresos"] == Decimal("3000.00")
     assert totales["egresos"] == Decimal("1800.00")
     assert totales["sobrante"] == Decimal("1200.00")
+    # Lo real, al lado de lo planeado: sale de los registros del mes.
+    assert totales["ingresos_real"] == Decimal("2500.00")
+    assert totales["egresos_real"] == Decimal("400.00")
+    assert totales["sobrante_real"] == Decimal("2100.00")
     # Y que lleguen al HTML, que es donde faltaban.
-    assert "1,200.00" in respuesta.content.decode()
+    html = respuesta.content.decode()
+    assert "1,200.00" in html and "2,100.00" in html
+    assert 'class="cifra__plan"' in html
 
 
 def test_this_month_ensena_las_cifras_y_las_donas_de_real_contra_planeado(client, admin_con_hogar):
@@ -1155,6 +1168,9 @@ def test_this_month_ensena_las_cifras_y_las_donas_de_real_contra_planeado(client
     assert totales["ingresos"] == Decimal("3000.00")
     assert totales["egresos"] == Decimal("2000.00")   # fijos + puntuales
     assert totales["sobrante"] == Decimal("1000.00")
+    assert totales["ingresos_real"] == Decimal("3000.00")
+    assert totales["egresos_real"] == Decimal("500.00")
+    assert totales["sobrante_real"] == Decimal("2500.00")
 
     donas = respuesta.context["donas"]
     assert donas["income"]["planeado"] == Decimal("3000.00")

@@ -74,8 +74,12 @@ def _lineas_para_pagar(hogar, mes, membresia):
     )
 
 
+# Lo que el modal y la pagina entera ponen de titulo, por tipo.
+TITULOS = {EXPENSE: _("Record a spend"), INCOME: _("Record an income")}
+
+
 @requiere_permiso("can_add_transactions")
-def registrar(request, hogar):
+def registrar(request, hogar, kind=EXPENSE):
     """La acción más frecuente de la aplicación (§7.1).
 
     Devuelve un FRAGMENTO cuando la peticion trae HX-Request, y la pagina entera
@@ -83,14 +87,18 @@ def registrar(request, hogar):
     solo para htmx seria una segunda ruta que puede divergir de la primera, y la
     guardia de suscripcion del §2.2 —que es por METODO y no por vista— dejaria de
     cubrirla sin que nadie se diera cuenta.
+
+    Y la misma vista sirve gasto e ingreso, por la misma razon: `kind` solo
+    cambia que lineas y categorias ofrece el formulario y como se titula.
     """
     es_htmx = request.headers.get("HX-Request") == "true"
     hoy = timezone.localdate()
     membresia = membresia_actual(request)
     mes_fila = services.obtener_mes(hogar, hoy.year, hoy.month)
-    form = TransactionForm(request.POST or None, household=hogar,
+    form = TransactionForm(request.POST or None, household=hogar, kind=kind,
                            lineas=_lineas_para_pagar(hogar, mes_fila, membresia),
                            initial={"date": hoy})
+    contexto = {"kind": kind, "titulo": TITULOS[kind]}
     if request.method == "POST" and form.is_valid():
         tx = form.save(commit=False)
         tx.household = hogar
@@ -114,11 +122,11 @@ def registrar(request, hogar):
                 # movimientos al dia FUERA DE BANDA: solo Overview tiene
                 # #recientes, y el modal se envia desde cualquier pantalla.
                 limpio = TransactionForm(
-                    household=hogar, initial={"date": hoy},
+                    household=hogar, initial={"date": hoy}, kind=kind,
                     lineas=_lineas_para_pagar(hogar, mes_fila, membresia),
                 )
                 respuesta = render(request, "budget/_fragmentos/gasto_form.html", {
-                    "form": limpio, "recientes_oob": _recientes(hogar, mes_fila),
+                    "form": limpio, "recientes_oob": _recientes(hogar, mes_fila), **contexto,
                 })
                 # Que el gasto entro lo dice el SERVIDOR, no el navegador. Quien
                 # abrio esto en un modal lo cierra al oirlo; quien entro por la
@@ -128,15 +136,17 @@ def registrar(request, hogar):
                 # es compartido, a la pantalla que lo muestra.
                 respuesta["HX-Trigger"] = "gasto-registrado"
                 return respuesta
-            return redirect("budget:registrar")
+            return redirect(request.path)
 
     plantilla = "budget/_fragmentos/gasto_form.html" if es_htmx else "budget/gasto.html"
-    return render(request, plantilla, {"form": form})
+    return render(request, plantilla, {"form": form, **contexto})
 
 
-def _ligar_al_plan(tx, form, mes):
+def _ligar_al_plan(tx, form, mes, puntual=None):
     """Con una linea elegida, la transaccion toma su categoria y su income
-    source. Sin linea, nace una partida puntual ya pagada con lo gastado."""
+    source. Sin linea, nace una partida puntual ya pagada con lo gastado — o,
+    al corregir, se actualiza la que ya era suya (`puntual`) en vez de nacer
+    otra: la partida sigue al registro."""
     linea = tx.budget_line
     if linea is not None:
         tx.category = linea.category
@@ -144,15 +154,104 @@ def _ligar_al_plan(tx, form, mes):
         return
     if isinstance(mes, services.ProyeccionDeMes):
         return   # el hogar no puede escribir: la guardia por metodo ya lo paro
-    linea = BudgetLine(
-        household=tx.household, budget_month=mes, category=tx.category,
-        kind=tx.category.kind, planned_amount=tx.amount, due_date=tx.date,
-        is_exceptional=True, scope=tx.scope, note=form.nombre_de_la_partida(),
-        owner=tx.member if tx.scope == PERSONAL else None,
+    linea = puntual if puntual is not None else BudgetLine(
+        household=tx.household, budget_month=mes, is_exceptional=True,
     )
+    linea.category = tx.category
+    linea.kind = tx.category.kind
+    linea.planned_amount = tx.amount
+    linea.due_date = tx.date
+    linea.scope = tx.scope
+    linea.note = form.nombre_de_la_partida()
+    linea.owner = tx.member if tx.scope == PERSONAL else None
     linea.full_clean()
     linea.save()
     tx.budget_line = linea
+
+
+def _partida_solo_de(tx):
+    """La partida puntual que nacio de este registro, si sigue siendo solo
+    suya: alguien pudo haber pagado despues contra ella desde "What is it"."""
+    linea = tx.budget_line
+    if linea is None or not linea.is_exceptional:
+        return None
+    if linea.transacciones.exclude(pk=tx.pk).exists():
+        return None
+    return linea
+
+
+def _registro(hogar, pk):
+    """`for_household` antes que `get_object_or_404`: el pk de otra familia es
+    un 404 identico al de un pk inventado."""
+    return get_object_or_404(
+        Transaction.objects.for_household(hogar).select_related("budget_line", "category",
+                                                                "budget_month", "merchant"),
+        pk=pk,
+    )
+
+
+@requiere_permiso("can_add_transactions")
+def registro_editar(request, hogar, pk):
+    """Corregir un registro mal tecleado. La misma pagina y el mismo formulario
+    que el registro; al guardar, de vuelta a This month del mes del registro.
+
+    La partida puntual sigue al registro: si sigue siendo solo suya, se
+    actualiza con lo corregido; si el registro pasa a una linea del plan, la
+    puntual huerfana se borra. Un mes cerrado lo para la guarda del modelo."""
+    tx = _registro(hogar, pk)
+    mes_fila = tx.budget_month
+    membresia = membresia_actual(request)
+    puntual = _partida_solo_de(tx)
+    kind = tx.category.kind
+    # Un registro "not planned" se corrige como tal: con su categoria y su
+    # nombre a la vista, y su propia partida fuera del desplegable — elegirla
+    # seria pagarse a si mismo.
+    lineas = [l for l in _lineas_para_pagar(hogar, mes_fila, membresia)
+              if puntual is None or l.pk != puntual.pk]
+    initial = {"merchant_name": tx.merchant.name if tx.merchant_id else ""}
+    if puntual is not None:
+        initial.update(budget_line=None, name=puntual.note)
+    form = TransactionForm(request.POST or None, household=hogar, kind=kind,
+                           instance=tx, lineas=lineas, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        tx = form.save(commit=False)
+        tx.merchant = form.comercio()
+        try:
+            with transaction.atomic():
+                _ligar_al_plan(tx, form, mes_fila, puntual=puntual)
+                tx.full_clean()
+                tx.save()
+                if puntual is not None and tx.budget_line_id != puntual.pk:
+                    puntual.delete()
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            return redirect("budget:mes", "household", mes_fila.year, mes_fila.month)
+    return render(request, "budget/gasto.html", {
+        "form": form, "kind": kind, "titulo": _("Edit record"), "editando": True,
+        "mes_fila": mes_fila,
+    })
+
+
+@require_POST
+@requiere_permiso("can_add_transactions")
+def registro_borrar(request, hogar, pk):
+    """Quitar un registro. Solo por POST: un GET no destruye nada. Se lleva
+    su partida puntual si quedo sin pagos; un pago contra el plan deja la
+    linea pendiente otra vez. En un mes cerrado no se toca nada."""
+    tx = _registro(hogar, pk)
+    mes_fila = tx.budget_month
+    if mes_fila.esta_cerrado:
+        messages.error(request, _("This month is already closed."))
+    else:
+        puntual = _partida_solo_de(tx)
+        with transaction.atomic():
+            tx.delete()
+            if puntual is not None:
+                puntual.delete()
+    return redirect("budget:mes", "household", mes_fila.year, mes_fila.month)
 
 
 @requiere_permiso("can_view_budget")
@@ -201,14 +300,30 @@ def mes(request, hogar, ambito, anio=None, numero=None):
         )
         # Las cifras salen de las MISMAS lineas que la tarjeta Planned, y por
         # tanto respetan el ambito, igual que en el Overview.
-        contexto["donas"] = _real_contra_planeado(lineas, contexto["transacciones"])
-        contexto["totales"] = {
-            "ingresos": contexto["donas"][INCOME]["planeado"],
-            "egresos": contexto["donas"][EXPENSE]["planeado"],
-            "sobrante": (contexto["donas"][INCOME]["planeado"]
-                         - contexto["donas"][EXPENSE]["planeado"]),
-        }
+        donas = _real_contra_planeado(lineas, contexto["transacciones"])
+        contexto["donas"] = donas
+        contexto["totales"] = totales(
+            donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
+            donas[INCOME]["real"], donas[EXPENSE]["real"],
+        )
+        # Cash Float es del hogar: reparte dinero comun entre sus miembros,
+        # asi que en el ambito personal no tiene sentido.
+        if ambito == HOUSEHOLD:
+            contexto["cash_float"] = services.cash_float(
+                resultado, lineas, contexto["totales"]["sobrante_real"],
+            )
     return render(request, "budget/mes.html", contexto)
+
+
+def totales(ingresos, egresos, ingresos_real, egresos_real):
+    """Las tres cifras de cabecera, planeado y real, las mismas en Overview y
+    en This month: una sola funcion para que no diverjan. Lo real sale de los
+    registros del mes; el sobrante real es lo que entro menos lo que salio."""
+    return {
+        "ingresos": ingresos, "egresos": egresos, "sobrante": ingresos - egresos,
+        "ingresos_real": ingresos_real, "egresos_real": egresos_real,
+        "sobrante_real": ingresos_real - egresos_real,
+    }
 
 
 def _real_contra_planeado(lineas, transacciones):

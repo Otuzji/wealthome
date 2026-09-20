@@ -50,7 +50,7 @@ def test_el_formulario_pregunta_que_es_y_no_la_categoria(client, hogar_con_plan)
 
     assert 'name="income_source"' not in html
     assert 'name="budget_line"' in html
-    assert "Alquiler" in html and "Sueldo" in html
+    assert "Alquiler" in html
     assert "Something not planned" in html
     # La categoria y el nombre solo aparecen al elegir "not planned".
     assert "x-show=\"linea === ''\"" in html
@@ -72,19 +72,6 @@ def test_pagar_una_linea_la_liga_y_toma_su_categoria(client, hogar_con_plan):
     assert tx.budget_line_id == alquiler.pk
     assert tx.category_id == alquiler.category_id
     assert BudgetLine.objects.for_household(hogar).get(pk=alquiler.pk).estado == BudgetLine.PAGADA
-
-
-def test_cobrar_un_ingreso_conserva_su_income_source(client, hogar_con_plan):
-    """La media movil del §4.1 sigue teniendo de donde calcularse."""
-    admin, hogar, mes = hogar_con_plan
-    client.force_login(admin)
-    sueldo = mes.lineas.get(kind="income")
-
-    client.post(reverse("budget:registrar"), _pago(budget_line=sueldo.pk, amount="3000.00"))
-
-    tx = Transaction.objects.for_household(hogar).get()
-    assert tx.income_source_id == sueldo.source_income_id
-    assert tx.category.kind == "income"
 
 
 def test_un_gasto_no_planeado_crea_una_partida_puntual_pagada(client, hogar_con_plan):

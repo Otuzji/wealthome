@@ -47,7 +47,7 @@
     </div>
   </section>
   <div class="cifra">
-    <div class="cifra__etiqueta">{% translate "Left over" %}</div>
+    <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
     <div class="cifra__valor">{{ resultado.sobrante|money:hogar.currency }}</div>
   </div>
 {% else %}
@@ -126,12 +126,17 @@
     <h2>{% translate "What actually happened" %}</h2>
     <div class="tabla__envoltura">
       <table class="tabla">
+        {% comment %} Editar y Quitar solo en el mes abierto y para quien puede
+           registrar: el mismo permiso que el [+]. {% endcomment %}
         {% for tx in transacciones %}
           <tr>
             <td class="tabla__categoria">{{ tx.date|date:"M j" }}</td>
             <td>{{ tx.category.etiqueta }}</td>
             <td class="numero {% if tx.category.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
               {{ tx.amount|money:hogar.currency }}</td>
+            {% if nav_fab and resultado.status == "open" %}
+              <td>{% include "budget/_fragmentos/acciones_registro.html" with pk=tx.pk %}</td>
+            {% endif %}
           </tr>
         {% empty %}
           <tr><td class="tabla__vacio">{% translate "Nothing recorded yet." %}</td></tr>
@@ -139,6 +144,9 @@
       </table>
     </div>
   </section>
+  {% if cash_float %}
+    {% include "budget/_fragmentos/cash_float.html" with flotante=cash_float %}
+  {% endif %}
   </div>
 {% endif %}
 {% endblock %}

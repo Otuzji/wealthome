@@ -318,6 +318,49 @@
 .modal__cabecera h2 { margin: 0; }
 .modal__cerrar { font-size: 1.5em; line-height: 1; padding: 0 10px; }
 
+/* ---------- selector del [+] ----------
+   La primera pregunta del modal: gasto o ingreso. Dos pastillas grandes, una
+   al lado de la otra, para que se elija de un toque y sin leer. El signo de
+   cada una es lo que dice de la cuenta: sale o entra. */
+.selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 4px 0 8px;
+}
+.selector__opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 12px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-raised);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+.selector__opcion:active { box-shadow: var(--shadow-inset); }
+.selector__opcion:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.selector__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  font-size: 1.6em;
+  font-weight: var(--font-weight-strong);
+  color: var(--bg);
+}
+.selector__opcion--gasto .selector__icono { background: var(--outflow); }
+.selector__opcion--ingreso .selector__icono { background: var(--accent); }
+.selector__texto { font-weight: var(--font-weight-strong); }
+.selector__pista { color: var(--text-muted); font-size: 0.875em; }
+.formulario__acciones { display: flex; gap: 12px; align-items: center; }
+
 /* ---------- la pantalla del mes ----------
    Una columna en movil (resumen, plan, real). En escritorio el plan se lleva
    el 70% y la columna derecha apila las donas y lo que de verdad paso. Las
@@ -342,7 +385,38 @@
   .mes__plan  { grid-area: plan; }
   .mes__donas { grid-area: donas; }
   .mes__real  { grid-area: real; }
+  /* La columna estrecha: la fecha ("Sep 20") no se parte en dos lineas. */
+  .mes__real .tabla__categoria { white-space: nowrap; }
 }
+
+/* ---------- Cash Float ----------
+   A todo el ancho debajo del plan. El total a la izquierda, en grande; a su
+   derecha la lista de destinos, concepto y cifra en la misma linea. En movil
+   se apilan. */
+.mes__flotante { grid-column: 1 / -1; }
+.flotante { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+  .flotante { grid-template-columns: minmax(0, 3fr) minmax(0, 7fr); align-items: start; }
+  .flotante__aviso { grid-column: 1 / -1; }
+}
+.flotante__total .campo__ayuda { margin-top: 4px; }
+.flotante__destinos { margin: 0; }
+.flotante__fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.flotante__fila:last-child { border-bottom: 0; }
+.flotante__fila dt { color: var(--text-muted); }
+.flotante__fila dd { margin: 0; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.flotante__fila--miembro { padding: 6px 0; border-bottom: 0; }
+.flotante__fila--miembro dt { padding-left: 16px; font-size: 0.9375em; }
+.flotante__fila--miembro dd { font-weight: normal; }
+.importe--mal { color: var(--danger); }
+.flotante__aviso { margin: 0; color: var(--danger); }
 
 /* Las donas: real contra planeado. El anillo es SVG con pathLength="100", asi
    que el porcentaje es directamente el stroke-dasharray y no hay que calcular

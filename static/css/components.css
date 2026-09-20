@@ -149,6 +149,10 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .cifra__valor--mal { color: var(--danger); }
 .cifra__valor--ingreso { color: var(--accent-strong); }
 .cifra__valor--egreso { color: var(--outflow); }
+/* Lo real en grande y lo planeado en pequeno a su lado, sobre la misma linea
+   base; si no caben juntos (movil), lo planeado baja a una segunda linea. */
+.cifra__linea { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.cifra__plan { color: var(--text-muted); font-size: 0.875em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* En movil, dos por fila y la ultima impar a todo el ancho: tres cifras en dos
    columnas dejaban una huerfana. En escritorio, las que quepan. */
 .cifras { display: grid; gap: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -199,6 +203,9 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .fila-regla { display: flex; align-items: center; gap: 12px; min-height: var(--touch-target); padding: 6px 0; }
 .fila-regla > span:first-child { flex: 1; }
 .fila-regla__acciones { display: inline-flex; gap: 6px; white-space: nowrap; }
+/* Un boton de solo icono: cuadrado del tamano del toque, sin el relleno de
+   las palabras. */
+.btn--icono { width: var(--touch-target); padding: 0; }
 .fila-regla__acciones form { margin: 0; display: inline; }
 .enlace-copiable { display: flex; flex: 1; flex-basis: 100%; min-width: 0; gap: 6px; align-items: center; }
 .enlace-copiable__campo {

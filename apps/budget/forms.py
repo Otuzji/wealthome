@@ -174,6 +174,11 @@ class TransactionForm(HouseholdScopedModelForm):
     `Merchant.normalized_name` decide si es uno que ya existe — que es
     exactamente para lo que existe engine/merchants.py. Un `<select>` de
     comercios estaría vacío el primer día y sería inservible el centésimo.
+
+    `kind` parte el formulario en dos: el de gasto y el de ingreso. Cada uno
+    lista solo las lineas y las categorias de su tipo —en el queryset, no solo
+    en las opciones: un POST con el id de una linea del otro tipo no pasa por
+    el navegador—, y el de ingreso no pregunta donde ni con que se pago.
     """
 
     name = forms.CharField(
@@ -200,15 +205,20 @@ class TransactionForm(HouseholdScopedModelForm):
         }
         labels = {"budget_line": _("What is it")}
 
-    def __init__(self, *args, lineas=None, **kwargs):
+    def __init__(self, *args, lineas=None, kind=EXPENSE, **kwargs):
         super().__init__(*args, **kwargs)
-        lineas = list(lineas if lineas is not None else [])
+        self.kind = kind
+        lineas = [l for l in (lineas if lineas is not None else []) if l.kind == kind]
         campo = self.fields["budget_line"]
         campo.required = False
         campo.queryset = BudgetLine.objects.for_household(self.household).filter(
             pk__in=[l.pk for l in lineas]
         )
         campo.choices = self._opciones(lineas)
+        self.fields["category"].queryset = self.fields["category"].queryset.filter(kind=kind)
+        if kind == INCOME:
+            del self.fields["merchant_name"], self.fields["payment_method"]
+            self.fields["name"].help_text = _("How it will show in the plan. Empty: the category.")
         # Categoria y nombre solo cuando no hay linea: Alpine los esconde y
         # clean() los exige.
         self.fields["category"].required = False
@@ -226,18 +236,13 @@ class TransactionForm(HouseholdScopedModelForm):
 
     @staticmethod
     def _opciones(lineas):
-        """Gastos y luego ingresos, lo pendiente primero: es lo que se viene a
-        registrar. Lo ya pagado queda al final de su grupo, marcado."""
-        grupos = {EXPENSE: [], INCOME: []}
-        for linea in sorted(lineas, key=lambda l: (l.estado == BudgetLine.PAGADA,
-                                                    l.due_date or date.max, l.pk)):
-            grupos[linea.kind].append((linea.pk, _etiqueta_de_linea(linea)))
-        opciones = [("", _("Something not planned"))]
-        if grupos[EXPENSE]:
-            opciones.append((_("Expenses"), grupos[EXPENSE]))
-        if grupos[INCOME]:
-            opciones.append((_("Income received"), grupos[INCOME]))
-        return opciones
+        """Lo pendiente primero: es lo que se viene a registrar. Lo ya pagado
+        queda al final, marcado."""
+        ordenadas = sorted(lineas, key=lambda l: (l.estado == BudgetLine.PAGADA,
+                                                   l.due_date or date.max, l.pk))
+        return [("", _("Something not planned"))] + [
+            (linea.pk, _etiqueta_de_linea(linea)) for linea in ordenadas
+        ]
 
     def clean(self):
         datos = super().clean()

@@ -495,6 +495,45 @@ def _reglas_del_motor(hogar):
     ]
 
 
+def cash_float(mes, lineas, total):
+    """El dinero en mano y a que esta destinado, EN VIVO (la tarjeta Cash
+    Float de This month).
+
+    `total` es lo que de verdad entro menos lo que de verdad salio; de ahi se
+    aparta lo que falta pagar del plan (`pendiente`), y lo que queda cae por
+    las mismas reglas de reparto que "Plan the month" — pero sobre lo real de
+    hoy y no sobre la proyeccion, para que cambie con cada registro. Lo que
+    las reglas no agoten queda `sin_asignar`; sin margen, todo va a cero y
+    `falta` avisa de que lo pendiente supera lo que hay.
+    """
+    pendiente = sum((l.restante for l in lineas if l.kind == EXPENSE), Decimal("0.00"))
+    margen = centavos(total - pendiente)
+    hogar = mes.household
+    miembros = {
+        m.pk: str(m.user)
+        for m in hogar.active_memberships().select_related("user").order_by("pk")
+    }
+    reglas = _reglas_del_motor(hogar)
+    asignaciones = motor_cascade.repartir(margen, reglas)
+    ahorro = sum((a.importe for a in asignaciones if a.miembro_id is None), Decimal("0.00"))
+    por_miembro = {a.miembro_id: a.importe for a in asignaciones if a.miembro_id is not None}
+    # Con una regla de mesada, cada miembro sale aunque hoy le toque 0: ver
+    # el nombre con el cero es mejor que verlo desaparecer.
+    hay_mesada = any(r.destino == motor_cascade.ALLOWANCE for r in reglas)
+    mesadas = [(nombre, por_miembro.get(pk, Decimal("0.00")))
+               for pk, nombre in miembros.items()] if hay_mesada else []
+    asignado = sum((a.importe for a in asignaciones), Decimal("0.00"))
+    return {
+        "total": centavos(total),
+        "pendiente": centavos(pendiente),
+        "ahorro": centavos(ahorro),
+        "mesadas": mesadas,
+        "mesada_total": centavos(sum((importe for _, importe in mesadas), Decimal("0.00"))),
+        "sin_asignar": centavos(max(margen, Decimal("0.00")) - asignado),
+        "falta": margen < 0,
+    }
+
+
 def mes_anterior(mes):
     anio, numero = (mes.year - 1, 12) if mes.month == 1 else (mes.year, mes.month - 1)
     return BudgetMonth.objects.for_household(mes.household).filter(

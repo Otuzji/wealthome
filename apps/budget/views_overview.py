@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
-from . import services
+from . import services, views_month
 from .models import Category, MonthlyClose
 from .scopes import acotar, acotar_por_dueno, validar
 
@@ -93,11 +93,11 @@ def overview(request, hogar, ambito):
     # la cabecera salia EN BLANCO en la pantalla principal de la aplicacion.
     # Ademas asi salen del mismo conjunto de lineas que la grafica, y por tanto
     # respetan el ambito Hogar/Personal.
-    totales = {
-        "ingresos": ingresos_planeados,
-        "egresos": egresos_planeados,
-        "sobrante": ingresos_planeados - egresos_planeados,
-    }
+    totales = views_month.totales(
+        ingresos_planeados, egresos_planeados,
+        sum(real["income"].values(), Decimal("0.00")),
+        sum(real["expense"].values(), Decimal("0.00")),
+    )
 
     contexto = {
         "ambito": ambito, "resultado": resultado, "es_proyeccion": es_proyeccion,

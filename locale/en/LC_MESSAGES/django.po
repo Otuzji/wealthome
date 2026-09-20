@@ -1052,6 +1052,82 @@ msgstr "Nothing recorded yet."
 msgid "Record a spend"
 msgstr "Record a spend"
 
+#: templates/_fab.html
+msgid "Record something"
+msgstr "Record something"
+
+#: templates/_fab.html
+msgid "What do you want to record?"
+msgstr "What do you want to record?"
+
+#: templates/_fab.html
+msgid "A spend"
+msgstr "A spend"
+
+#: templates/_fab.html
+msgid "Something you paid"
+msgstr "Something you paid"
+
+#: templates/_fab.html
+msgid "An income"
+msgstr "An income"
+
+#: templates/_fab.html
+msgid "Money that came in"
+msgstr "Money that came in"
+
+#: apps/budget/views_month.py
+msgid "Record an income"
+msgstr "Record an income"
+
+#: templates/budget/_fragmentos/cifras.html
+msgid "Cash Float"
+msgstr "Cash Float"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Savings"
+msgstr "Savings"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Total Cash Float"
+msgstr "Total Cash Float"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "What came in minus what went out, so far."
+msgstr "What came in minus what went out, so far."
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Pending Expenses"
+msgstr "Pending Expenses"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "Unassigned"
+msgstr "Unassigned"
+
+#: templates/budget/_fragmentos/cash_float.html
+msgid "What is still to pay is more than what is in hand: nothing goes to savings or allowances yet."
+msgstr "What is still to pay is more than what is in hand: nothing goes to savings or allowances yet."
+
+#: apps/budget/views_month.py
+msgid "Edit record"
+msgstr "Edit record"
+
+#: templates/budget/_fragmentos/acciones_registro.html
+msgid "Remove this record? Its one-off line goes with it."
+msgstr "Remove this record? Its one-off line goes with it."
+
+#: apps/budget/forms.py
+msgid "How it will show in the plan. Empty: the category."
+msgstr "How it will show in the plan. Empty: the category."
+
+#: templates/budget/gasto.html
+msgid "Record a spend instead"
+msgstr "Record a spend instead"
+
+#: templates/budget/gasto.html
+msgid "Record an income instead"
+msgstr "Record an income instead"
+
 #: apps/budget/forms.py
 msgid "Where"
 msgstr "Where"
