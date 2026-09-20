@@ -17,8 +17,8 @@ from django.views.decorators.http import require_POST
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services, services_goals
-from .forms import GoalContributionForm, GoalForm
-from .models import Goal, GoalContribution, MesCerrado
+from .forms import GoalContributionForm, GoalForm, RetiroForm, TransferenciaForm
+from .models import CASCADE, Goal, GoalContribution, MesCerrado
 from .scopes import HOGAR, PERSONAL, acotar_por_dueno, validar
 from .views_setup import crear
 
@@ -31,7 +31,7 @@ def _con_aportes(queryset, hogar):
         Prefetch(
             "contributions",
             queryset=GoalContribution.objects.for_household(hogar)
-            .select_related("member__user", "budget_month"),
+            .select_related("member__user", "budget_month", "counterpart__goal"),
         )
     )
 
@@ -40,8 +40,11 @@ def _con_aportes(queryset, hogar):
 def metas(request, hogar, ambito):
     ambito = validar(ambito)
     membresia = membresia_actual(request)
+    # Las archivadas no se listan: siguen en Balance.
     consulta = _con_aportes(
-        acotar_por_dueno(Goal.objects.for_household(hogar), ambito, membresia), hogar
+        acotar_por_dueno(Goal.objects.for_household(hogar), ambito, membresia)
+        .exclude(status=Goal.ARCHIVED),
+        hogar,
     )
     filas = services_goals.resumen(hogar, consulta)
     por_estado = {Goal.ACTIVE: [], Goal.REACHED: [], Goal.ABANDONED: []}
@@ -89,7 +92,8 @@ def aportar(request, hogar):
         datos = form.cleaned_data
         try:
             aporte = services_goals.aportar(
-                hogar, datos["goal"], datos["amount"], datos["date"], membresia
+                hogar, datos["goal"], datos["amount"], datos["date"], membresia,
+                note=datos["note"],
             )
         except MesCerrado:
             form.add_error(None, _("This month is already closed."))
@@ -120,7 +124,10 @@ def _meta(request, hogar, pk):
     pk inventado, sin decir cual fue."""
     membresia = membresia_actual(request)
     visibles = Q(scope=HOGAR) | Q(scope=PERSONAL, owner=membresia)
-    return get_object_or_404(Goal.objects.for_household(hogar).filter(visibles), pk=pk)
+    return get_object_or_404(
+        Goal.objects.for_household(hogar).filter(visibles).exclude(status=Goal.ARCHIVED),
+        pk=pk,
+    )
 
 
 @requiere_permiso("can_edit_budget")
@@ -142,17 +149,66 @@ def meta_editar(request, hogar, pk):
 @require_POST
 @requiere_permiso("can_edit_budget")
 def meta_borrar(request, hogar, pk):
-    """Solo por POST: un GET no destruye nada. Con aportes de cascada no se
-    borra: MonthlyAllocation.rule es RESTRICT y el mes cerrado conto con ese
-    reparto. Se abandona, que es lo que la tarjeta ofrece en su lugar."""
+    """Solo por POST: un GET no destruye nada. Solo con saldo cero: con
+    dinero dentro primero se retira o se transfiere. Si un cierre la
+    referencia, services_goals la archiva en vez de borrarla."""
     meta = _meta(request, hogar, pk)
-    if meta.contributions.filter(origen="cascade").exists():
-        messages.error(request, _(
-            "This goal already took part in a closed month — abandon it instead."
-        ))
+    try:
+        resultado = services_goals.quitar(meta)
+    except services_goals.SaldoPendiente:
+        messages.error(request, _("Withdraw or transfer its balance first."))
     else:
-        meta.delete()
+        if resultado == "archived":
+            messages.info(request, _(
+                "Archived: it no longer shows here, but it still counts in Balance."
+            ))
     return redirect("budget:metas", meta.scope)
+
+
+@requiere_permiso("can_edit_budget")
+def retirar(request, hogar, pk):
+    """Sacar dinero de una meta: "ya lo use". Sale de la app; no vuelve al
+    mes ni al Cash Float."""
+    meta = _meta(request, hogar, pk)
+    form = RetiroForm(request.POST or None, initial={"date": timezone.localdate()})
+    if request.method == "POST" and form.is_valid():
+        datos = form.cleaned_data
+        try:
+            services_goals.retirar(hogar, meta, datos["amount"], datos["date"],
+                                   membresia_actual(request), datos["note"])
+        except services_goals.SaldoInsuficiente:
+            form.add_error("amount", _("That is more than the goal holds."))
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        else:
+            return redirect("budget:metas", meta.scope)
+    return render(request, "budget/formulario.html", {
+        "form": form, "titulo": _("Withdraw from %(goal)s") % {"goal": meta.name},
+        "cancelar": reverse("budget:metas", args=[meta.scope]),
+    })
+
+
+@requiere_permiso("can_edit_budget")
+def transferir(request, hogar, pk):
+    meta = _meta(request, hogar, pk)
+    membresia = membresia_actual(request)
+    form = TransferenciaForm(request.POST or None, household=hogar, membresia=membresia,
+                             meta=meta, initial={"date": timezone.localdate()})
+    if request.method == "POST" and form.is_valid():
+        datos = form.cleaned_data
+        try:
+            services_goals.transferir(hogar, meta, datos["to_goal"], datos["amount"],
+                                      datos["date"], membresia, datos["note"])
+        except services_goals.SaldoInsuficiente:
+            form.add_error("amount", _("That is more than the goal holds."))
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        else:
+            return redirect("budget:metas", meta.scope)
+    return render(request, "budget/formulario.html", {
+        "form": form, "titulo": _("Transfer from %(goal)s") % {"goal": meta.name},
+        "cancelar": reverse("budget:metas", args=[meta.scope]),
+    })
 
 
 @require_POST
@@ -177,9 +233,11 @@ def _aporte(request, hogar, pk):
     )
 
 
-def _intocable(aporte):
-    """Por que un aporte no se corrige, o None si se puede."""
-    if aporte.origen != "manual":
+def _intocable(aporte, borrar=False):
+    """Por que un movimiento no se toca, o None si se puede. Editar: solo un
+    aporte manual. Borrar: todo menos la cascada, que es del cierre."""
+    permitido = aporte.origen != CASCADE if borrar else aporte.origen == "manual"
+    if not permitido:
         return HttpResponseForbidden(
             _("Contributions from the monthly split cannot be changed.")
         )
@@ -221,12 +279,17 @@ def aporte_editar(request, hogar, pk):
 @requiere_permiso("can_edit_budget")
 def aporte_borrar(request, hogar, pk):
     aporte = _aporte(request, hogar, pk)
-    if (prohibido := _intocable(aporte)) is not None:
+    if (prohibido := _intocable(aporte, borrar=True)) is not None:
         return prohibido
     meta = aporte.goal
+    # El otro lado de una transferencia se va en cascada con este; su meta
+    # tambien tiene que recalcularse.
+    otra = aporte.counterpart.goal if aporte.counterpart_id else None
     if aporte.budget_month_id and aporte.budget_month.esta_cerrado:
         messages.error(request, _("This month is already closed."))
     else:
         aporte.delete()
         services_goals.recalcular_estado(meta)
+        if otra is not None:
+            services_goals.recalcular_estado(otra)
     return redirect("budget:metas", meta.scope)

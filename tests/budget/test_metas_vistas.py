@@ -175,10 +175,13 @@ def test_bajar_el_objetivo_la_da_por_alcanzada(client, admin_con_hogar):
     assert meta.status == Goal.REACHED
 
 
-def test_borrar_una_meta_sin_cascada_se_lleva_sus_aportes(client, admin_con_hogar):
+def test_borrar_una_meta_vacia_sin_cascada_se_lleva_su_historial(client, admin_con_hogar):
+    from apps.budget import services_goals
+
     user, hogar = admin_con_hogar
     meta = GoalFactory(household=hogar)
-    GoalContributionFactory(household=hogar, goal=meta)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("50.00"))
+    services_goals.retirar(hogar, meta, Decimal("50.00"), date(2026, 4, 1), _mia(hogar, user))
     client.force_login(user)
 
     respuesta = client.post(reverse("budget:meta_borrar", args=[meta.pk]))
@@ -187,24 +190,45 @@ def test_borrar_una_meta_sin_cascada_se_lleva_sus_aportes(client, admin_con_hoga
     assert not Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
 
 
-def test_una_meta_con_cascada_no_se_borra_se_abandona(client, admin_con_hogar):
-    from apps.budget.models import GoalContribution
-
+def test_una_meta_con_saldo_no_se_borra(client, admin_con_hogar):
     user, hogar = admin_con_hogar
     meta = GoalFactory(household=hogar)
-    GoalContribution.unscoped.create(
-        household=hogar, goal=meta, amount=Decimal("50.00"), date=date(2026, 3, 31),
-        member=None, origen="cascade",
-    )
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("50.00"))
     client.force_login(user)
 
     respuesta = client.post(reverse("budget:meta_borrar", args=[meta.pk]), follow=True)
 
     assert Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
-    assert "abandon it instead" in respuesta.content.decode()
+    assert "Withdraw or transfer its balance first." in respuesta.content.decode()
     html = client.get(reverse("budget:metas", args=["household"])).content.decode()
     assert reverse("budget:meta_borrar", args=[meta.pk]) not in html
-    assert reverse("budget:meta_estado", args=[meta.pk, "abandoned"]) in html
+    assert reverse("budget:meta_retirar", args=[meta.pk]) in html
+    assert reverse("budget:meta_transferir", args=[meta.pk]) in html
+
+
+def test_una_meta_vacia_con_cascada_se_archiva_y_sale_de_goals(client, admin_con_hogar):
+    from apps.budget import services_goals
+    from apps.budget.models import GoalContribution
+
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, name="Techo viejo")
+    GoalContribution.unscoped.create(
+        household=hogar, goal=meta, amount=Decimal("50.00"), date=date(2026, 3, 31),
+        member=None, origen="cascade",
+    )
+    services_goals.retirar(hogar, meta, Decimal("50.00"), date(2026, 4, 1), _mia(hogar, user))
+    client.force_login(user)
+
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+    assert 'title="Archive"' in html
+
+    respuesta = client.post(reverse("budget:meta_borrar", args=[meta.pk]), follow=True)
+
+    meta.refresh_from_db()
+    assert meta.status == Goal.ARCHIVED
+    assert "Archived" in respuesta.content.decode()
+    assert "Techo viejo" not in client.get(reverse("budget:metas", args=["household"])).content.decode()
+    assert client.get(reverse("budget:meta_editar", args=[meta.pk])).status_code == 404
 
 
 def test_borrar_por_get_no_destruye_nada(client, admin_con_hogar):
@@ -291,3 +315,145 @@ def test_el_enlace_de_la_tarjeta_preselecciona_la_regla_de_reparto(client, admin
     form = respuesta.context["form"]
     assert form["target_type"].value() == "goal"
     assert form["target_goal"].value() == meta.pk
+
+
+# --- retirar, transferir, el fondo y Balance (Metas II) ------------------------
+
+
+def test_retirar_desde_la_pantalla_baja_el_saldo_y_vuelve_a_goals(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("500.00"))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("500.00"))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_retirar", args=[meta.pk]), {
+        "amount": "120.00", "date": "2026-09-01", "note": "Vuelos",
+    })
+
+    assert respuesta.status_code == 302
+    assert respuesta["Location"] == reverse("budget:metas", args=["household"])
+    assert meta.acumulado() == Decimal("380.00")
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+    assert "Withdrawal" in html and "Vuelos" in html and "-$120.00" in html
+
+
+def test_retirar_de_mas_lo_dice_el_formulario(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("50.00"))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_retirar", args=[meta.pk]), {
+        "amount": "80.00", "date": "2026-09-01", "note": "",
+    })
+
+    assert respuesta.status_code == 200
+    assert "more than the goal holds" in respuesta.content.decode()
+    assert meta.acumulado() == Decimal("50.00")
+
+
+def test_transferir_desde_la_pantalla_crea_la_pareja(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    origen = GoalFactory(household=hogar, name="Fondo")
+    destino = GoalFactory(household=hogar, name="Viaje", target_amount=Decimal("100.00"))
+    GoalContributionFactory(household=hogar, goal=origen, amount=Decimal("300.00"))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_transferir", args=[origen.pk]), {
+        "to_goal": destino.pk, "amount": "100.00", "date": "2026-09-01", "note": "",
+    })
+
+    assert respuesta.status_code == 302
+    assert origen.acumulado() == Decimal("200.00")
+    assert destino.acumulado() == Decimal("100.00")
+    destino.refresh_from_db()
+    assert destino.status == Goal.REACHED
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+    assert "To Viaje" in html and "From Fondo" in html
+
+
+def test_el_destino_de_la_transferencia_no_ofrece_la_propia_ni_las_no_activas(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    origen = GoalFactory(household=hogar)
+    activa = GoalFactory(household=hogar)
+    GoalFactory(household=hogar, status=Goal.REACHED)
+    GoalFactory(household=hogar, status=Goal.ABANDONED)
+    GoalFactory(household=hogar, scope="personal", owner=_miembro(hogar))
+    client.force_login(user)
+
+    form = client.get(reverse("budget:meta_transferir", args=[origen.pk])).context["form"]
+
+    assert list(form.fields["to_goal"].queryset) == [activa]
+
+
+def test_el_fondo_abierto_se_crea_sin_objetivo_y_su_tarjeta_ensena_el_saldo(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_nueva"), {
+        "name": "Emergencias", "scope": "household", "owner": "",
+        "contribution_mode": "open_fund", "target_amount": "", "target_date": "",
+        "monthly_amount": "200.00",
+    })
+
+    assert respuesta.status_code == 302
+    fondo = Goal.objects.for_household(hogar).get(name="Emergencias")
+    assert fondo.target_amount is None and fondo.monthly_amount == Decimal("200.00")
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+    assert "Balance: $0.00" in html
+    assert "of the $200.00 you set" in html
+    assert 'class="progreso"' not in html
+
+
+def test_al_pasar_a_fondo_abierto_el_objetivo_se_vacia(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("900.00"), target_date=date(2027, 1, 1))
+    client.force_login(user)
+
+    client.post(reverse("budget:meta_editar", args=[meta.pk]), {
+        "name": meta.name, "scope": "household", "owner": "",
+        "contribution_mode": "open_fund", "target_amount": "900.00",
+        "target_date": "2027-01-01", "monthly_amount": "",
+    })
+
+    meta.refresh_from_db()
+    assert meta.contribution_mode == "open_fund"
+    assert meta.target_amount is None and meta.target_date is None
+
+
+def test_balance_lleva_el_bloque_de_ahorro(client, admin_con_hogar):
+    from apps.budget import services_goals
+
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, name="Viaje")
+    services_goals.aportar(hogar, meta, Decimal("300.00"), date(2026, 7, 10), _mia(hogar, user))
+    services_goals.retirar(hogar, meta, Decimal("50.00"), date(2026, 8, 2), _mia(hogar, user))
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:balance", args=["household"]))
+
+    html = respuesta.content.decode()
+    assert "Savings" in html and "Saved, total" in html
+    assert respuesta.context["ahorro"]["saldo_total"] == Decimal("250.00")
+    assert "2026-08" in html and "-$50.00" in html and "Viaje" in html
+
+
+def test_balance_sin_ahorro_lo_dice(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+
+    html = client.get(reverse("budget:balance", args=["household"])).content.decode()
+
+    assert "Nothing saved yet." in html
+
+
+@pytest.mark.parametrize("ruta", ["budget:meta_retirar", "budget:meta_transferir"])
+def test_sacar_dinero_exige_can_edit_budget_y_una_meta_propia(client, admin_con_hogar, ruta):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    ajena = GoalFactory(household=hogar, scope="personal", owner=_miembro(hogar))
+    client.force_login(_miembro(hogar).user)
+    assert client.get(reverse(ruta, args=[meta.pk])).status_code == 403
+
+    client.force_login(user)
+    assert client.get(reverse(ruta, args=[ajena.pk])).status_code == 404

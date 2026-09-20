@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
+from apps.budget.engine import goals as motor_goals
 from apps.budget.engine import income as motor_income
 from apps.budget.engine.merchants import normalizar
 from apps.budget.models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
@@ -299,16 +300,37 @@ ESTADO_CORTO = {
 
 
 class GoalForm(HouseholdScopedModelForm):
+    """Ensena solo los campos del modo elegido en "How to reach it", como
+    IncomeSourceForm con sus importes: un fondo abierto no tiene objetivo ni
+    fecha, y verlos vacios confunde. Lo que no pertenece al modo se vacia en
+    `clean()`: lo que el usuario no ve no puede quedarse guardado."""
+
+    CAMPOS_POR_MODO = {
+        "target_amount": (motor_goals.BY_TARGET_DATE, motor_goals.BY_MONTHLY_AMOUNT),
+        "target_date": (motor_goals.BY_TARGET_DATE,),
+        "monthly_amount": (motor_goals.BY_MONTHLY_AMOUNT, motor_goals.OPEN_FUND),
+    }
+
     class Meta:
         model = Goal
         fields = ["name", "scope", "owner", "contribution_mode",
                   "target_amount", "target_date", "monthly_amount"]
-        widgets = {"target_date": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "target_date": forms.DateInput(attrs={"type": "date"}),
+            "contribution_mode": forms.Select(attrs={"x-model": "modo"}),
+        }
+        help_texts = {
+            "contribution_mode": _("An open fund has no target: just a balance you add to."),
+            "monthly_amount": _("For an open fund it is optional: what you mean to put in each month."),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["owner"].queryset = self.household.active_memberships()
         self.fields["owner"].required = False
+        for nombre, modos in self.CAMPOS_POR_MODO.items():
+            self.fields[nombre].x_show = f"{list(modos)!r}.includes(modo)"
+        self.x_data = "{ modo: '%s' }" % (self["contribution_mode"].value() or "")
         # Con aportes, el ambito se queda: un aporte a una meta del hogar lo
         # hizo cualquiera, y el de una personal tiene que ser de su dueno.
         # Cambiarlo dejaria aportes que no cuadran con la meta.
@@ -316,15 +338,25 @@ class GoalForm(HouseholdScopedModelForm):
             self.fields["scope"].disabled = True
             self.fields["owner"].disabled = True
 
+    def clean(self):
+        datos = super().clean()
+        modo = datos.get("contribution_mode")
+        for nombre, modos in self.CAMPOS_POR_MODO.items():
+            if modo not in modos:
+                datos[nombre] = None
+        return datos
+
 
 class GoalContributionForm(HouseholdScopedModelForm):
     """`member` y `budget_month` NO son campos: salen de la peticion y de la
-    fecha, como en TransactionForm."""
+    fecha, como en TransactionForm. `note` es de donde vino: un aporte a mano
+    es dinero de fuera del presupuesto."""
 
     class Meta:
         model = GoalContribution
-        fields = ["goal", "amount", "date"]
+        fields = ["goal", "amount", "date", "note"]
         widgets = {"date": forms.DateInput(attrs={"type": "date"})}
+        labels = {"note": _("Where it came from")}
 
     def __init__(self, *args, membresia, **kwargs):
         super().__init__(*args, **kwargs)
@@ -417,3 +449,36 @@ class LineasDelMesForm(forms.Form):
             if nuevo is not None and nuevo != linea.planned_amount:
                 linea.planned_amount = nuevo
                 linea.save(update_fields=["planned_amount"])
+
+
+class RetiroForm(forms.Form):
+    """Sacar dinero de una meta: "ya lo use". No es un ModelForm porque el
+    signo y el origen los pone services_goals, no el usuario."""
+
+    amount = forms.DecimalField(label=_("Amount"), max_digits=12, decimal_places=2,
+                                min_value=Decimal("0.01"))
+    date = forms.DateField(label=_("Date"), widget=forms.DateInput(attrs={"type": "date"}))
+    note = forms.CharField(label=_("What for"), max_length=200, required=False)
+
+    def clean_date(self):
+        fecha = self.cleaned_data["date"]
+        if fecha > timezone.localdate():
+            raise forms.ValidationError(_("A contribution cannot be dated in the future."))
+        return fecha
+
+
+class TransferenciaForm(RetiroForm):
+    """Mover saldo a otra meta activa que quien mueve pueda ver."""
+
+    # unscoped.none() y no objects.none(): el manager acotado lanza al pedir
+    # un queryset sin hogar, incluso vacio. El real se pone en __init__.
+    to_goal = forms.ModelChoiceField(label=_("To"), queryset=Goal.unscoped.none())
+    field_order = ["to_goal", "amount", "date", "note"]
+
+    def __init__(self, *args, household, membresia, meta, **kwargs):
+        super().__init__(*args, **kwargs)
+        visibles = Q(scope=HOUSEHOLD) | Q(scope=PERSONAL, owner=membresia)
+        self.fields["to_goal"].queryset = (
+            Goal.objects.for_household(household)
+            .filter(visibles, status=Goal.ACTIVE).exclude(pk=meta.pk)
+        )

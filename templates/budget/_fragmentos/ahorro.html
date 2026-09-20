@@ -1,0 +1,50 @@
+{% load i18n money %}
+{% comment %} El ahorro en Balance. No sale de los cierres: un aporte a mano es
+   dinero de fuera del presupuesto, y un retiro es dinero que ya se uso. Por
+   mes, lo que entro de la cascada, lo que entro a mano y lo que salio; las
+   transferencias entre metas no suman ni restan y no se listan. Las metas
+   archivadas siguen aqui: son historia. {% endcomment %}
+<section class="card card--ancho">
+  <h2>{% translate "Savings" %}</h2>
+  {% if ahorro.filas %}
+    <div class="cifras">
+      <div class="cifra">
+        <div class="cifra__etiqueta">{% translate "Saved, total" %}</div>
+        <div class="cifra__valor">{{ ahorro.saldo_total|money:hogar.currency }}</div>
+      </div>
+    </div>
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        <tr>
+          <th>{% translate "Month" %}</th>
+          <th class="numero">{% translate "From the split" %}</th>
+          <th class="numero">{% translate "By hand" %}</th>
+          <th class="numero">{% translate "Withdrawn" %}</th>
+          <th class="numero">{% translate "Balance" %}</th>
+        </tr>
+        {% for f in ahorro.filas %}
+          <tr>
+            <td>{{ f.anio }}-{{ f.mes|stringformat:"02d" }}</td>
+            <td class="numero">{{ f.cascada|money:hogar.currency }}</td>
+            <td class="numero">{{ f.a_mano|money:hogar.currency }}</td>
+            <td class="numero{% if f.retiros %} movimiento--salida{% endif %}">{{ f.retiros|money:hogar.currency }}</td>
+            <td class="numero">{{ f.saldo|money:hogar.currency }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <h3>{% translate "By goal" %}</h3>
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        {% for m in ahorro.por_meta %}
+          <tr>
+            <td>{{ m.meta.name }} <span class="meta__quien">{{ m.meta.get_status_display }}</span></td>
+            <td class="numero">{{ m.saldo|money:hogar.currency }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  {% else %}
+    <p>{% translate "Nothing saved yet." %}</p>
+  {% endif %}
+</section>

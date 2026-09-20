@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
-from . import services, views_month
+from . import services, services_goals, views_month
 from .models import Category, MonthlyClose
 from .scopes import acotar, acotar_por_dueno, validar
 
@@ -162,4 +162,9 @@ def balance(request, hogar, ambito):
         varianza.sort(key=lambda v: v["importe"])
         filas.append({"cierre": cierre, "mes": cierre.budget_month, "varianza": varianza})
 
-    return render(request, "budget/balance.html", {"ambito": ambito, "cierres": filas})
+    return render(request, "budget/balance.html", {
+        "ambito": ambito, "cierres": filas,
+        # El ahorro no sale de los cierres: un aporte a mano es dinero de
+        # fuera del presupuesto, y aqui es donde se ve.
+        "ahorro": services_goals.resumen_ahorro(hogar, ambito, membresia_actual(request)),
+    })

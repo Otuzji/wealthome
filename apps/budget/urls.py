@@ -37,6 +37,9 @@ urlpatterns = [
     path("goals/<int:pk>/", views_goals.meta_editar, name="meta_editar"),
     path("goals/<int:pk>/delete/", views_goals.meta_borrar, name="meta_borrar"),
     path("goals/<int:pk>/status/<str:estado>/", views_goals.meta_estado, name="meta_estado"),
+    # Sacar dinero de una meta: "ya lo use", o a otra meta.
+    path("goals/<int:pk>/withdraw/", views_goals.retirar, name="meta_retirar"),
+    path("goals/<int:pk>/transfer/", views_goals.transferir, name="meta_transferir"),
     path("goals/contributions/<int:pk>/", views_goals.aporte_editar, name="aporte_editar"),
     path("goals/contributions/<int:pk>/delete/", views_goals.aporte_borrar, name="aporte_borrar"),
     # Antes de los patrones con <str:ambito>, o "personal" se comeria el

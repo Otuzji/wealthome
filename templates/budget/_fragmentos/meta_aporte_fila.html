@@ -1,23 +1,32 @@
 {% load i18n money %}
-{% comment %} Quien aporto va DEBAJO de la fecha y no en su propia columna: con
-   fecha, quien, importe y los dos iconos, "From the monthly split" se partia
-   en cuatro lineas a 400px. {% endcomment %}
+{% comment %} Un movimiento de la meta. Quien lo hizo (o de donde vino / a
+   donde fue) va DEBAJO de la fecha y no en su propia columna: con fecha,
+   quien, importe y los dos iconos, "From the monthly split" se partia en
+   cuatro lineas a 400px. Lo que sale se pinta con signo y en su color. {% endcomment %}
 <tr>
   <td>
     <div class="meta__fecha">{{ aporte.date }}</div>
     <div class="meta__quien">
       {% if aporte.origen == "cascade" %}{% translate "From the monthly split" %}
+      {% elif aporte.origen == "withdrawal" %}{% translate "Withdrawal" %}
+      {% elif aporte.origen == "transfer_out" %}{% blocktranslate with meta=aporte.counterpart.goal.name %}To {{ meta }}{% endblocktranslate %}
+      {% elif aporte.origen == "transfer_in" %}{% blocktranslate with meta=aporte.counterpart.goal.name %}From {{ meta }}{% endblocktranslate %}
       {% elif aporte.member %}{{ aporte.member.user }}
       {% else %}{% translate "The household" %}{% endif %}
+      {% if aporte.note %}<span class="meta__nota">· {{ aporte.note }}</span>{% endif %}
     </div>
   </td>
-  <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
+  <td class="numero{% if aporte.amount < 0 %} movimiento--salida{% endif %}">{{ aporte.amount|money:hogar.currency }}</td>
   <td>
-    {% if editable and nav_membresia.can_edit_budget %}
-      {% url 'budget:aporte_editar' aporte.pk as editar_url %}
+    {% if nav_membresia.can_edit_budget and borrable %}
       {% url 'budget:aporte_borrar' aporte.pk as borrar_url %}
-      {% translate "Remove this contribution?" as confirmacion %}
-      {% include "budget/_fragmentos/acciones_icono.html" %}
+      {% translate "Remove this movement?" as confirmacion %}
+      {% if editable %}
+        {% url 'budget:aporte_editar' aporte.pk as editar_url %}
+        {% include "budget/_fragmentos/acciones_icono.html" with archivar=False %}
+      {% else %}
+        {% include "budget/_fragmentos/acciones_icono.html" with editar_url="" archivar=False %}
+      {% endif %}
     {% endif %}
   </td>
 </tr>

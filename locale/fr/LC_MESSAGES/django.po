@@ -2024,3 +2024,167 @@ msgid "At this rate you get there in %(meses)s month · %(cuando)s."
 msgid_plural "At this rate you get there in %(meses)s months · %(cuando)s."
 msgstr[0] "À ce rythme vous y arrivez dans %(meses)s mois · %(cuando)s."
 msgstr[1] "À ce rythme vous y arrivez dans %(meses)s mois · %(cuando)s."
+
+#: metas-ii
+msgid "Abandon this goal? Its balance and history stay on record."
+msgstr "Abandonner cet objectif ? Son solde et son historique restent enregistrés."
+
+#: metas-ii
+msgid "Amount"
+msgstr "Montant"
+
+#: metas-ii
+msgid "An open fund has no target amount."
+msgstr "Un fonds ouvert n'a pas de montant cible."
+
+#: metas-ii
+msgid "An open fund has no target date."
+msgstr "Un fonds ouvert n'a pas de date cible."
+
+#: metas-ii
+msgid "An open fund has no target: just a balance you add to."
+msgstr "Un fonds ouvert n'a pas de cible : juste un solde que vous alimentez."
+
+#: metas-ii
+msgid "An open fund, no target"
+msgstr "Un fonds ouvert, sans cible"
+
+#: metas-ii
+msgid "Archive"
+msgstr "Archiver"
+
+#: metas-ii
+msgid "Archive this goal? It leaves this screen but stays in Balance."
+msgstr "Archiver cet objectif ? Il quitte cet écran mais reste dans Bilan."
+
+#: metas-ii
+msgid "Archived"
+msgstr "Archivé"
+
+#: metas-ii
+msgid "Archived: it no longer shows here, but it still counts in Balance."
+msgstr "Archivé : il n'apparaît plus ici, mais il compte toujours dans Bilan."
+
+#: metas-ii
+msgid "Balance: %(saldo)s"
+msgstr "Solde : %(saldo)s"
+
+#: metas-ii
+msgid "By goal"
+msgstr "Par objectif"
+
+#: metas-ii
+msgid "By hand"
+msgstr "À la main"
+
+#: metas-ii
+msgid "Date"
+msgstr "Date"
+
+#: metas-ii
+msgid "For an open fund it is optional: what you mean to put in each month."
+msgstr "Pour un fonds ouvert c'est facultatif : ce que vous comptez y mettre chaque mois."
+
+#: metas-ii
+msgid "From %(meta)s"
+msgstr "De %(meta)s"
+
+#: metas-ii
+msgid "From the split"
+msgstr "De la répartition"
+
+#: metas-ii
+msgid "Money coming in is a positive amount."
+msgstr "L'argent qui entre est un montant positif."
+
+#: metas-ii
+msgid "Money going out is a negative amount."
+msgstr "L'argent qui sort est un montant négatif."
+
+#: metas-ii
+msgid "Month"
+msgstr "Mois"
+
+#: metas-ii
+msgid "Nothing saved yet."
+msgstr "Rien d'épargné pour l'instant."
+
+#: metas-ii
+msgid "Remove this goal? Its history goes with it."
+msgstr "Retirer cet objectif ? Son historique part avec."
+
+#: metas-ii
+msgid "Remove this movement?"
+msgstr "Retirer ce mouvement ?"
+
+#: metas-ii
+msgid "Saved, total"
+msgstr "Épargne totale"
+
+#: metas-ii
+msgid "Say how much you want to reach."
+msgstr "Dites combien vous voulez atteindre."
+
+#: metas-ii
+msgid "That is more than the goal holds."
+msgstr "C'est plus que ce que l'objectif contient."
+
+#: metas-ii
+msgid "This month: %(hecho)s"
+msgstr "Ce mois-ci : %(hecho)s"
+
+#: metas-ii
+msgid "This month: %(hecho)s of the %(fijado)s you set"
+msgstr "Ce mois-ci : %(hecho)s sur les %(fijado)s que vous avez fixés"
+
+#: metas-ii
+msgid "To"
+msgstr "Vers"
+
+#: metas-ii
+msgid "To %(meta)s"
+msgstr "Vers %(meta)s"
+
+#: metas-ii
+msgid "Transfer from %(goal)s"
+msgstr "Transférer depuis %(goal)s"
+
+#: metas-ii
+msgid "Transfer from another goal"
+msgstr "Transfert d'un autre objectif"
+
+#: metas-ii
+msgid "Transfer to another goal"
+msgstr "Transfert vers un autre objectif"
+
+#: metas-ii
+msgid "What for"
+msgstr "Pour quoi"
+
+#: metas-ii
+msgid "Where it came from"
+msgstr "D'où ça vient"
+
+#: metas-ii
+msgid "Where it came from, or what it went to."
+msgstr "D'où ça vient, ou à quoi ça a servi."
+
+#: metas-ii
+msgid "Withdraw"
+msgstr "Retirer"
+
+#: metas-ii
+msgid "Withdraw from %(goal)s"
+msgstr "Retirer de %(goal)s"
+
+#: metas-ii
+msgid "Withdraw or transfer its balance first."
+msgstr "Retirez ou transférez d'abord son solde."
+
+#: metas-ii
+msgid "Withdrawal"
+msgstr "Retrait"
+
+#: metas-ii
+msgid "Withdrawn"
+msgstr "Retiré"

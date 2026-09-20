@@ -346,3 +346,56 @@ def test_el_aporte_de_la_meta_personal_de_otro_es_un_404(client, admin_con_hogar
 
     assert client.get(reverse("budget:aporte_editar", args=[aporte.pk])).status_code == 404
     assert client.post(reverse("budget:aporte_borrar", args=[aporte.pk])).status_code == 404
+
+
+# --- borrar movimientos de salida (Metas II) -----------------------------------
+
+
+def test_borrar_un_lado_de_la_transferencia_borra_el_otro_y_recalcula(client, admin_con_hogar):
+    from apps.budget import services_goals
+
+    user, hogar = admin_con_hogar
+    origen = GoalFactory(household=hogar)
+    destino = GoalFactory(household=hogar, target_amount=Decimal("100.00"))
+    GoalContributionFactory(household=hogar, goal=origen, amount=Decimal("300.00"))
+    _salida, entrada = services_goals.transferir(
+        hogar, origen, destino, Decimal("100.00"), date(2026, 9, 1), _mia(hogar, user)
+    )
+    destino.refresh_from_db()
+    assert destino.status == Goal.REACHED
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aporte_borrar", args=[entrada.pk]))
+
+    assert respuesta.status_code == 302
+    assert origen.acumulado() == Decimal("300.00")
+    assert destino.acumulado() == Decimal("0.00")
+    destino.refresh_from_db()
+    assert destino.status == Goal.ACTIVE
+
+
+def test_un_retiro_se_puede_borrar_pero_no_editar(client, admin_con_hogar):
+    from apps.budget import services_goals
+
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("300.00"))
+    retiro = services_goals.retirar(hogar, meta, Decimal("100.00"), date(2026, 9, 1), _mia(hogar, user))
+    client.force_login(user)
+
+    assert client.get(reverse("budget:aporte_editar", args=[retiro.pk])).status_code == 403
+    assert client.post(reverse("budget:aporte_borrar", args=[retiro.pk])).status_code == 302
+    assert meta.acumulado() == Decimal("300.00")
+
+
+def test_el_aporte_manual_guarda_de_donde_vino(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(user)
+
+    client.post(reverse("budget:aportar"), {
+        "goal": meta.pk, "amount": "150.00", "date": timezone.localdate().isoformat(),
+        "note": "Bono de la empresa",
+    })
+
+    assert meta.contributions.get().note == "Bono de la empresa"

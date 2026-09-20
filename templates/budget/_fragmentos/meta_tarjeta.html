@@ -2,7 +2,11 @@
 {% comment %} Una meta. Lleva id para que, al aportar desde el modal del [+],
    la vista devuelva ESTA tarjeta fuera de banda y htmx la sustituya en Metas;
    en cualquier otra pantalla no hay un id que case y se ignora, como los
-   movimientos recientes del gasto. {% endcomment %}
+   movimientos recientes del gasto.
+
+   Quitar solo aparece con el saldo en cero: con dinero dentro se ofrece
+   retirar o transferir. Con saldo cero y un cierre detras, el mismo boton
+   dice Archive, porque eso es lo que va a pasar. {% endcomment %}
 <section id="meta-{{ fila.meta.pk }}"
          class="card{% if fila.meta.status == 'abandoned' %} card--apagada{% endif %}"
          {% if oob %}hx-swap-oob="true"{% endif %}>
@@ -17,22 +21,30 @@
     </h2>
     {% if nav_membresia.can_edit_budget %}
       {% url 'budget:meta_editar' fila.meta.pk as editar_url %}
-      {% if fila.se_puede_borrar %}
+      {% if fila.puede_quitar %}
         {% url 'budget:meta_borrar' fila.meta.pk as borrar_url %}
-        {% translate "Remove this goal? Its contributions go with it." as confirmacion %}
-        {% include "budget/_fragmentos/acciones_icono.html" %}
+        {% if fila.tiene_cascada %}
+          {% translate "Archive this goal? It leaves this screen but stays in Balance." as confirmacion %}
+        {% else %}
+          {% translate "Remove this goal? Its history goes with it." as confirmacion %}
+        {% endif %}
+        {% include "budget/_fragmentos/acciones_icono.html" with archivar=fila.tiene_cascada %}
       {% else %}
         {% include "budget/_fragmentos/acciones_icono.html" with borrar_url="" %}
       {% endif %}
     {% endif %}
   </header>
 
-  <div class="progreso">
-    <div class="progreso__relleno" style="width: {{ fila.porcentaje_barra }}%"></div>
-  </div>
-  <p>
-    {% blocktranslate with hecho=fila.acumulado|money:hogar.currency objetivo=fila.meta.target_amount|money:hogar.currency pct=fila.porcentaje %}{{ hecho }} of {{ objetivo }} — {{ pct }}%{% endblocktranslate %}
-  </p>
+  {% if fila.es_fondo %}
+    <p class="meta__saldo">{% blocktranslate with saldo=fila.saldo|money:hogar.currency %}Balance: {{ saldo }}{% endblocktranslate %}</p>
+  {% else %}
+    <div class="progreso">
+      <div class="progreso__relleno" style="width: {{ fila.porcentaje_barra }}%"></div>
+    </div>
+    <p>
+      {% blocktranslate with hecho=fila.saldo|money:hogar.currency objetivo=fila.meta.target_amount|money:hogar.currency pct=fila.porcentaje %}{{ hecho }} of {{ objetivo }} — {{ pct }}%{% endblocktranslate %}
+    </p>
+  {% endif %}
 
   {% if fila.meta.status == 'reached' %}
     <p class="meta__logro">
@@ -43,25 +55,22 @@
       {% endif %}
     </p>
   {% elif fila.meta.status == 'active' %}
-    {% if fila.meta.contribution_mode == "by_target_date" %}
-      <p>{% blocktranslate with importe=fila.aporte|money:hogar.currency cuando=fila.fecha|date:"F Y" %}Put in {{ importe }} a month to get there by {{ cuando }}.{% endblocktranslate %}</p>
+    {% if fila.es_fondo %}
+      {% if fila.meta.monthly_amount %}
+        <p class="meta__este-mes{% if fila.este_mes >= fila.aporte %} meta__este-mes--al-dia{% endif %}">
+          {% blocktranslate with hecho=fila.este_mes|money:hogar.currency fijado=fila.aporte|money:hogar.currency %}This month: {{ hecho }} of the {{ fijado }} you set{% endblocktranslate %}
+        </p>
+      {% else %}
+        <p class="meta__este-mes">{% blocktranslate with hecho=fila.este_mes|money:hogar.currency %}This month: {{ hecho }}{% endblocktranslate %}</p>
+      {% endif %}
     {% else %}
-      <p>{% blocktranslate count meses=fila.meses_restantes with cuando=fila.fecha|date:"F Y" %}At this rate you get there in {{ meses }} month · {{ cuando }}.{% plural %}At this rate you get there in {{ meses }} months · {{ cuando }}.{% endblocktranslate %}</p>
-    {% endif %}
-    <p class="meta__este-mes{% if fila.este_mes >= fila.aporte %} meta__este-mes--al-dia{% endif %}">
-      {% blocktranslate with hecho=fila.este_mes|money:hogar.currency sugerido=fila.aporte|money:hogar.currency %}This month: {{ hecho }} of the {{ sugerido }} suggested{% endblocktranslate %}
-    </p>
-    {% if nav_membresia.can_edit_budget and nav_puede_escribir %}
-      <p>
-        {% comment %} Sin JS lleva a la pagina entera del aporte con la meta
-           puesta. Con el modal del [+] presente, pide el formulario por htmx
-           al cuerpo del modal y lo abre, como las opciones del selector. {% endcomment %}
-        <a class="btn btn--primary" href="{% url 'budget:aportar' %}?goal={{ fila.meta.pk }}"
-           {% if nav_fab %}hx-get="{% url 'budget:aportar' %}?goal={{ fila.meta.pk }}"
-           hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML"
-           onclick="document.getElementById('modal-gasto').showModal()"{% endif %}>
-          {% translate "Add to it" %}
-        </a>
+      {% if fila.meta.contribution_mode == "by_target_date" %}
+        <p>{% blocktranslate with importe=fila.aporte|money:hogar.currency cuando=fila.fecha|date:"F Y" %}Put in {{ importe }} a month to get there by {{ cuando }}.{% endblocktranslate %}</p>
+      {% else %}
+        <p>{% blocktranslate count meses=fila.meses_restantes with cuando=fila.fecha|date:"F Y" %}At this rate you get there in {{ meses }} month · {{ cuando }}.{% plural %}At this rate you get there in {{ meses }} months · {{ cuando }}.{% endblocktranslate %}</p>
+      {% endif %}
+      <p class="meta__este-mes{% if fila.este_mes >= fila.aporte %} meta__este-mes--al-dia{% endif %}">
+        {% blocktranslate with hecho=fila.este_mes|money:hogar.currency sugerido=fila.aporte|money:hogar.currency %}This month: {{ hecho }} of the {{ sugerido }} suggested{% endblocktranslate %}
       </p>
     {% endif %}
     {% if fila.meta.scope == "personal" %}
@@ -76,11 +85,31 @@
     <p class="meta__aviso">{% translate "A split rule still feeds it — remove it in Budget setup." %}</p>
   {% endif %}
 
+  {% if nav_membresia.can_edit_budget and nav_puede_escribir %}
+    <p class="meta__acciones">
+      {% if fila.meta.status == 'active' %}
+        {% comment %} Sin JS lleva a la pagina entera del aporte con la meta
+           puesta. Con el modal del [+] presente, pide el formulario por htmx
+           al cuerpo del modal y lo abre, como las opciones del selector. {% endcomment %}
+        <a class="btn btn--primary" href="{% url 'budget:aportar' %}?goal={{ fila.meta.pk }}"
+           {% if nav_fab %}hx-get="{% url 'budget:aportar' %}?goal={{ fila.meta.pk }}"
+           hx-target="#modal-gasto-cuerpo" hx-swap="innerHTML"
+           onclick="document.getElementById('modal-gasto').showModal()"{% endif %}>
+          {% translate "Add to it" %}
+        </a>
+      {% endif %}
+      {% if fila.puede_sacar %}
+        <a class="btn btn--sutil" href="{% url 'budget:meta_retirar' fila.meta.pk %}">{% translate "Withdraw" %}</a>
+        <a class="btn btn--sutil" href="{% url 'budget:meta_transferir' fila.meta.pk %}">{% translate "Transfer" %}</a>
+      {% endif %}
+    </p>
+  {% endif %}
+
   <h3>{% translate "Contributions" %}</h3>
   {% if fila.aportes %}
     <div class="tabla__envoltura">
       <table class="tabla meta__aportes">
-        {% for aporte, editable in fila.aportes|slice:":5" %}
+        {% for aporte, editable, borrable in fila.aportes|slice:":5" %}
           {% include "budget/_fragmentos/meta_aporte_fila.html" %}
         {% endfor %}
       </table>
@@ -88,7 +117,7 @@
         <details>
           <summary>{% translate "Show all" %}</summary>
           <table class="tabla meta__aportes">
-            {% for aporte, editable in fila.aportes|slice:"5:" %}
+            {% for aporte, editable, borrable in fila.aportes|slice:"5:" %}
               {% include "budget/_fragmentos/meta_aporte_fila.html" %}
             {% endfor %}
           </table>
@@ -99,9 +128,9 @@
     <p class="meta__aviso">{% translate "Nothing yet." %}</p>
   {% endif %}
   {% if nav_membresia.can_edit_budget %}
-    {% if fila.meta.status == 'active' and not fila.se_puede_borrar %}
+    {% if fila.meta.status == 'active' %}
       <form method="post" action="{% url 'budget:meta_estado' fila.meta.pk 'abandoned' %}"
-            onsubmit="return confirm('{% translate "Abandon this goal? Its contributions stay on record." %}')">
+            onsubmit="return confirm('{% translate "Abandon this goal? Its balance and history stay on record." %}')">
         {% csrf_token %}
         <button class="btn btn--sutil btn--peligro" type="submit">{% translate "Abandon" %}</button>
       </form>

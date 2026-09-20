@@ -5,6 +5,8 @@
   <h1>{% translate "Balance" %}</h1>
 </header>
 
+{% include "budget/_fragmentos/ahorro.html" %}
+
 {% for fila in cierres %}
 <section class="card">
   <h2>{{ fila.mes }} <span class="pildora pildora--bien">{% translate "Closed" %}</span></h2>
