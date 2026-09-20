@@ -1410,14 +1410,6 @@ msgstr "A previous month closed below what was planned. Nothing you had already 
 msgid "%(hecho)s of %(objetivo)s — %(pct)s%%"
 msgstr "%(hecho)s of %(objetivo)s — %(pct)s%%"
 
-#: templates/budget/metas.html
-msgid "Put in %(importe)s a month to get there on time."
-msgstr "Put in %(importe)s a month to get there on time."
-
-#: templates/budget/metas.html
-msgid "At this rate you get there in %(cuando)s."
-msgstr "At this rate you get there in %(cuando)s."
-
 #: templates/budget/mesada.html
 msgid "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
 msgstr "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
@@ -1682,3 +1674,113 @@ msgstr "Total income"
 #: templates/budget/_fragmentos/cifras.html
 msgid "Total Expenses"
 msgstr "Total expenses"
+
+#: metas
+msgid "A contribution cannot be dated in the future."
+msgstr "A contribution cannot be dated in the future."
+
+#: metas
+msgid "A goal contribution"
+msgstr "A goal contribution"
+
+#: metas
+msgid "A split rule still feeds it — remove it in Budget setup."
+msgstr "A split rule still feeds it — remove it in Budget setup."
+
+#: metas
+msgid "Abandon"
+msgstr "Abandon"
+
+#: metas
+msgid "Abandon this goal? Its contributions stay on record."
+msgstr "Abandon this goal? Its contributions stay on record."
+
+#: metas
+msgid "Add to it"
+msgstr "Add to it"
+
+#: metas
+msgid "Contributions from the monthly split cannot be changed."
+msgstr "Contributions from the monthly split cannot be changed."
+
+#: metas
+msgid "Edit contribution"
+msgstr "Edit contribution"
+
+#: metas
+msgid "Edit goal"
+msgstr "Edit goal"
+
+#: metas
+msgid "Money you set aside"
+msgstr "Money you set aside"
+
+#: metas
+msgid "No active goals yet."
+msgstr "No active goals yet."
+
+#: metas
+msgid "Nothing feeds this goal automatically —"
+msgstr "Nothing feeds this goal automatically —"
+
+#: metas
+msgid "Nothing yet."
+msgstr "Nothing yet."
+
+#: metas
+msgid "Personal goal: only manual contributions."
+msgstr "Personal goal: only manual contributions."
+
+#: metas
+msgid "Put in %(importe)s a month to get there by %(cuando)s."
+msgstr "Put in %(importe)s a month to get there by %(cuando)s."
+
+#: metas
+msgid "Put in more than zero."
+msgstr "Put in more than zero."
+
+#: metas
+msgid "Reactivate"
+msgstr "Reactivate"
+
+#: metas
+msgid "Remove this contribution?"
+msgstr "Remove this contribution?"
+
+#: metas
+msgid "Remove this goal? Its contributions go with it."
+msgstr "Remove this goal? Its contributions go with it."
+
+#: metas
+msgid "Show all"
+msgstr "Show all"
+
+#: metas
+msgid "That change is not possible."
+msgstr "That change is not possible."
+
+#: metas
+msgid "This goal already took part in a closed month — abandon it instead."
+msgstr "This goal already took part in a closed month — abandon it instead."
+
+#: metas
+msgid "This month: %(hecho)s of the %(sugerido)s suggested"
+msgstr "This month: %(hecho)s of the %(sugerido)s suggested"
+
+#: metas
+msgid "You got there on %(cuando)s 🎉"
+msgstr "You got there on %(cuando)s 🎉"
+
+#: metas
+msgid "You got there 🎉"
+msgstr "You got there 🎉"
+
+#: metas
+msgid "add a split rule"
+msgstr "add a split rule"
+
+#: templates/budget/_fragmentos/meta_tarjeta.html
+msgid "At this rate you get there in %(meses)s month · %(cuando)s."
+msgid_plural "At this rate you get there in %(meses)s months · %(cuando)s."
+msgstr[0] "At this rate you get there in %(meses)s month · %(cuando)s."
+msgstr[1] "At this rate you get there in %(meses)s months · %(cuando)s."

@@ -34,8 +34,12 @@ def configurar(request, hogar):
     })
 
 
-def crear(request, hogar, form_class, titulo, destino="budget:configurar", destino_args=()):
+def crear(request, hogar, form_class, titulo, destino="budget:configurar", destino_args=(),
+          initial=None):
     """Un formulario de alta, con el hogar acotado por la base segura.
+
+    `initial` viene de la query: la tarjeta de una meta enlaza a "add a split
+    rule" con la meta ya puesta. Solo rellena; el formulario valida igual.
 
     El `full_clean()` tras fijar el hogar es lo que hace que un POST con el id
     de una fila ajena falle aunque alguien se saltara el formulario: el
@@ -45,8 +49,8 @@ def crear(request, hogar, form_class, titulo, destino="budget:configurar", desti
     de metas, y duplicarlo es como divergen dos formularios que deberian
     validar igual.
     """
-    return _guardar(request, hogar, form_class(request.POST or None, household=hogar),
-                    titulo, destino, destino_args)
+    form = form_class(request.POST or None, household=hogar, initial=initial or {})
+    return _guardar(request, hogar, form, titulo, destino, destino_args)
 
 
 def editar(request, hogar, modelo, form_class, pk, titulo):
@@ -94,9 +98,20 @@ def categoria_nueva(request, hogar):
     return crear(request, hogar, CategoryForm, _("New category"))
 
 
+def _initial_de_reparto(request):
+    """Lo que la tarjeta de una meta manda en la query, si viene bien."""
+    initial = {}
+    if request.GET.get("target_type") == "goal":
+        initial["target_type"] = "goal"
+    if request.GET.get("target_goal", "").isdigit():
+        initial["target_goal"] = int(request.GET["target_goal"])
+    return initial
+
+
 @requiere_permiso("can_edit_budget")
 def reparto_nuevo(request, hogar):
-    return crear(request, hogar, AllocationRuleForm, _("New split rule"))
+    return crear(request, hogar, AllocationRuleForm, _("New split rule"),
+                 initial=_initial_de_reparto(request))
 
 
 @requiere_permiso("can_edit_budget")

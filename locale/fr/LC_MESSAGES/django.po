@@ -1426,14 +1426,6 @@ msgstr "Un mois précédent a fermé en dessous de ce qui était prévu. Rien de
 msgid "%(hecho)s of %(objetivo)s — %(pct)s%%"
 msgstr "%(hecho)s sur %(objetivo)s — %(pct)s %%"
 
-#: templates/budget/metas.html
-msgid "Put in %(importe)s a month to get there on time."
-msgstr "Versez %(importe)s par mois pour y arriver à temps."
-
-#: templates/budget/metas.html
-msgid "At this rate you get there in %(cuando)s."
-msgstr "À ce rythme, vous y arriverez en %(cuando)s."
-
 #: templates/budget/mesada.html
 msgid "%(cuando)s closed below what was planned. Nothing you had already spent was taken back — the shortfall came out of this month instead."
 msgstr "%(cuando)s a fermé en dessous de ce qui était prévu. Rien de ce que vous aviez déjà dépensé ne vous a été retiré — le manque a été pris sur ce mois-ci."
@@ -1922,3 +1914,113 @@ msgstr "Total des revenus"
 #: templates/budget/_fragmentos/cifras.html
 msgid "Total Expenses"
 msgstr "Total des dépenses"
+
+#: metas
+msgid "A contribution cannot be dated in the future."
+msgstr "Une contribution ne peut pas être datée dans le futur."
+
+#: metas
+msgid "A goal contribution"
+msgstr "Une contribution à un objectif"
+
+#: metas
+msgid "A split rule still feeds it — remove it in Budget setup."
+msgstr "Une règle de répartition l'alimente encore — retirez-la dans Configuration du budget."
+
+#: metas
+msgid "Abandon"
+msgstr "Abandonner"
+
+#: metas
+msgid "Abandon this goal? Its contributions stay on record."
+msgstr "Abandonner cet objectif ? Ses contributions restent enregistrées."
+
+#: metas
+msgid "Add to it"
+msgstr "Y contribuer"
+
+#: metas
+msgid "Contributions from the monthly split cannot be changed."
+msgstr "Les contributions de la répartition mensuelle ne se modifient pas."
+
+#: metas
+msgid "Edit contribution"
+msgstr "Modifier la contribution"
+
+#: metas
+msgid "Edit goal"
+msgstr "Modifier l'objectif"
+
+#: metas
+msgid "Money you set aside"
+msgstr "De l'argent mis de côté"
+
+#: metas
+msgid "No active goals yet."
+msgstr "Aucun objectif actif pour l'instant."
+
+#: metas
+msgid "Nothing feeds this goal automatically —"
+msgstr "Rien n'alimente cet objectif automatiquement —"
+
+#: metas
+msgid "Nothing yet."
+msgstr "Rien pour l'instant."
+
+#: metas
+msgid "Personal goal: only manual contributions."
+msgstr "Objectif personnel : contributions manuelles seulement."
+
+#: metas
+msgid "Put in %(importe)s a month to get there by %(cuando)s."
+msgstr "Versez %(importe)s par mois pour y arriver d'ici %(cuando)s."
+
+#: metas
+msgid "Put in more than zero."
+msgstr "Versez plus que zéro."
+
+#: metas
+msgid "Reactivate"
+msgstr "Réactiver"
+
+#: metas
+msgid "Remove this contribution?"
+msgstr "Retirer cette contribution ?"
+
+#: metas
+msgid "Remove this goal? Its contributions go with it."
+msgstr "Retirer cet objectif ? Ses contributions partent avec."
+
+#: metas
+msgid "Show all"
+msgstr "Tout afficher"
+
+#: metas
+msgid "That change is not possible."
+msgstr "Ce changement n'est pas possible."
+
+#: metas
+msgid "This goal already took part in a closed month — abandon it instead."
+msgstr "Cet objectif a déjà compté dans un mois clôturé — abandonnez-le plutôt."
+
+#: metas
+msgid "This month: %(hecho)s of the %(sugerido)s suggested"
+msgstr "Ce mois-ci : %(hecho)s sur les %(sugerido)s suggérés"
+
+#: metas
+msgid "You got there on %(cuando)s 🎉"
+msgstr "Objectif atteint le %(cuando)s 🎉"
+
+#: metas
+msgid "You got there 🎉"
+msgstr "Objectif atteint 🎉"
+
+#: metas
+msgid "add a split rule"
+msgstr "ajoutez une règle de répartition"
+
+#: templates/budget/_fragmentos/meta_tarjeta.html
+msgid "At this rate you get there in %(meses)s month · %(cuando)s."
+msgid_plural "At this rate you get there in %(meses)s months · %(cuando)s."
+msgstr[0] "À ce rythme vous y arrivez dans %(meses)s mois · %(cuando)s."
+msgstr[1] "À ce rythme vous y arrivez dans %(meses)s mois · %(cuando)s."

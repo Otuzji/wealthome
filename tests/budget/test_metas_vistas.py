@@ -279,3 +279,15 @@ def test_la_meta_personal_de_otro_miembro_es_un_404(client, admin_con_hogar):
     client.force_login(user)
 
     assert client.get(reverse("budget:meta_editar", args=[ajena.pk])).status_code == 404
+
+
+def test_el_enlace_de_la_tarjeta_preselecciona_la_regla_de_reparto(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(user)
+
+    respuesta = client.get(reverse("budget:reparto_nuevo") + f"?target_type=goal&target_goal={meta.pk}")
+
+    form = respuesta.context["form"]
+    assert form["target_type"].value() == "goal"
+    assert form["target_goal"].value() == meta.pk
