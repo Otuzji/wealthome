@@ -32,6 +32,11 @@ urlpatterns = [
     path("welcome/<int:paso>/", wizards.incorporacion, name="incorporacion"),
     path("goals/new/", views_goals.meta_nueva, name="meta_nueva"),
     path("goals/contribute/", views_goals.aportar, name="aportar"),
+    # Corregir, quitar, abandonar o reactivar una meta. Quitar solo si nunca
+    # recibio cascada: un aporte del cierre es historia de un mes cerrado.
+    path("goals/<int:pk>/", views_goals.meta_editar, name="meta_editar"),
+    path("goals/<int:pk>/delete/", views_goals.meta_borrar, name="meta_borrar"),
+    path("goals/<int:pk>/status/<str:estado>/", views_goals.meta_estado, name="meta_estado"),
     # Antes de los patrones con <str:ambito>, o "personal" se comeria el
     # patron generico. Y sin ambito: la mesada es de un miembro por
     # definicion, y una "mesada del hogar" no significa nada.

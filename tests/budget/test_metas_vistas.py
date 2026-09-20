@@ -131,3 +131,151 @@ def test_el_ambito_de_una_meta_con_aportes_no_se_cambia(admin_con_hogar):
     assert GoalForm(household=hogar, instance=con).fields["scope"].disabled is True
     assert GoalForm(household=hogar, instance=con).fields["owner"].disabled is True
     assert GoalForm(household=hogar, instance=sin).fields["scope"].disabled is False
+
+
+# --- editar, borrar, estado ---------------------------------------------------
+
+
+def _datos(meta, **cambios):
+    base = {
+        "name": meta.name, "scope": meta.scope, "owner": meta.owner_id or "",
+        "contribution_mode": meta.contribution_mode,
+        "target_amount": str(meta.target_amount),
+        "target_date": meta.target_date.isoformat() if meta.target_date else "",
+        "monthly_amount": str(meta.monthly_amount) if meta.monthly_amount else "",
+    }
+    base.update(cambios)
+    return base
+
+
+def test_subir_el_objetivo_reabre_una_meta_alcanzada(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("100.00"), status=Goal.REACHED)
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("100.00"))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_editar", args=[meta.pk]),
+                            _datos(meta, target_amount="200.00"))
+
+    assert respuesta.status_code == 302
+    meta.refresh_from_db()
+    assert meta.target_amount == Decimal("200.00")
+    assert meta.status == Goal.ACTIVE
+
+
+def test_bajar_el_objetivo_la_da_por_alcanzada(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("500.00"))
+    GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("120.00"))
+    client.force_login(user)
+
+    client.post(reverse("budget:meta_editar", args=[meta.pk]), _datos(meta, target_amount="100.00"))
+
+    meta.refresh_from_db()
+    assert meta.status == Goal.REACHED
+
+
+def test_borrar_una_meta_sin_cascada_se_lleva_sus_aportes(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    GoalContributionFactory(household=hogar, goal=meta)
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_borrar", args=[meta.pk]))
+
+    assert respuesta.status_code == 302
+    assert not Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
+
+
+def test_una_meta_con_cascada_no_se_borra_se_abandona(client, admin_con_hogar):
+    from apps.budget.models import GoalContribution
+
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    GoalContribution.unscoped.create(
+        household=hogar, goal=meta, amount=Decimal("50.00"), date=date(2026, 3, 31),
+        member=None, origen="cascade",
+    )
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_borrar", args=[meta.pk]), follow=True)
+
+    assert Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
+    assert "abandon it instead" in respuesta.content.decode()
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+    assert reverse("budget:meta_borrar", args=[meta.pk]) not in html
+    assert reverse("budget:meta_estado", args=[meta.pk, "abandoned"]) in html
+
+
+def test_borrar_por_get_no_destruye_nada(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(user)
+
+    assert client.get(reverse("budget:meta_borrar", args=[meta.pk])).status_code == 405
+    assert Goal.objects.for_household(hogar).filter(pk=meta.pk).exists()
+
+
+def test_abandonar_y_reactivar_desde_la_pantalla(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(user)
+
+    client.post(reverse("budget:meta_estado", args=[meta.pk, "abandoned"]))
+    meta.refresh_from_db()
+    assert meta.status == Goal.ABANDONED
+
+    client.post(reverse("budget:meta_estado", args=[meta.pk, "active"]))
+    meta.refresh_from_db()
+    assert meta.status == Goal.ACTIVE
+
+
+def test_una_transicion_imposible_es_un_400(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, status=Goal.REACHED)
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:meta_estado", args=[meta.pk, "abandoned"]))
+
+    assert respuesta.status_code == 400
+    meta.refresh_from_db()
+    assert meta.status == Goal.REACHED
+
+
+@pytest.mark.parametrize("ruta,metodo", [
+    ("budget:meta_editar", "get"),
+    ("budget:meta_borrar", "post"),
+])
+def test_escribir_una_meta_exige_can_edit_budget(client, admin_con_hogar, ruta, metodo):
+    _user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(_miembro(hogar).user)
+
+    respuesta = getattr(client, metodo)(reverse(ruta, args=[meta.pk]))
+
+    assert respuesta.status_code == 403
+
+
+def test_cambiar_el_estado_exige_can_edit_budget(client, admin_con_hogar):
+    _user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    client.force_login(_miembro(hogar).user)
+
+    assert client.post(reverse("budget:meta_estado", args=[meta.pk, "abandoned"])).status_code == 403
+
+
+def test_la_meta_de_otro_hogar_es_un_404(client, admin_con_hogar):
+    user, _hogar = admin_con_hogar
+    ajena = GoalFactory(household=HouseholdFactory())
+    client.force_login(user)
+
+    assert client.get(reverse("budget:meta_editar", args=[ajena.pk])).status_code == 404
+    assert client.post(reverse("budget:meta_borrar", args=[ajena.pk])).status_code == 404
+
+
+def test_la_meta_personal_de_otro_miembro_es_un_404(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    ajena = GoalFactory(household=hogar, scope="personal", owner=_miembro(hogar))
+    client.force_login(user)
+
+    assert client.get(reverse("budget:meta_editar", args=[ajena.pk])).status_code == 404

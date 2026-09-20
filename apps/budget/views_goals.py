@@ -5,18 +5,21 @@ de su dueno y no del hogar. Las escrituras no lo llevan: la fila ya sabe su
 ambito, y a el se vuelve.
 """
 
-from django.db.models import Prefetch
-from django.shortcuts import redirect, render
+from django.contrib import messages
+from django.db.models import Prefetch, Q
+from django.http import HttpResponseBadRequest
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services_goals
 from .forms import GoalContributionForm, GoalForm
 from .models import Goal, GoalContribution, MesCerrado
-from .scopes import acotar_por_dueno, validar
+from .scopes import HOGAR, PERSONAL, acotar_por_dueno, validar
 from .views_setup import crear
 
 
@@ -108,3 +111,56 @@ def aportar(request, hogar):
         # permite que el selector del [+] ofrezca siempre la tercera opcion.
         "form": form, "sin_metas": not form.fields["goal"].queryset.exists(), **contexto,
     })
+
+
+def _meta(request, hogar, pk):
+    """Una meta que quien pide puede tocar: las del hogar, y las personales
+    solo de su dueno. `for_household` antes que `get_object_or_404`: el pk de
+    otra familia (o la personal de otro miembro) es un 404 identico al de un
+    pk inventado, sin decir cual fue."""
+    membresia = membresia_actual(request)
+    visibles = Q(scope=HOGAR) | Q(scope=PERSONAL, owner=membresia)
+    return get_object_or_404(Goal.objects.for_household(hogar).filter(visibles), pk=pk)
+
+
+@requiere_permiso("can_edit_budget")
+def meta_editar(request, hogar, pk):
+    """Corregir en sitio, como una regla del setup. Tras guardar se recalcula
+    el estado: subir el objetivo reabre una alcanzada, bajarlo puede cubrirla."""
+    meta = _meta(request, hogar, pk)
+    form = GoalForm(request.POST or None, household=hogar, instance=meta)
+    if request.method == "POST" and form.is_valid():
+        meta = form.save()
+        services_goals.recalcular_estado(meta)
+        return redirect("budget:metas", meta.scope)
+    return render(request, "budget/formulario.html", {
+        "form": form, "titulo": _("Edit goal"),
+        "cancelar": reverse("budget:metas", args=[meta.scope]),
+    })
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def meta_borrar(request, hogar, pk):
+    """Solo por POST: un GET no destruye nada. Con aportes de cascada no se
+    borra: MonthlyAllocation.rule es RESTRICT y el mes cerrado conto con ese
+    reparto. Se abandona, que es lo que la tarjeta ofrece en su lugar."""
+    meta = _meta(request, hogar, pk)
+    if meta.contributions.filter(origen="cascade").exists():
+        messages.error(request, _(
+            "This goal already took part in a closed month — abandon it instead."
+        ))
+    else:
+        meta.delete()
+    return redirect("budget:metas", meta.scope)
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def meta_estado(request, hogar, pk, estado):
+    meta = _meta(request, hogar, pk)
+    try:
+        services_goals.cambiar_estado(meta, estado)
+    except ValueError:
+        return HttpResponseBadRequest(_("That change is not possible."))
+    return redirect("budget:metas", meta.scope)

@@ -15,6 +15,16 @@
         <span class="pildora meta__estado">{% translate "Abandoned" %}</span>
       {% endif %}
     </h2>
+    {% if nav_membresia.can_edit_budget %}
+      {% url 'budget:meta_editar' fila.meta.pk as editar_url %}
+      {% if fila.se_puede_borrar %}
+        {% url 'budget:meta_borrar' fila.meta.pk as borrar_url %}
+        {% translate "Remove this goal? Its contributions go with it." as confirmacion %}
+        {% include "budget/_fragmentos/acciones_icono.html" %}
+      {% else %}
+        {% include "budget/_fragmentos/acciones_icono.html" with borrar_url="" %}
+      {% endif %}
+    {% endif %}
   </header>
 
   <div class="progreso">
@@ -87,5 +97,19 @@
     </div>
   {% else %}
     <p class="meta__aviso">{% translate "Nothing yet." %}</p>
+  {% endif %}
+  {% if nav_membresia.can_edit_budget %}
+    {% if fila.meta.status == 'active' and not fila.se_puede_borrar %}
+      <form method="post" action="{% url 'budget:meta_estado' fila.meta.pk 'abandoned' %}"
+            onsubmit="return confirm('{% translate "Abandon this goal? Its contributions stay on record." %}')">
+        {% csrf_token %}
+        <button class="btn btn--sutil btn--peligro" type="submit">{% translate "Abandon" %}</button>
+      </form>
+    {% elif fila.meta.status == 'abandoned' %}
+      <form method="post" action="{% url 'budget:meta_estado' fila.meta.pk 'active' %}">
+        {% csrf_token %}
+        <button class="btn btn--sutil" type="submit">{% translate "Reactivate" %}</button>
+      </form>
+    {% endif %}
   {% endif %}
 </section>
