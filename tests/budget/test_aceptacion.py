@@ -331,4 +331,5 @@ def test_criterio_10_la_aplicacion_entera_funciona_en_frances(client, hogar_conf
 
     assert "2 847,50 $" in html
     assert "Ce mois-ci" in html
-    assert "Surplus" in html
+    # "Left over" paso a llamarse Cash Float con su tarjeta (2026-09-19).
+    assert "Trésorerie disponible" in html

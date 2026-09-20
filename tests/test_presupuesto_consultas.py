@@ -30,7 +30,12 @@ from tests.factories_budget import (
 # — el tope de metas se fue a 11. En vez de subir dos topes se hizo el
 # select_related, y ahora la suscripcion viaja con el hogar: el del mes VUELVE
 # a 17, y el de metas se queda en 10 con el menu ya contado.
-CONSULTAS_MES = 17
+#
+# La tarjeta Cash Float (2026-09-19) lo subio de 17 a 21: services.cash_float()
+# lee los miembros activos (dos veces: la suya y la de _reglas_del_motor), las
+# reglas de reparto y el hogar del mes. Cuatro consultas fijas; ninguna crece
+# con las transacciones, que es lo que esta prueba vigila con 50 sembradas.
+CONSULTAS_MES = 21
 # BAJADO de 10 a 6 en la Tarea 21, y la historia importa porque es un N+1 que
 # habia sobrevivido a la tarea que vino a quitar los N+1.
 #
