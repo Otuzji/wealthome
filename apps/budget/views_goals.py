@@ -61,7 +61,8 @@ def meta_nueva(request, hogar):
 def aportar(request, hogar):
     """Mismo patron que `registrar`, para no inventar un segundo."""
     es_htmx = request.headers.get("HX-Request") == "true"
-    form = GoalContributionForm(request.POST or None, household=hogar)
+    form = GoalContributionForm(request.POST or None, household=hogar,
+                                membresia=membresia_actual(request))
     if request.method == "POST" and form.is_valid():
         aporte = form.save(commit=False)
         aporte.household = hogar

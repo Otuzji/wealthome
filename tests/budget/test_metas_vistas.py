@@ -115,3 +115,19 @@ def test_una_meta_de_otro_hogar_no_aparece(client, admin_con_hogar):
     html = client.get(reverse("budget:metas", args=["household"])).content.decode()
 
     assert "De otra familia" not in html
+
+
+# --- el formulario de meta ----------------------------------------------------
+
+
+def test_el_ambito_de_una_meta_con_aportes_no_se_cambia(admin_con_hogar):
+    from apps.budget.forms import GoalForm
+
+    _user, hogar = admin_con_hogar
+    con = GoalFactory(household=hogar)
+    GoalContributionFactory(household=hogar, goal=con)
+    sin = GoalFactory(household=hogar)
+
+    assert GoalForm(household=hogar, instance=con).fields["scope"].disabled is True
+    assert GoalForm(household=hogar, instance=con).fields["owner"].disabled is True
+    assert GoalForm(household=hogar, instance=sin).fields["scope"].disabled is False

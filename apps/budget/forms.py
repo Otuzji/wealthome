@@ -9,13 +9,15 @@ from datetime import date
 from decimal import Decimal
 
 from django import forms
+from django.db.models import Q
 from django.utils.formats import date_format
+from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
 from apps.budget.engine import income as motor_income
 from apps.budget.engine.merchants import normalizar
-from apps.budget.models.catalog import EXPENSE, INCOME
+from apps.budget.models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
 from apps.households.scoped_forms import HouseholdScopedModelForm
 
 from .models import (
@@ -307,13 +309,48 @@ class GoalForm(HouseholdScopedModelForm):
         super().__init__(*args, **kwargs)
         self.fields["owner"].queryset = self.household.active_memberships()
         self.fields["owner"].required = False
+        # Con aportes, el ambito se queda: un aporte a una meta del hogar lo
+        # hizo cualquiera, y el de una personal tiene que ser de su dueno.
+        # Cambiarlo dejaria aportes que no cuadran con la meta.
+        if self.instance.pk and self.instance.contributions.exists():
+            self.fields["scope"].disabled = True
+            self.fields["owner"].disabled = True
 
 
 class GoalContributionForm(HouseholdScopedModelForm):
+    """`member` y `budget_month` NO son campos: salen de la peticion y de la
+    fecha, como en TransactionForm."""
+
     class Meta:
         model = GoalContribution
         fields = ["goal", "amount", "date"]
         widgets = {"date": forms.DateInput(attrs={"type": "date"})}
+
+    def __init__(self, *args, membresia, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Solo a lo que se puede aportar: las metas activas del hogar y las
+        # personales propias. Acota el render Y la validacion. Al editar, la
+        # meta del aporte entra aunque ya este alcanzada: corregir un aporte
+        # no es aportar.
+        visibles = Q(scope=HOUSEHOLD) | Q(scope=PERSONAL, owner=membresia)
+        activas = Q(status=Goal.ACTIVE)
+        if self.instance.pk:
+            activas |= Q(pk=self.instance.goal_id)
+        self.fields["goal"].queryset = (
+            Goal.objects.for_household(self.household).filter(visibles & activas)
+        )
+
+    def clean_date(self):
+        fecha = self.cleaned_data["date"]
+        if fecha > timezone.localdate():
+            raise forms.ValidationError(_("A contribution cannot be dated in the future."))
+        return fecha
+
+    def clean_amount(self):
+        importe = self.cleaned_data["amount"]
+        if importe is not None and importe <= 0:
+            raise forms.ValidationError(_("Put in more than zero."))
+        return importe
 
 
 class BudgetLineForm(HouseholdScopedModelForm):
