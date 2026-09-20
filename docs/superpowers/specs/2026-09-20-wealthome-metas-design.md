@@ -53,7 +53,7 @@ Sin migraciones. Dos ayudas en `Goal`:
 | De | A | Quién |
 |---|---|---|
 | `active` | `reached` | `recalcular_estado`, al guardar un aporte (manual o cascada) o al bajar el objetivo |
-| `reached` | `active` | `recalcular_estado`, al borrar o reducir un aporte o subir el objetivo; o a mano ("Reopen") |
+| `reached` | `active` | `recalcular_estado`, al borrar o reducir un aporte o subir el objetivo. No hay "Reopen" a mano: sin subir el objetivo, el siguiente recálculo la volvería a dar por alcanzada |
 | `active` | `abandoned` | a mano |
 | `abandoned` | `active` | a mano; se recalcula por si ya está cubierta |
 
@@ -105,7 +105,7 @@ Solo `active ↔ reached`. Devuelve si cambió. Guarda con `update_fields=["stat
 ```python
 def cambiar_estado(meta, nuevo) -> None
 ```
-Las tres transiciones a mano de la tabla. Otra cosa → `ValueError`.
+Las dos transiciones a mano de la tabla (`active → abandoned`, `abandoned → active`). Otra cosa → `ValueError`.
 
 ```python
 def resumen(hogar, metas, hoy) -> list[dict]
@@ -142,7 +142,7 @@ Todo en `views_goals.py`. Rutas antes de los patrones con `<str:ambito>`.
 | `goals/<pk>/delete/` | `meta_borrar` | `can_edit_budget` | POST. Con cascada → `messages.error` "This goal already took part in a closed month — abandon it instead." Sin → borra. Vuelve a `metas` del ámbito de la meta |
 | `goals/<pk>/status/<estado>/` | `meta_estado` | `can_edit_budget` | POST. `estado` ∈ {`active`, `abandoned`}; transición inválida → 400 |
 | `goals/contribute/` | `aportar` | `can_edit_budget` | `?goal=<pk>` como `initial`. htmx: GET devuelve `aporte_form.html`; POST bueno devuelve el form limpio + **la tarjeta de la meta fuera de banda** (`id="meta-<pk>"`) + `HX-Trigger: gasto-registrado`. Sin htmx: `formulario.html` y redirige a `metas` |
-| `goals/contributions/<pk>/` | `aporte_editar` | `can_edit_budget` | `GoalContributionForm` + `instance`; `cascade` → 403; mes cerrado → error en el form; tras guardar, `recalcular_estado` |
+| `goals/contributions/<pk>/` | `aporte_editar` | `can_edit_budget` | `GoalContributionForm` + `instance`; `cascade` → 403; si su mes ya está cerrado → `messages.error` y vuelve (mover la fecha fuera de un mes cerrado reescribiría ese mes); si la fecha nueva cae en un mes cerrado → error en el form; tras guardar, `recalcular_estado` |
 | `goals/contributions/<pk>/delete/` | `aporte_borrar` | `can_edit_budget` | POST; `cascade` → 403; mes cerrado → `messages.error`; borra y `recalcular_estado` |
 | `<ambito>/goals/` | `metas` | `can_view_budget` | Usa `resumen`; agrupa activas / alcanzadas / abandonadas |
 
@@ -171,7 +171,8 @@ para el enlace "add a split rule"; la vista `reparto_nuevo` los pasa.
   - Frase derivada según estado:
     - activa por fecha: "Put in $X a month to get there by June 2027."
     - activa por monto: "At this rate you get there in 14 months · March 2028."
-    - alcanzada: "You got there on 3 March 2027 🎉"; sin botón de aportar; "Reopen".
+    - alcanzada: "You got there on 3 March 2027 🎉"; sin botón de aportar. Para seguir
+      ahorrando se sube el objetivo con Edit y el recálculo la reabre.
     - abandonada: `card--apagada`, "Reactivate"; si `tiene_regla`, "A split rule still
       feeds it — remove it in Budget setup."
   - "This month: $X of the $Y suggested" (activas); en verde si `este_mes >= aporte`.
@@ -191,9 +192,10 @@ para el enlace "add a split rule"; la vista `reparto_nuevo` los pasa.
 (`#modal-gasto-titulo`), `hx-post` a `request.path`, `hx-target="this"`, botón Back →
 `abrirSelectorDeRegistro()`. Página entera: `budget/formulario.html`.
 
-**FAB.** Tercera opción del selector: "A goal contribution" / "Money you set aside",
-`hx-get` a `aportar`. Solo si `nav_hay_metas` (una `exists()` de metas activas en el
-context processor); sin metas, dos opciones como hoy.
+**FAB.** Tercera opción del selector, siempre: "A goal contribution" / "Money you set
+aside", `hx-get` a `aportar`. Sin metas activas que aportar, el fragmento del formulario
+responde con un estado vacío ("No active goals yet" + enlace a New goal) en vez del
+`<select>` vacío. Así el menú no paga una consulta por página para saber si hay metas.
 
 **CSS.** `.chip--alcanzada`, `.chip--abandonada`, `.card--apagada`, `.meta__este-mes`,
 `.selector__opcion--meta`. Mismos tokens; nada nuevo de layout.
@@ -206,10 +208,10 @@ context processor); sin metas, dos opciones como hoy.
 
 | Archivo | Cubre |
 |---|---|
-| `tests/budget/test_services_goals.py` | `aportar` resuelve `budget_month`, sube `MesCerrado`, marca `reached`; `recalcular_estado` en sus cuatro casos; `cambiar_estado` acepta tres transiciones y rechaza el resto; `resumen`: `este_mes` solo el mes de hoy, `tiene_regla`, `meses_restantes`, `editable`, `se_puede_borrar`, `alcanzada_el`; tope de consultas con 20 metas × 5 aportes |
+| `tests/budget/test_services_goals.py` | `aportar` resuelve `budget_month`, sube `MesCerrado`, marca `reached`; `recalcular_estado` en sus cuatro casos; `cambiar_estado` acepta dos transiciones y rechaza el resto; `resumen`: `este_mes` solo el mes de hoy, `tiene_regla`, `meses_restantes`, `editable`, `se_puede_borrar`, `alcanzada_el`; tope de consultas con 20 metas × 5 aportes |
 | `tests/budget/test_metas_vistas.py` | lista por ámbito (hogar vs personal); orden por estado; `meta_editar` reabre al subir el objetivo; `meta_borrar` con cascada no borra y avisa; `meta_estado` y su 400; 403 en toda escritura sin `can_edit_budget`; pk ajeno → 404 |
 | `tests/budget/test_aportar.py` | htmx: form limpio + tarjeta OOB + `HX-Trigger`; página entera redirige; `?goal=` preselecciona; meta personal ajena fuera del queryset y rechazada por POST; fecha futura rechazada; mes cerrado → error; `aporte_editar`/`aporte_borrar` en cascada → 403; borrar recalcula |
 | `tests/budget/test_mes_cerrado.py` | la cascada al cierre pasa por `services_goals.aportar` y marca `reached` |
-| `tests/test_navegacion.py`, `tests/test_pwa.py` | FAB con tres opciones solo con meta activa; versión de `sw.js` |
+| `tests/test_navegacion.py`, `tests/test_pwa.py`, `tests/test_presupuesto_consultas.py` | FAB con tres opciones; estado vacío de `aportar` sin metas activas; versión de `sw.js`; tope de consultas de Metas medido de nuevo |
 
 TDD tarea por tarea; la suite entera una vez al final.
