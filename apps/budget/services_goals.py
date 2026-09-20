@@ -18,6 +18,7 @@ from .models import (
     CASCADE, MANUAL, TRANSFER_IN, TRANSFER_OUT, WITHDRAWAL, AllocationRule, Goal,
     GoalContribution,
 )
+from .scopes import acotar_por_dueno
 
 
 class SaldoInsuficiente(ValueError):
@@ -160,39 +161,104 @@ def resumen(hogar, metas, hoy=None):
     filas = []
     for meta in metas:
         aportes = list(meta.contributions.all())
-        acumulado = sum((a.amount for a in aportes), Decimal("0.00"))
-        aporte, fecha = meta.derivar(desde=hoy, acumulado=acumulado)
-        # Dos numeros y no uno: el porcentaje real es un dato ("119%" no es
-        # un error), pero la barra se acota a 100 o se sale de su caja.
-        bruto = int(acumulado / meta.target_amount * 100) if meta.target_amount else 0
+        saldo = sum((a.amount for a in aportes), Decimal("0.00"))
+        aporte, fecha = meta.derivar(desde=hoy, acumulado=saldo)
+        if meta.target_amount:
+            # Dos numeros y no uno: el porcentaje real es un dato ("119%" no
+            # es un error), pero la barra se acota a 100 o se sale de su caja.
+            bruto = int(saldo / meta.target_amount * 100)
+            porcentaje, barra = bruto, max(0, min(100, bruto))
+        else:
+            porcentaje = barra = None
         filas.append({
             "meta": meta,
-            "acumulado": acumulado,
+            "acumulado": saldo,
+            "saldo": saldo,
+            "es_fondo": meta.es_fondo,
             "aporte": aporte,
             "fecha": fecha,
-            "meses_restantes": _meses_entre(hoy, fecha),
+            "meses_restantes": _meses_entre(hoy, fecha) if fecha else None,
+            # Lo que ENTRO este mes: lo que se saco no descuenta del esfuerzo.
             "este_mes": sum(
                 (a.amount for a in aportes
-                 if mes_de_hoy is not None and a.budget_month_id == mes_de_hoy.pk),
+                 if a.amount > 0 and mes_de_hoy is not None
+                 and a.budget_month_id == mes_de_hoy.pk),
                 Decimal("0.00"),
             ),
-            "porcentaje": bruto,
-            "porcentaje_barra": min(100, bruto),
+            "porcentaje": porcentaje,
+            "porcentaje_barra": barra,
             "tiene_regla": meta.pk in con_regla,
+            "tiene_cascada": any(a.origen == CASCADE for a in aportes),
             "alcanzada_el": (_fecha_en_que_se_cubrio(meta, aportes)
                              if meta.status == Goal.REACHED else None),
-            "aportes": [(a, _editable(a)) for a in aportes],
-            "se_puede_borrar": not any(a.origen == "cascade" for a in aportes),
+            "aportes": [(a, _editable(a), _borrable(a)) for a in aportes],
+            "puede_sacar": saldo > 0,
+            "puede_quitar": saldo == 0,
         })
     return filas
 
 
-def _editable(aporte):
-    """Un aporte manual de un mes que no esta cerrado. El de cascada es del
-    cierre, y el de un mes cerrado ya conto en su balance."""
-    if aporte.origen != "manual":
-        return False
+def _mes_abierto(aporte):
     return aporte.budget_month_id is None or not aporte.budget_month.esta_cerrado
+
+
+def _editable(aporte):
+    """Solo un aporte manual de un mes que no esta cerrado se corrige. Un
+    retiro o una transferencia se quitan y se rehacen; el de cascada es del
+    cierre, y el de un mes cerrado ya conto en su balance."""
+    return aporte.origen == MANUAL and _mes_abierto(aporte)
+
+
+def _borrable(aporte):
+    return aporte.origen != CASCADE and _mes_abierto(aporte)
+
+
+def resumen_ahorro(hogar, ambito, membresia):
+    """El ahorro del hogar (o el personal de quien mira) para Balance: por
+    mes, lo que entro de la cascada, lo que entro a mano y lo que salio; el
+    saldo acumulado; y el saldo de cada meta, archivadas incluidas. Las
+    transferencias se anulan entre si y no se listan por mes.
+
+    Se agrupa por el ano-mes de la FECHA del movimiento y no por
+    `budget_month`: un aporte fechado en un mes que el hogar no vivio no tiene
+    fila de mes y aun asi es ahorro.
+    """
+    metas = list(acotar_por_dueno(Goal.objects.for_household(hogar), ambito, membresia))
+    movimientos = (
+        GoalContribution.objects.for_household(hogar)
+        .filter(goal__in=metas).order_by("date", "pk")
+    )
+    por_mes = {}
+    saldo_por_meta = {m.pk: Decimal("0.00") for m in metas}
+    for mov in movimientos:
+        saldo_por_meta[mov.goal_id] += mov.amount
+        if mov.origen in (TRANSFER_IN, TRANSFER_OUT):
+            continue
+        fila = por_mes.setdefault((mov.date.year, mov.date.month), {
+            "anio": mov.date.year, "mes": mov.date.month,
+            "cascada": Decimal("0.00"), "a_mano": Decimal("0.00"),
+            "retiros": Decimal("0.00"),
+        })
+        if mov.origen == CASCADE:
+            fila["cascada"] += mov.amount
+        elif mov.origen == MANUAL:
+            fila["a_mano"] += mov.amount
+        else:
+            fila["retiros"] += mov.amount
+    saldo = Decimal("0.00")
+    filas = []
+    for clave in sorted(por_mes):
+        fila = por_mes[clave]
+        fila["neto"] = fila["cascada"] + fila["a_mano"] + fila["retiros"]
+        saldo += fila["neto"]
+        fila["saldo"] = saldo
+        filas.append(fila)
+    filas.reverse()
+    return {
+        "filas": filas,
+        "saldo_total": saldo,
+        "por_meta": [{"meta": m, "saldo": saldo_por_meta[m.pk]} for m in metas],
+    }
 
 
 def _fecha_en_que_se_cubrio(meta, aportes):

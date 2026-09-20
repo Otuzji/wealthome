@@ -250,19 +250,20 @@ def test_resumen_marca_que_aportes_se_pueden_tocar(hogar):
 
     [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
 
-    editable = {a.pk: e for a, e in fila["aportes"]}
+    editable = {a.pk: e for a, e, _b in fila["aportes"]}
     assert editable == {manual_abierto.pk: True, manual_cerrado.pk: False,
                         sin_mes.pk: True, cascada.pk: False}
-    assert fila["se_puede_borrar"] is False
+    assert fila["tiene_cascada"] is True
 
 
-def test_una_meta_sin_cascada_se_puede_borrar(hogar):
+def test_una_meta_con_saldo_no_se_puede_quitar(hogar):
     meta = GoalFactory(household=hogar)
     GoalContributionFactory(household=hogar, goal=meta)
 
     [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
 
-    assert fila["se_puede_borrar"] is True
+    assert fila["puede_quitar"] is False
+    assert fila["tiene_cascada"] is False
 
 
 def test_resumen_dice_cuando_se_alcanzo(hogar):
@@ -521,3 +522,126 @@ def test_un_fondo_nunca_se_da_por_alcanzado(hogar):
     fondo.refresh_from_db()
     assert fondo.status == Goal.ACTIVE
     assert fondo.contributions.get().note == "Un bono"
+
+
+# --- resumen con fondo, saldo y salidas; resumen_ahorro -----------------------
+
+from apps.budget.scopes import HOGAR, PERSONAL  # noqa: E402
+
+
+def test_resumen_de_un_fondo_no_tiene_porcentaje_ni_fecha(hogar):
+    fondo = _fondo(hogar, monthly_amount=Decimal("200.00"))
+    GoalContributionFactory(household=hogar, goal=fondo, amount=Decimal("350.00"))
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
+
+    assert fila["es_fondo"] is True
+    assert fila["saldo"] == Decimal("350.00")
+    assert fila["aporte"] == Decimal("200.00")
+    assert fila["fecha"] is None
+    assert fila["porcentaje"] is None and fila["porcentaje_barra"] is None
+    assert fila["meses_restantes"] is None
+
+
+def test_resumen_dice_que_se_puede_sacar_y_que_se_puede_quitar(hogar):
+    con_saldo = _con_saldo(hogar)
+    vacia = GoalFactory(household=hogar)
+    con_cascada = GoalFactory(household=hogar)
+    GoalContribution.unscoped.create(household=hogar, goal=con_cascada, amount=Decimal("50.00"),
+                                     date=date(2026, 3, 31), member=None, origen="cascade")
+    services_goals.retirar(hogar, con_cascada, Decimal("50.00"), date(2026, 4, 1),
+                           MembershipFactory(household=hogar), note="")
+
+    por_meta = {f["meta"].pk: f for f in services_goals.resumen(hogar, _con_aportes(hogar))}
+
+    assert (por_meta[con_saldo.pk]["puede_sacar"], por_meta[con_saldo.pk]["puede_quitar"]) == (True, False)
+    assert (por_meta[vacia.pk]["puede_sacar"], por_meta[vacia.pk]["puede_quitar"]) == (False, True)
+    assert por_meta[con_cascada.pk]["puede_quitar"] is True
+    assert por_meta[con_cascada.pk]["tiene_cascada"] is True
+    assert por_meta[con_saldo.pk]["tiene_cascada"] is False
+
+
+def test_resumen_marca_editable_y_borrable_por_origen(hogar):
+    meta = _con_saldo(hogar)
+    manual = meta.contributions.get()
+    miembro = MembershipFactory(household=hogar)
+    retiro = services_goals.retirar(hogar, meta, Decimal("10.00"), date(2026, 3, 2), miembro)
+    cascada = GoalContribution.unscoped.create(household=hogar, goal=meta, amount=Decimal("5.00"),
+                                               date=date(2026, 3, 31), member=None, origen="cascade")
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar))
+
+    flags = {a.pk: (editable, borrable) for a, editable, borrable in fila["aportes"]}
+    assert flags == {manual.pk: (True, True), retiro.pk: (False, True), cascada.pk: (False, False)}
+
+
+def test_este_mes_solo_cuenta_lo_que_entro(hogar):
+    hoy = date(2026, 9, 20)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=9)
+    meta = GoalFactory(household=hogar, target_amount=Decimal("1000.00"))
+    miembro = MembershipFactory(household=hogar)
+    services_goals.aportar(hogar, meta, Decimal("100.00"), date(2026, 9, 3), miembro)
+    services_goals.retirar(hogar, meta, Decimal("40.00"), date(2026, 9, 10), miembro)
+
+    [fila] = services_goals.resumen(hogar, _con_aportes(hogar), hoy=hoy)
+
+    assert fila["este_mes"] == Decimal("100.00")
+    assert fila["saldo"] == Decimal("60.00")
+    assert meta.contributions.filter(budget_month=mes).count() == 2
+
+
+def test_resumen_ahorro_agrupa_por_mes_y_acumula(hogar):
+    miembro = MembershipFactory(household=hogar)
+    viaje = GoalFactory(household=hogar, name="Viaje")
+    fondo = _fondo(hogar, name="Fondo")
+    GoalContribution.unscoped.create(household=hogar, goal=viaje, amount=Decimal("200.00"),
+                                     date=date(2026, 7, 31), member=None, origen="cascade")
+    services_goals.aportar(hogar, fondo, Decimal("300.00"), date(2026, 7, 10), miembro)
+    services_goals.aportar(hogar, viaje, Decimal("100.00"), date(2026, 8, 5), miembro)
+    services_goals.retirar(hogar, fondo, Decimal("50.00"), date(2026, 8, 20), miembro, note="Llanta")
+    services_goals.transferir(hogar, fondo, viaje, Decimal("100.00"), date(2026, 8, 25), miembro)
+
+    ahorro = services_goals.resumen_ahorro(hogar, HOGAR, miembro)
+
+    # De mas reciente a mas antiguo; el saldo acumula en orden cronologico.
+    assert [(f["anio"], f["mes"]) for f in ahorro["filas"]] == [(2026, 8), (2026, 7)]
+    agosto, julio = ahorro["filas"]
+    assert (julio["cascada"], julio["a_mano"], julio["retiros"], julio["saldo"]) == (
+        Decimal("200.00"), Decimal("300.00"), Decimal("0.00"), Decimal("500.00"))
+    assert (agosto["cascada"], agosto["a_mano"], agosto["retiros"], agosto["saldo"]) == (
+        Decimal("0.00"), Decimal("100.00"), Decimal("-50.00"), Decimal("550.00"))
+    assert ahorro["saldo_total"] == Decimal("550.00")
+    # La transferencia no suma ni resta al hogar; si mueve el saldo por meta.
+    assert {m["meta"].pk: m["saldo"] for m in ahorro["por_meta"]} == {
+        viaje.pk: Decimal("400.00"), fondo.pk: Decimal("150.00")}
+
+
+def test_resumen_ahorro_incluye_las_archivadas_y_respeta_el_ambito(hogar):
+    miembro = MembershipFactory(household=hogar)
+    otro = MembershipFactory(household=hogar)
+    archivada = GoalFactory(household=hogar, status=Goal.ARCHIVED, name="Vieja")
+    GoalContribution.unscoped.create(household=hogar, goal=archivada, amount=Decimal("80.00"),
+                                     date=date(2026, 1, 31), member=None, origen="cascade")
+    services_goals.retirar(hogar, archivada, Decimal("80.00"), date(2026, 2, 1), miembro)
+    mia = GoalFactory(household=hogar, scope="personal", owner=miembro, name="Mia")
+    services_goals.aportar(hogar, mia, Decimal("30.00"), date(2026, 3, 1), miembro)
+    ajena = GoalFactory(household=hogar, scope="personal", owner=otro, name="Ajena")
+    services_goals.aportar(hogar, ajena, Decimal("70.00"), date(2026, 3, 1), otro)
+
+    del_hogar = services_goals.resumen_ahorro(hogar, HOGAR, miembro)
+    personal = services_goals.resumen_ahorro(hogar, PERSONAL, miembro)
+
+    assert [m["meta"].pk for m in del_hogar["por_meta"]] == [archivada.pk]
+    assert del_hogar["saldo_total"] == Decimal("0.00")
+    assert [m["meta"].pk for m in personal["por_meta"]] == [mia.pk]
+    assert personal["saldo_total"] == Decimal("30.00")
+
+
+def test_resumen_ahorro_sin_movimientos_esta_vacio(hogar):
+    GoalFactory(household=hogar)
+
+    ahorro = services_goals.resumen_ahorro(hogar, HOGAR, MembershipFactory(household=hogar))
+
+    assert ahorro["filas"] == []
+    assert ahorro["saldo_total"] == Decimal("0.00")
+    assert len(ahorro["por_meta"]) == 1
