@@ -265,3 +265,77 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   box-shadow: inset 4px 0 0 var(--accent), var(--shadow-raised);
 }
 .aviso--warning, .aviso--error { box-shadow: inset 4px 0 0 var(--danger), var(--shadow-raised); }
+
+/* ---------- pestanas dentro de una tarjeta ----------
+   La tarjeta del Summary se ve de cuatro maneras. Mismo relieve hundido que
+   el conmutador de ambito, para que se lea como un control y no como un
+   menu; en movil las cuatro se desplazan en horizontal antes que apretarse. */
+.pestanas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-radius: 999px;
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-inset);
+  background: var(--field-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pestanas::-webkit-scrollbar { display: none; }
+.pestanas__boton {
+  flex: 1 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pestanas__boton[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-raised-sm);
+  border: var(--border-width) solid var(--border-color);
+}
+.pestanas__boton:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.resumen h3 { margin: 18px 0 8px; color: var(--text-muted); font-size: 0.95em; }
+.resumen .filtros .campo { max-width: 280px; }
+/* Altura fija: con la proporcion por defecto, a todo el ancho de escritorio
+   una grafica media 650 px de alto. */
+.grafica { position: relative; height: 300px; }
+@media (max-width: 479px) { .grafica { height: 240px; } }
+.visualmente-oculto {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- desplegable ----------
+   Un <details> por mes en "Where it went off plan": el primero abierto, los
+   demas a un toque, para que doce meses no sean doce tablas seguidas. */
+.desplegable + .desplegable { margin-top: 8px; }
+.desplegable > summary {
+  display: flex; align-items: center; gap: 10px;
+  min-height: var(--touch-target); padding: 6px 4px;
+  font-weight: var(--font-weight-strong); cursor: pointer;
+}
+.desplegable > summary::-webkit-details-marker { display: none; }
+.desplegable > summary::before {
+  content: ""; width: 8px; height: 8px; flex: none;
+  border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+  transform: rotate(-45deg); transition: transform 0.15s;
+}
+.desplegable[open] > summary::before { transform: rotate(45deg); }
+
+/* ---------- balance del hogar ---------- */
+.balance__grupo + .balance__grupo { margin-top: 18px; }
+.balance__grupo h3 { margin: 0; font-size: 1em; }
+.balance__total { font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.balance__fila { padding-left: 8px; border-top: 1px solid var(--field-bg); }
+.balance__fila .numero { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.balance__fila small { display: block; }
+.balance__fila .pildora { margin-left: 6px; }

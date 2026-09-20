@@ -3,57 +3,29 @@
 {% block content %}
 <header class="pagina__cabecera">
   <h1>{% translate "Balance" %}</h1>
+  {% if nav_membresia.can_edit_budget %}
+    <a class="btn btn--primary" href="{% url 'budget:balance_item_nuevo' %}">{% translate "Add an item" %}</a>
+  {% endif %}
 </header>
 
-{% include "budget/_fragmentos/ahorro.html" %}
-
-{% for fila in cierres %}
-<section class="card">
-  <h2>{{ fila.mes }} <span class="pildora pildora--bien">{% translate "Closed" %}</span></h2>
-
-  <div class="cifras">
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Income, planned" %}</div>
-      <div class="cifra__valor">{{ fila.cierre.ingresos_presupuestados|money:hogar.currency }}</div>
-    </div>
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Income, real" %}</div>
-      <div class="cifra__valor">{{ fila.cierre.ingresos_reales|money:hogar.currency }}</div>
-    </div>
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Spending, planned" %}</div>
-      <div class="cifra__valor">{{ fila.cierre.egresos_presupuestados|money:hogar.currency }}</div>
-    </div>
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Spending, real" %}</div>
-      <div class="cifra__valor">{{ fila.cierre.egresos_reales|money:hogar.currency }}</div>
-    </div>
-    <div class="cifra">
-      <div class="cifra__etiqueta">{% translate "Balance" %}</div>
-      <div class="cifra__valor">{{ fila.cierre.balance|money:hogar.currency }}</div>
-    </div>
+{% comment %} Lo que el hogar tiene, lo que debe y lo que queda. Casi todo se
+   teclea a mano; el ahorro y el efectivo los sabe la aplicacion y salen
+   como filas automaticas, sin lapiz. {% endcomment %}
+<div class="cifras cifras--tres">
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Assets" %}</div>
+    <div class="cifra__valor cifra__valor--ingreso">{{ patrimonio.total_activos|money:hogar.currency }}</div>
   </div>
-
-  <h3>{% translate "Where it went off plan" %}</h3>
-  <div class="tabla__envoltura">
-    <table class="tabla">
-      <tr><th>{% translate "Category" %}</th><th class="numero">{% translate "Difference" %}</th></tr>
-      {% for v in fila.varianza %}
-        <tr>
-          <td>{{ v.categoria.etiqueta }}</td>
-          <td class="numero {% if v.importe < 0 %}cifra__valor--mal{% endif %}">
-            {{ v.importe|money:hogar.currency }}
-          </td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="2">{% translate "Everything landed on plan." %}</td></tr>
-      {% endfor %}
-    </table>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Liabilities" %}</div>
+    <div class="cifra__valor cifra__valor--egreso">{{ patrimonio.total_pasivos|money:hogar.currency }}</div>
   </div>
-</section>
-{% empty %}
-<section class="card card--ancho">
-  <p>{% translate "No month has been closed yet. Your first balance appears when you close a month." %}</p>
-</section>
-{% endfor %}
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Net worth" %}</div>
+    <div class="cifra__valor{% if patrimonio.neto < 0 %} cifra__valor--mal{% endif %}">{{ patrimonio.neto|money:hogar.currency }}</div>
+  </div>
+</div>
+
+{% include "budget/_fragmentos/balance_lado.html" with lado="assets" grupos=patrimonio.activos %}
+{% include "budget/_fragmentos/balance_lado.html" with lado="liabilities" grupos=patrimonio.pasivos %}
 {% endblock %}

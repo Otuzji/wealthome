@@ -1,3 +1,6 @@
+from .balance import (
+    ASSET, GROUP_CHOICES, GRUPOS, LIABILITY, TIPO_DE_GRUPO, BalanceItem,
+)
 from .allocation import (
     EQUAL,
     METHOD_CHOICES,
@@ -33,6 +36,7 @@ __all__ = [
     "Category", "Merchant", "IncomeSource", "ExpenseRule",
     "BudgetMonth", "BudgetLine", "MonthlyClose", "Transaction", "MesCerrado",
     "Goal", "GoalContribution", "AllocationRule", "MonthlyAllocation", "AllowanceLedger",
+    "BalanceItem", "ASSET", "LIABILITY", "GRUPOS", "GROUP_CHOICES", "TIPO_DE_GRUPO",
     "INCOME", "EXPENSE", "HOUSEHOLD", "PERSONAL",
     "KIND_CHOICES", "SCOPE_CHOICES", "PERIODICITY_CHOICES",
     "AMOUNT_TYPE_CHOICES", "SOURCE_TYPE_CHOICES", "PAYMENT_METHOD_CHOICES",

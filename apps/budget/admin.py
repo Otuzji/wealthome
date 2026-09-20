@@ -5,6 +5,7 @@ from apps.households.admin import HouseholdScopedAdmin
 from .models import (
     AllocationRule,
     AllowanceLedger,
+    BalanceItem,
     BudgetLine,
     BudgetMonth,
     Category,
@@ -23,6 +24,6 @@ from .models import (
 for modelo in (
     Category, Merchant, IncomeSource, ExpenseRule, BudgetMonth, BudgetLine,
     MonthlyClose, Transaction, Goal, GoalContribution, AllocationRule,
-    MonthlyAllocation, AllowanceLedger,
+    MonthlyAllocation, AllowanceLedger, BalanceItem,
 ):
     admin.site.register(modelo, HouseholdScopedAdmin)

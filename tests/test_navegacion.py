@@ -39,10 +39,11 @@ ROL = {ADMIN: "admin", SOLO_VER: "member", ADOLESCENTE: "member"}
 
 # Las pestanas de HOUSEHOLD por perfil. Ni una mas, ni una menos.
 ESPERADO_PANTALLAS = {
-    # SOLO_VER no tiene can_view_reports, asi que NO ve Balance. Es la prueba de
-    # que la pestana esta bajo el permiso correcto y no bajo can_view_budget.
-    ADMIN: ["resumen", "mes", "metas", "balance"],
-    SOLO_VER: ["resumen", "mes", "metas"],
+    # SOLO_VER no tiene can_view_reports, asi que NO ve Summary ni Balance. Es
+    # la prueba de que las pestanas estan bajo el permiso correcto y no bajo
+    # can_view_budget. Overview ya no existe: This month va primero.
+    ADMIN: ["mes", "metas", "summary", "balance"],
+    SOLO_VER: ["mes", "metas"],
     ADOLESCENTE: [],
 }
 
@@ -100,8 +101,8 @@ def test_la_mesada_solo_es_una_pestana_de_personal(client):
     significa nada, asi que en Household no aparece."""
     _sesion(client, ADMIN)
 
-    en_personal = client.get(reverse("budget:overview", args=["personal"]))
-    en_hogar = client.get(reverse("budget:overview", args=["household"]))
+    en_personal = client.get(reverse("budget:mes", args=["personal"]))
+    en_hogar = client.get(reverse("budget:mes", args=["household"]))
 
     assert "mesada" in _nombres(en_personal.context["nav_pantallas"])
     assert "mesada" not in _nombres(en_hogar.context["nav_pantallas"])
@@ -127,7 +128,7 @@ def test_solo_la_pestana_de_la_pantalla_actual_esta_activa(client):
 
 
 @pytest.mark.django_db
-def test_overview_no_se_queda_activa_por_ser_prefijo_de_todo(client):
+def test_la_raiz_del_ambito_no_enciende_nada_por_ser_prefijo_de_todo(client):
     """/budget/household/ es prefijo de /budget/household/month/: gana la
     coincidencia mas larga, no la primera."""
     _sesion(client, ADMIN)
@@ -163,26 +164,26 @@ def test_el_conmutador_conserva_la_pantalla_al_cambiar_de_ambito(client):
 
 
 @pytest.mark.django_db
-def test_desde_la_mesada_el_conmutador_cae_en_el_resumen_del_hogar(client):
-    """La mesada no existe en Household, asi que el destino es el Overview."""
+def test_desde_la_mesada_el_conmutador_cae_en_this_month_del_hogar(client):
+    """La mesada no existe en Household, asi que el destino es This month."""
     _sesion(client, ADMIN)
     respuesta = client.get(reverse("budget:mesada"))
     ambitos = {a["nombre"]: a for a in respuesta.context["nav_ambitos"]}
 
     assert ambitos["personal"]["activo"] is True
-    assert ambitos["hogar"]["url"] == reverse("budget:overview", args=["household"])
+    assert ambitos["hogar"]["url"] == reverse("budget:mes", args=["household"])
 
 
 @pytest.mark.django_db
-def test_fuera_del_presupuesto_el_conmutador_lleva_a_los_resumenes(client):
+def test_fuera_del_presupuesto_el_conmutador_lleva_a_this_month(client):
     """En preferencias no hay pantalla que conservar: cada ambito lleva a su
-    Overview y ninguno esta activo."""
+    This month y ninguno esta activo."""
     _sesion(client, ADMIN)
     respuesta = client.get(reverse("accounts:preferencias"))
     ambitos = {a["nombre"]: a for a in respuesta.context["nav_ambitos"]}
 
-    assert ambitos["hogar"]["url"] == reverse("budget:overview", args=["household"])
-    assert ambitos["personal"]["url"] == reverse("budget:overview", args=["personal"])
+    assert ambitos["hogar"]["url"] == reverse("budget:mes", args=["household"])
+    assert ambitos["personal"]["url"] == reverse("budget:mes", args=["personal"])
     assert not any(a["activo"] for a in ambitos.values())
 
 
@@ -211,11 +212,11 @@ def test_ningun_enlace_del_menu_devuelve_403(client, perfil):
     """Un 403 al hacer clic es correcto pero grosero (§7 del Plan 2)."""
     _sesion(client, perfil)
     # Desde Personal, que es donde mas pestanas hay.
-    origen = "budget:overview" if PERMISOS[perfil]["can_view_budget"] else "accounts:preferencias"
+    origen = "budget:mes" if PERMISOS[perfil]["can_view_budget"] else "accounts:preferencias"
     args = ["personal"] if PERMISOS[perfil]["can_view_budget"] else []
     respuesta = client.get(reverse(origen, args=args))
     for url in _todas_las_urls(respuesta.context):
-        seguimiento = client.get(url)
+        seguimiento = client.get(url, follow=True)
         assert seguimiento.status_code == 200, (
             f"El perfil {perfil} ve en su menu {url} y al seguirlo recibe "
             f"{seguimiento.status_code}."
@@ -275,10 +276,10 @@ def test_cada_pestana_trae_su_icono(client):
     """La barra inferior de movil se apoya en los iconos, no en el texto: una
     pestana SIN icono deja un hueco por el que no se puede pinchar."""
     _sesion(client, ADMIN)
-    respuesta = client.get(reverse("budget:overview", args=["personal"]))
+    respuesta = client.get(reverse("budget:mes", args=["personal"]))
     cuerpo = respuesta.content.decode()
 
-    conocidos = {"resumen", "mes", "meta", "balance", "mesada"}
+    conocidos = {"mes", "meta", "summary", "balance", "mesada"}
     for pantalla in respuesta.context["nav_pantallas"]:
         assert pantalla["icono"] in conocidos, (
             f"la pestana {pantalla['nombre']!r} usa el icono {pantalla['icono']!r}, "
@@ -302,7 +303,7 @@ def test_el_menu_conserva_su_etiqueta_para_los_lectores_de_pantalla(client):
     display:none lo quitaria tambien del lector de pantalla."""
     _sesion(client, ADMIN)
 
-    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
     assert 'class="nav__texto"' in cuerpo
     assert "Goals" in cuerpo
@@ -313,18 +314,18 @@ def test_el_drawer_lleva_el_cierre_de_sesion_en_toda_pantalla(client):
     """Antes Sign out vivia solo en Settings; ahora el avatar esta en la barra
     de todas las pantallas, asi que salir esta siempre a dos toques."""
     _sesion(client, SOLO_VER)
-    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
     assert f'action="{reverse("accounts:logout")}"' in cuerpo
 
 
 @pytest.mark.django_db
 def test_el_fab_llega_al_html_solo_cuando_toca(client):
     _sesion(client, SOLO_VER)
-    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
     assert 'class="fab"' not in cuerpo
 
     _sesion(client, ADMIN)
-    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
     assert 'class="fab"' in cuerpo
 
 
@@ -333,7 +334,7 @@ def test_el_selector_del_fab_ofrece_aportar_a_una_meta(client):
     """Tercera opcion siempre: sin metas activas es el formulario quien lo
     dice, y el menu no paga una consulta por pagina para saberlo."""
     _sesion(client, ADMIN)
-    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
     assert "selector__opcion--meta" in cuerpo
     assert reverse("budget:aportar") in cuerpo

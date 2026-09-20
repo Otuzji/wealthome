@@ -127,29 +127,6 @@ def test_un_hogar_expirado_si_puede_LEER_por_htmx(client):
     assert respuesta.status_code == 200
 
 
-def test_el_filtro_del_overview_es_una_pagina_de_verdad(client):
-    """hx-select pide la pagina entera: la URL filtrada tiene que funcionar sola."""
-    _admin_logueado(client, con_arbol=True)
-    url = reverse("budget:overview", args=["household"]) + "?kind=expense"
-
-    entera = client.get(url)
-
-    assert entera.status_code == 200
-    assert b"<!doctype html>" in entera.content.lower()
-    assert entera.context["filtro_kind"] == "expense"
-
-
-def test_un_filtro_inventado_se_ignora_y_no_filtra(client):
-    """Entrada hostil barata: el filtro llega de la query string."""
-    _admin_logueado(client, con_arbol=True)
-    url = reverse("budget:overview", args=["household"]) + "?kind=; DROP TABLE"
-
-    respuesta = client.get(url)
-
-    assert respuesta.status_code == 200
-    assert respuesta.context["filtro_kind"] == "; DROP TABLE"
-
-
 def test_el_fragmento_de_recientes_no_ensena_otro_hogar(client):
     """Un fragmento es un endpoint como cualquier otro: tambien esta acotado."""
     from django.utils import timezone

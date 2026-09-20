@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views_goals, views_month, views_overview, views_setup, wizards
+from . import views_balance, views_goals, views_month, views_setup, views_summary, wizards
 from .models.catalog import INCOME
 
 app_name = "budget"
@@ -46,11 +46,18 @@ urlpatterns = [
     # patron generico. Y sin ambito: la mesada es de un miembro por
     # definicion, y una "mesada del hogar" no significa nada.
     path("personal/allowance/", views_month.mesada, name="mesada"),
+    # Las lineas del balance del hogar. Sin ambito: el balance es del hogar.
+    path("balance/items/new/", views_balance.item_nuevo, name="balance_item_nuevo"),
+    path("balance/items/<int:pk>/", views_balance.item_editar, name="balance_item_editar"),
+    path("balance/items/<int:pk>/delete/", views_balance.item_borrar, name="balance_item_borrar"),
 ]
 
 # Y estas si: son las cuatro del §7.1, en sus dos ambitos.
 urlpatterns += [
-    path("<str:ambito>/", views_overview.overview, name="overview"),
+    # La raiz del ambito era el Overview; hoy redirige a This month, que es
+    # la pantalla principal. El nombre se conserva: el context processor lo
+    # usa como prefijo del ambito.
+    path("<str:ambito>/", views_summary.overview, name="overview"),
     path("<str:ambito>/month/", views_month.mes, name="mes"),
     path("<str:ambito>/month/<int:anio>/<int:numero>/", views_month.mes, name="mes"),
     path("<str:ambito>/plan/", wizards.planificar, name="planificar"),
@@ -68,6 +75,7 @@ urlpatterns += [
     path("<str:ambito>/line/<int:pk>/remove/", views_month.linea_quitar, name="linea_quitar"),
     path("<str:ambito>/close/", views_month.cerrar, name="cerrar"),
     path("<str:ambito>/close/<int:anio>/<int:numero>/", views_month.cerrar, name="cerrar_mes"),
-    path("<str:ambito>/balance/", views_overview.balance, name="balance"),
+    path("<str:ambito>/summary/", views_summary.summary, name="summary"),
+    path("<str:ambito>/balance/", views_balance.balance, name="balance"),
     path("<str:ambito>/goals/", views_goals.metas, name="metas"),
 ]

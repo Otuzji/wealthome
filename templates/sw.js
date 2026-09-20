@@ -18,7 +18,7 @@
 // Sube la version con cada cambio de CSS o JS: los estaticos se sirven cache
 // primero, y sin esto un navegador con el worker instalado seguiria viendo la
 // hoja de estilos anterior hasta vaciar la cache a mano.
-var VERSION = "wealthome-v15";
+var VERSION = "wealthome-v16";
 var ARMAZON = "armazon-" + VERSION;
 var PAGINAS = "paginas-" + VERSION;
 

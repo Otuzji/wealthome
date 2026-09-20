@@ -1,0 +1,139 @@
+{% extends "base.html" %}{% load i18n money estaticos %}
+{% block title %}{% translate "Summary" %} · Wealthome{% endblock %}
+{% block content %}
+<header class="pagina__cabecera">
+  <h1>{% translate "Summary" %}</h1>
+</header>
+
+{% if cierres %}
+{% comment %} Una sola tarjeta a todo el ancho con pestanas: la tabla de los
+   meses cerrados y tres graficas para mirarlos. Las pestanas son Alpine y no
+   rutas: es la misma pagina vista de cuatro maneras, y cachear cada una en el
+   service worker seria guardar lo mismo cuatro veces. Al cambiar de pestana
+   se avisa a graficas.js: un canvas que nacio oculto tiene tamano cero. {% endcomment %}
+<section class="card card--ancho resumen"
+         x-data="{ tab: 'meses', ver(t) { this.tab = t; this.$nextTick(() => window.dispatchEvent(new Event('graficas:redibujar'))); } }">
+  <h2>{% translate "Closed months" %}</h2>
+  <div class="pestanas" role="tablist" aria-label="{% translate 'Views' %}">
+    <button class="pestanas__boton" type="button" role="tab" id="pestana-meses"
+            :aria-selected="tab === 'meses'" @click="ver('meses')">{% translate "Months" %}</button>
+    <button class="pestanas__boton" type="button" role="tab" id="pestana-plan"
+            :aria-selected="tab === 'plan'" @click="ver('plan')">{% translate "Planned against real" %}</button>
+    <button class="pestanas__boton" type="button" role="tab" id="pestana-tendencia"
+            :aria-selected="tab === 'tendencia'" @click="ver('tendencia')">{% translate "Month over month" %}</button>
+    <button class="pestanas__boton" type="button" role="tab" id="pestana-categoria"
+            :aria-selected="tab === 'categoria'" @click="ver('categoria')">{% translate "By category" %}</button>
+  </div>
+
+  <div role="tabpanel" aria-labelledby="pestana-meses" x-show="tab === 'meses'">
+    <div class="tabla__envoltura">
+      <table class="tabla">
+        <tr>
+          <th>{% translate "Month" %}</th>
+          <th class="numero">{% translate "Income" %}</th>
+          <th class="numero">{% translate "Spent" %}</th>
+          <th class="numero">{% translate "Saved" %}</th>
+          <th class="numero">{% translate "Allowance" %}</th>
+          <th class="numero">{% translate "Balance" %}</th>
+        </tr>
+        {% for fila in cierres %}
+          <tr>
+            <td>{{ fila.etiqueta }}</td>
+            <td class="numero cifra__valor--ingreso">{{ fila.ingresos|money:hogar.currency }}</td>
+            <td class="numero movimiento--salida">{{ fila.gastos|money:hogar.currency }}</td>
+            <td class="numero">{{ fila.ahorro|money:hogar.currency }}</td>
+            <td class="numero">{{ fila.mesada|money:hogar.currency }}</td>
+            <td class="numero{% if fila.balance < 0 %} cifra__valor--mal{% endif %}">{{ fila.balance|money:hogar.currency }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div role="tabpanel" aria-labelledby="pestana-plan" x-show="tab === 'plan'" x-cloak>
+    <div class="filtros">
+      <label class="visualmente-oculto" for="selector-mes">{% translate "Month" %}</label>
+      <select class="campo" id="selector-mes" data-selector="mes">
+        {% for fila in cierres %}
+          {% if forloop.counter0 < 12 %}<option value="{{ fila.etiqueta }}">{{ fila.etiqueta }}</option>{% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <h3>{% translate "What goes out" %}</h3>
+    <div class="grafica">
+    <canvas id="grafica-plan-gastos"
+            data-etiqueta-planeado="{% translate 'Planned' %}"
+            data-etiqueta-real="{% translate 'Real' %}"></canvas>
+    </div>
+    <h3>{% translate "What comes in" %}</h3>
+    <div class="grafica">
+    <canvas id="grafica-plan-ingresos"
+            data-etiqueta-planeado="{% translate 'Planned' %}"
+            data-etiqueta-real="{% translate 'Real' %}"></canvas>
+    </div>
+  </div>
+
+  <div role="tabpanel" aria-labelledby="pestana-tendencia" x-show="tab === 'tendencia'" x-cloak>
+    <div class="grafica">
+    <canvas id="grafica-meses"
+            data-etiqueta-ingresos="{% translate 'Income' %}"
+            data-etiqueta-gastos="{% translate 'Spent' %}"
+            data-etiqueta-ahorro="{% translate 'Saved' %}"
+            data-etiqueta-mesada="{% translate 'Allowance' %}"></canvas>
+    </div>
+  </div>
+
+  <div role="tabpanel" aria-labelledby="pestana-categoria" x-show="tab === 'categoria'" x-cloak>
+    <div class="filtros">
+      <label class="visualmente-oculto" for="selector-categoria">{% translate "Category" %}</label>
+      <select class="campo" id="selector-categoria" data-selector="categoria">
+        {% for c in series_categorias.lista %}
+          <option value="{{ c.id }}">{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="grafica">
+    <canvas id="grafica-categoria"
+            data-etiqueta-planeado="{% translate 'Planned' %}"
+            data-etiqueta-real="{% translate 'Real' %}"></canvas>
+    </div>
+  </div>
+</section>
+
+<section class="card card--ancho">
+  <h2>{% translate "Where it went off plan" %}</h2>
+  {% for fila in cierres %}
+    <details class="desplegable"{% if forloop.first %} open{% endif %}>
+      <summary>{{ fila.etiqueta }} <span class="pildora pildora--bien">{% translate "Closed" %}</span></summary>
+      <div class="tabla__envoltura">
+        <table class="tabla">
+          <tr><th>{% translate "Category" %}</th><th class="numero">{% translate "Difference" %}</th></tr>
+          {% for v in fila.varianza %}
+            <tr>
+              <td>{{ v.categoria.etiqueta }}</td>
+              <td class="numero {% if v.importe < 0 %}cifra__valor--mal{% endif %}">
+                {{ v.importe|money:hogar.currency }}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2">{% translate "Everything landed on plan." %}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </details>
+  {% endfor %}
+</section>
+{% else %}
+<section class="card card--ancho">
+  <p>{% translate "No month has been closed yet. Your first summary appears when you close a month." %}</p>
+</section>
+{% endif %}
+
+{% include "budget/_fragmentos/ahorro.html" %}
+
+{{ series_meses|json_script:"series-meses" }}
+{{ series_por_mes|json_script:"series-por-mes" }}
+{{ series_categorias|json_script:"series-categorias" }}
+<script src="{% estatico 'vendor/chart.umd.min.js' %}"></script>
+<script src="{% estatico 'js/graficas.js' %}"></script>
+{% endblock %}

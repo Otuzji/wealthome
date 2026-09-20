@@ -2188,3 +2188,135 @@ msgstr "Retrait"
 #: metas-ii
 msgid "Withdrawn"
 msgstr "Retiré"
+
+#: summary-y-balance
+msgid "Summary"
+msgstr "Résumé"
+
+#: summary-y-balance
+msgid "Closed months"
+msgstr "Mois clôturés"
+
+#: summary-y-balance
+msgid "Views"
+msgstr "Vues"
+
+#: summary-y-balance
+msgid "Months"
+msgstr "Mois"
+
+#: summary-y-balance
+msgid "Month over month"
+msgstr "Mois après mois"
+
+#: summary-y-balance
+msgid "By category"
+msgstr "Par catégorie"
+
+#: summary-y-balance
+msgid "Saved"
+msgstr "Épargné"
+
+#: summary-y-balance
+msgid "What goes out"
+msgstr "Ce qui sort"
+
+#: summary-y-balance
+msgid "No month has been closed yet. Your first summary appears when you close a month."
+msgstr "Aucun mois n'a encore été clôturé. Votre premier résumé apparaît quand vous clôturez un mois."
+
+#: summary-y-balance
+msgid "Add an item"
+msgstr "Ajouter un élément"
+
+#: summary-y-balance
+msgid "Assets"
+msgstr "Actifs"
+
+#: summary-y-balance
+msgid "Liabilities"
+msgstr "Passifs"
+
+#: summary-y-balance
+msgid "Net worth"
+msgstr "Valeur nette"
+
+#: summary-y-balance
+msgid "Automatic"
+msgstr "Automatique"
+
+#: summary-y-balance
+msgid "Nothing here yet."
+msgstr "Rien ici pour l'instant."
+
+#: summary-y-balance
+msgid "Remove this item from the balance?"
+msgstr "Retirer cet élément du bilan ?"
+
+#: summary-y-balance
+msgid "Cash and equivalents"
+msgstr "Liquidités et équivalents"
+
+#: summary-y-balance
+msgid "Investments"
+msgstr "Placements"
+
+#: summary-y-balance
+msgid "Property and real estate"
+msgstr "Immobilier"
+
+#: summary-y-balance
+msgid "Valuables"
+msgstr "Biens de valeur"
+
+#: summary-y-balance
+msgid "Short-term debt"
+msgstr "Dettes à court terme"
+
+#: summary-y-balance
+msgid "Long-term debt"
+msgstr "Dettes à long terme"
+
+#: summary-y-balance
+msgid "Enter the value as a positive number."
+msgstr "Saisissez la valeur en nombre positif."
+
+#: summary-y-balance
+msgid "The balance of your goals."
+msgstr "Le solde de vos objectifs."
+
+#: summary-y-balance
+msgid "What this month has in hand."
+msgstr "Ce que le mois a en main."
+
+#: summary-y-balance
+msgid "New balance item"
+msgstr "Nouvel élément du bilan"
+
+#: summary-y-balance
+msgid "Edit balance item"
+msgstr "Modifier l'élément du bilan"
+
+#: summary-y-balance
+msgid "Today's value, as a positive number. A debt is what you still owe."
+msgstr "La valeur d'aujourd'hui, en nombre positif. Une dette est ce que vous devez encore."
+
+#: summary-y-balance
+msgid "balance item"
+msgstr "élément du bilan"
+
+#: summary-y-balance
+msgid "balance items"
+msgstr "éléments du bilan"
+
+#: summary-y-balance
+msgid "current value"
+msgstr "valeur actuelle"
+
+#: summary-y-balance
+msgid "group"
+msgstr "groupe"
+
+#: summary-y-balance
+msgid "updated"
+msgstr "mis à jour"

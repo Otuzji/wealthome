@@ -1,0 +1,36 @@
+{% load i18n money %}
+{% comment %} Un lado del balance (activos o pasivos): sus grupos, cada uno
+   con sus lineas y su total. Las filas automaticas (ahorro, efectivo) no
+   tienen `item` y por tanto ni lapiz ni papelera. {% endcomment %}
+<section class="card balance">
+  <h2>{% if lado == "assets" %}{% translate "Assets" %}{% else %}{% translate "Liabilities" %}{% endif %}</h2>
+  {% for grupo in grupos %}
+    <div class="balance__grupo">
+      <div class="fila-regla">
+        <span><h3>{{ grupo.etiqueta }}</h3></span>
+        <span class="balance__total">{{ grupo.total|money:hogar.currency }}</span>
+        {% if nav_membresia.can_edit_budget %}
+          <a class="btn btn--sutil" href="{% url 'budget:balance_item_nuevo' %}?group={{ grupo.clave }}">{% translate "Add" %}</a>
+        {% endif %}
+      </div>
+      {% for fila in grupo.filas %}
+        <div class="fila-regla balance__fila">
+          <span>
+            {{ fila.nombre }}
+            {% if fila.automatico %}<span class="pildora">{% translate "Automatic" %}</span>{% endif %}
+            {% if fila.nota %}<small class="tabla__categoria">{{ fila.nota }}</small>{% endif %}
+          </span>
+          <span class="numero">{{ fila.importe|money:hogar.currency }}</span>
+          {% if fila.item and nav_membresia.can_edit_budget %}
+            {% url 'budget:balance_item_editar' fila.item.pk as editar_url %}
+            {% url 'budget:balance_item_borrar' fila.item.pk as borrar_url %}
+            {% translate "Remove this item from the balance?" as confirmacion %}
+            {% include "budget/_fragmentos/acciones_icono.html" with editar_url=editar_url borrar_url=borrar_url confirmacion=confirmacion %}
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="tabla__vacio">{% translate "Nothing here yet." %}</p>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</section>

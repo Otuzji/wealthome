@@ -34,8 +34,8 @@ RUTAS_DE_LECTURA = [
     ("budget:metas", ("personal",)),
     ("budget:planificar", ("household",)),
     ("budget:planificar", ("personal",)),
-    ("budget:overview", ("household",)),
-    ("budget:overview", ("personal",)),
+    ("budget:summary", ("household",)),
+    ("budget:summary", ("personal",)),
     ("budget:balance", ("household",)),
     ("budget:balance", ("personal",)),
 ]

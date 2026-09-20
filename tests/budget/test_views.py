@@ -594,76 +594,23 @@ def test_el_ambito_del_hogar_no_ensena_lo_personal_de_nadie(client, admin_con_ho
     assert Decimal("77.00") not in importes
 
 
-def test_las_dos_pantallas_nuevas_resuelven_en_los_dos_ambitos(client, admin_con_hogar):
-    """Overview y Balance estan vacias hasta las Tareas 19 y 20, pero sus rutas
-    tienen que resolver ya: el menu de la Tarea 18 enlaza a Overview."""
+def test_la_raiz_del_ambito_redirige_a_this_month(client, admin_con_hogar):
+    """El Overview se quito: This month es la pantalla principal. La ruta se
+    conserva como redireccion para no romper enlaces ni lo cacheado."""
     user, _hogar = admin_con_hogar
     client.force_login(user)
     for ambito in ("household", "personal"):
-        assert client.get(reverse("budget:overview", args=[ambito])).status_code == 200
+        respuesta = client.get(reverse("budget:overview", args=[ambito]))
+        assert respuesta.status_code == 302
+        assert respuesta.url == reverse("budget:mes", args=[ambito])
+        assert client.get(reverse("budget:summary", args=[ambito])).status_code == 200
         assert client.get(reverse("budget:balance", args=[ambito])).status_code == 200
 
 
-# --- el Overview (Tarea 19) ---------------------------------------------------
+# --- el Summary (antes Balance, Tarea 20) -----------------------------------
 
 
-def test_el_overview_da_las_series_ya_serializadas(client, admin_con_hogar):
-    import json
-
-    from django.utils import timezone
-    from tests.factories_budget import (
-        BudgetLineFactory, BudgetMonthFactory, TransactionFactory,
-    )
-
-    user, hogar = admin_con_hogar
-    client.force_login(user)
-    hoy = timezone.localdate()
-    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
-    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
-    BudgetLineFactory(household=hogar, budget_month=mes, category=cat,
-                      kind="expense", planned_amount=Decimal("400.00"))
-    TransactionFactory(household=hogar, budget_month=mes, category=cat,
-                       amount=Decimal("350.00"), date=date(hoy.year, hoy.month, 4))
-
-    respuesta = client.get(reverse("budget:overview", args=["household"]))
-
-    assert respuesta.status_code == 200
-    series = respuesta.context["series_egresos"]
-    # etiqueta() es un metodo, no una property: en plantilla Django lo llama
-    # solo, en Python hay que llamarlo.
-    assert cat.etiqueta() in series["etiquetas"]
-    # Serializable de verdad: ni un Decimal suelto, que es lo que json_script
-    # no sabe convertir.
-    assert json.dumps(series)
-    assert json.dumps(respuesta.context["series_balance"])
-
-
-def test_el_overview_personal_no_cuenta_lo_del_hogar(client, admin_con_hogar):
-    """Las series tambien pasan por el filtro de ambito, no solo las tablas."""
-    from django.utils import timezone
-    from tests.factories_budget import BudgetMonthFactory, TransactionFactory
-
-    user, hogar = admin_con_hogar
-    client.force_login(user)
-    mia = hogar.memberships.get(user=user)
-    hoy = timezone.localdate()
-    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
-    cat = CategoryFactory(household=hogar, slug="una-categoria-de-prueba")
-    TransactionFactory(household=hogar, budget_month=mes, category=cat, member=mia,
-                       scope="household", amount=Decimal("500.00"),
-                       date=date(hoy.year, hoy.month, 5))
-
-    series = client.get(
-        reverse("budget:overview", args=["personal"])
-    ).context["series_egresos"]
-
-    assert "500.00" not in series["real"]
-
-
-# --- el Balance (Tarea 20) ----------------------------------------------------
-
-
-def test_balance_ensena_la_varianza_por_categoria(client, admin_con_hogar):
+def test_summary_ensena_la_varianza_por_categoria(client, admin_con_hogar):
     from apps.budget.models import MonthlyClose
     from tests.factories_budget import BudgetMonthFactory
 
@@ -679,7 +626,7 @@ def test_balance_ensena_la_varianza_por_categoria(client, admin_con_hogar):
         balance=Decimal("2525.00"), arrastre=Decimal("2525.00"),
     )
 
-    respuesta = client.get(reverse("budget:balance", args=["household"]))
+    respuesta = client.get(reverse("budget:summary", args=["household"]))
 
     assert respuesta.status_code == 200
     fila = respuesta.context["cierres"][0]
@@ -690,8 +637,8 @@ def test_balance_ensena_la_varianza_por_categoria(client, admin_con_hogar):
     assert isinstance(varianzas[cat.pk], Decimal)
 
 
-def test_balance_exige_can_view_reports(client, admin_con_hogar):
-    """El plan decia can_view_budget para esta vista. Balance ES un informe, y
+def test_summary_exige_can_view_reports(client, admin_con_hogar):
+    """El plan decia can_view_budget para esta vista. Summary ES un informe, y
     can_view_reports existe en el §6.2 para eso: con can_view_budget, un miembro
     al que se le nego ver informes los veria igual.
     """
@@ -699,14 +646,14 @@ def test_balance_exige_can_view_reports(client, admin_con_hogar):
     solo_presupuesto = _miembro(hogar, can_view_budget=True, can_view_reports=False)
     client.force_login(solo_presupuesto.user)
 
-    assert client.get(reverse("budget:balance", args=["household"])).status_code == 403
+    assert client.get(reverse("budget:summary", args=["household"])).status_code == 403
 
 
-def test_balance_sin_cierres_lo_dice_y_no_revienta(client, admin_con_hogar):
+def test_summary_sin_cierres_lo_dice_y_no_revienta(client, admin_con_hogar):
     user, _hogar = admin_con_hogar
     client.force_login(user)
 
-    respuesta = client.get(reverse("budget:balance", args=["household"]))
+    respuesta = client.get(reverse("budget:summary", args=["household"]))
 
     assert respuesta.status_code == 200
     assert respuesta.context["cierres"] == []
@@ -1088,53 +1035,6 @@ def test_no_se_reordenan_las_reglas_con_un_pk_repetido(client, admin_con_hogar):
     assert respuesta.status_code == 400
 
 
-def test_el_overview_ensena_sus_cifras_de_cabecera(client, admin_con_hogar):
-    """Lo encontro mirar la pantalla, que es para lo que servia el paso manual.
-
-    Las tres cifras se leian de `resultado`, y `resultado` es un BudgetMonth en
-    cuanto el mes esta materializado —o sea casi siempre—. BudgetMonth no tiene
-    total_ingresos ni total_egresos ni sobrante: solo los tiene ProyeccionDeMes.
-    Django se traga el atributo ausente en silencio, asi que la cabecera de la
-    pantalla principal salia EN BLANCO y ninguna prueba lo veia.
-    """
-    from django.utils import timezone
-
-    from tests.factories_budget import (
-        BudgetLineFactory, BudgetMonthFactory, TransactionFactory,
-    )
-
-    user, hogar = admin_con_hogar
-    client.force_login(user)
-    hoy = timezone.localdate()
-    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
-    entra = CategoryFactory(household=hogar, slug="lo-que-entra", kind="income")
-    sale = CategoryFactory(household=hogar, slug="lo-que-sale", kind="expense")
-    BudgetLineFactory(household=hogar, budget_month=mes, category=entra,
-                      kind="income", planned_amount=Decimal("3000.00"))
-    BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
-                      kind="expense", planned_amount=Decimal("1800.00"))
-    miembro = hogar.active_memberships().first()
-    TransactionFactory(household=hogar, budget_month=mes, category=entra,
-                       member=miembro, amount=Decimal("2500.00"), date=hoy)
-    TransactionFactory(household=hogar, budget_month=mes, category=sale,
-                       member=miembro, amount=Decimal("400.00"), date=hoy)
-
-    respuesta = client.get(reverse("budget:overview", args=["household"]))
-    totales = respuesta.context["totales"]
-
-    assert totales["ingresos"] == Decimal("3000.00")
-    assert totales["egresos"] == Decimal("1800.00")
-    assert totales["sobrante"] == Decimal("1200.00")
-    # Lo real, al lado de lo planeado: sale de los registros del mes.
-    assert totales["ingresos_real"] == Decimal("2500.00")
-    assert totales["egresos_real"] == Decimal("400.00")
-    assert totales["sobrante_real"] == Decimal("2100.00")
-    # Y que lleguen al HTML, que es donde faltaban.
-    html = respuesta.content.decode()
-    assert "1,200.00" in html and "2,100.00" in html
-    assert 'class="cifra__plan"' in html
-
-
 def test_this_month_ensena_las_cifras_y_las_donas_de_real_contra_planeado(client, admin_con_hogar):
     """Las tres cifras del Overview tambien arriba de This month, y dos donas:
     lo que de verdad entro y salio frente a lo planeado, en porcentaje."""
@@ -1201,34 +1101,7 @@ def test_las_donas_no_dividen_por_cero_cuando_no_hay_nada_planeado(client, admin
     assert respuesta.context["donas"]["expense"]["porcentaje"] == 0
 
 
-def test_el_overview_parte_ingresos_y_gastos_en_dos_series(client, admin_con_hogar):
-    """Mezclarlos hacia la grafica ilegible: la barra del sueldo aplasta a la del
-    super y a la del alquiler, que es donde el mes de verdad se decide."""
-    from django.utils import timezone
-
-    from tests.factories_budget import BudgetLineFactory, BudgetMonthFactory
-
-    user, hogar = admin_con_hogar
-    client.force_login(user)
-    hoy = timezone.localdate()
-    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
-    sueldo = CategoryFactory(household=hogar, slug="un-sueldo", kind="income")
-    super_ = CategoryFactory(household=hogar, slug="un-super", kind="expense")
-    BudgetLineFactory(household=hogar, budget_month=mes, category=sueldo,
-                      kind="income", planned_amount=Decimal("5600.00"))
-    BudgetLineFactory(household=hogar, budget_month=mes, category=super_,
-                      kind="expense", planned_amount=Decimal("850.00"))
-
-    contexto = client.get(reverse("budget:overview", args=["household"])).context
-
-    assert contexto["series_ingresos"]["etiquetas"] == [sueldo.etiqueta()]
-    assert contexto["series_egresos"]["etiquetas"] == [super_.etiqueta()]
-    # Y sobre todo: ninguna de las dos lleva lo de la otra.
-    assert super_.etiqueta() not in contexto["series_ingresos"]["etiquetas"]
-    assert sueldo.etiqueta() not in contexto["series_egresos"]["etiquetas"]
-
-
-def test_el_overview_no_trae_el_formulario_de_gasto_hasta_que_se_abre(client, admin_con_hogar):
+def test_this_month_no_trae_el_formulario_de_gasto_hasta_que_se_abre(client, admin_con_hogar):
     """El formulario vive en un modal y se pide al ABRIRLO.
 
     Antes se cargaba con hx-trigger="load" y ocupaba media pantalla siempre. Que
@@ -1238,7 +1111,7 @@ def test_el_overview_no_trae_el_formulario_de_gasto_hasta_que_se_abre(client, ad
     user, _hogar = admin_con_hogar
     client.force_login(user)
 
-    cuerpo = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    cuerpo = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
     assert 'id="modal-gasto"' in cuerpo          # el dialogo esta
     assert 'id="modal-gasto-cuerpo"' in cuerpo   # y su hueco, vacio

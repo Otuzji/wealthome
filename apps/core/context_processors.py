@@ -76,9 +76,9 @@ def _pantallas(membresia, ambito):
     """
     if not _permiso(membresia, "can_view_budget"):
         return []
+    # This month es la pantalla principal: el Overview que iba primero se
+    # quito, y su ruta redirige aqui.
     pantallas = [
-        {"nombre": "resumen", "vista": "budget:overview", "etiqueta": _("Overview"),
-         "icono": "resumen"},
         {"nombre": "mes", "vista": "budget:mes", "etiqueta": _("This month"),
          "icono": "mes",
          "rutas": [reverse("budget:planificar", args=[ambito]),
@@ -87,8 +87,11 @@ def _pantallas(membresia, ambito):
          "icono": "meta"},
     ]
     if _permiso(membresia, "can_view_reports"):
-        # Bajo can_view_reports y no can_view_budget: Balance es un informe, y
-        # un enlace que da 403 al tocarlo seria correcto y grosero (§7).
+        # Bajo can_view_reports y no can_view_budget: Summary y Balance son
+        # informes, y un enlace que da 403 al tocarlo seria correcto y
+        # grosero (§7).
+        pantallas.append({"nombre": "summary", "vista": "budget:summary",
+                          "etiqueta": _("Summary"), "icono": "summary"})
         pantallas.append({"nombre": "balance", "vista": "budget:balance",
                           "etiqueta": _("Balance"), "icono": "balance"})
     for p in pantallas:
@@ -123,11 +126,11 @@ def _encender(pantallas, ruta):
 
 def _ambitos(membresia, ambito_actual, pantalla_actual):
     """El conmutador. Cada ámbito lleva a la MISMA pantalla en el otro lado, y
-    al Overview cuando esa pantalla no existe allí (la mesada) o cuando no
+    a This month cuando esa pantalla no existe allí (la mesada) o cuando no
     estamos en el presupuesto."""
     if not _permiso(membresia, "can_view_budget"):
         return []
-    vista = "budget:overview"
+    vista = "budget:mes"
     if pantalla_actual and pantalla_actual["vista"] != "budget:mesada":
         vista = pantalla_actual["vista"]
     return [

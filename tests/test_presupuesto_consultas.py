@@ -51,10 +51,11 @@ CONSULTAS_MES = 21
 # consulta cada una y ninguna crece con las metas. Medido con cinco y con
 # veinte: test_resumen_no_hace_una_consulta_por_meta lo vigila.
 CONSULTAS_METAS = 8
-# Fijado en la Tarea 19, midiendo. El Overview agrega en Python sobre los
-# mismos dos querysets que ya trae el mes, mas los ultimos cierres para la
-# grafica del balance: el tope no debe crecer con el numero de movimientos.
-CONSULTAS_OVERVIEW = 19
+# El Summary junta los cierres, el reparto de cada mes, lo planeado y lo real
+# por categoria y las categorias en cinco consultas agregadas, mas el ahorro:
+# el tope no crece ni con los meses cerrados ni con los movimientos. Medido con
+# tres meses y cincuenta movimientos por mes.
+CONSULTAS_SUMMARY = 10
 
 
 @pytest.fixture
@@ -104,11 +105,23 @@ def test_metas_no_calcula_el_acumulado_dos_veces(
 
 
 @pytest.mark.django_db
-def test_el_overview_no_hace_una_consulta_por_movimiento(
+def test_el_summary_no_hace_una_consulta_por_mes_ni_por_movimiento(
     client, django_assert_num_queries, hogar_con_movimiento
 ):
-    _hogar, user, _mes = hogar_con_movimiento
+    from apps.budget.models import BudgetMonth
+    from tests.factories_budget import MonthlyCloseFactory
+
+    hogar, user, mes = hogar_con_movimiento
+    categoria = CategoryFactory(household=hogar)
+    for numero in (1, 2, 3):
+        cerrado = BudgetMonthFactory(household=hogar, year=mes.year - 1, month=numero)
+        for _i in range(50):
+            TransactionFactory(household=hogar, budget_month=cerrado, category=categoria,
+                               amount=Decimal("10.00"), date=date(mes.year - 1, numero, 5))
+        MonthlyCloseFactory(household=hogar, budget_month=cerrado)
+        cerrado.status = BudgetMonth.CLOSED
+        cerrado.save(update_fields=["status"])
     client.force_login(user)
-    with django_assert_num_queries(CONSULTAS_OVERVIEW):
-        respuesta = client.get(reverse("budget:overview", args=["household"]))
+    with django_assert_num_queries(CONSULTAS_SUMMARY):
+        respuesta = client.get(reverse("budget:summary", args=["household"]))
     assert respuesta.status_code == 200

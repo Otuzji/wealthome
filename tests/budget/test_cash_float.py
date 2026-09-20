@@ -134,6 +134,6 @@ def test_el_mes_proyectado_no_tiene_cash_float(client, admin_con_hogar):
 
 
 def test_left_over_ya_no_existe_en_las_pantallas(client, mes_con_dinero):
-    overview = client.get(reverse("budget:overview", args=["household"])).content.decode()
+    mes = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
-    assert "Cash Float" in overview and "Left over" not in overview
+    assert "Cash Float" in mes and "Left over" not in mes

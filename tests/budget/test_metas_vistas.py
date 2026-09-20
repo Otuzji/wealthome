@@ -430,7 +430,7 @@ def test_balance_lleva_el_bloque_de_ahorro(client, admin_con_hogar):
     services_goals.retirar(hogar, meta, Decimal("50.00"), date(2026, 8, 2), _mia(hogar, user))
     client.force_login(user)
 
-    respuesta = client.get(reverse("budget:balance", args=["household"]))
+    respuesta = client.get(reverse("budget:summary", args=["household"]))
 
     html = respuesta.content.decode()
     assert "Savings" in html and "Saved, total" in html
@@ -442,7 +442,7 @@ def test_balance_sin_ahorro_lo_dice(client, admin_con_hogar):
     user, hogar = admin_con_hogar
     client.force_login(user)
 
-    html = client.get(reverse("budget:balance", args=["household"])).content.decode()
+    html = client.get(reverse("budget:summary", args=["household"])).content.decode()
 
     assert "Nothing saved yet." in html
 

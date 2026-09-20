@@ -22,6 +22,10 @@ from apps.budget.models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
 from apps.households.scoped_forms import HouseholdScopedModelForm
 
 from .models import (
+    ASSET,
+    GRUPOS,
+    LIABILITY,
+    BalanceItem,
     AllocationRule,
     BudgetLine,
     Category,
@@ -482,3 +486,22 @@ class TransferenciaForm(RetiroForm):
             Goal.objects.for_household(household)
             .filter(visibles, status=Goal.ACTIVE).exclude(pk=meta.pk)
         )
+
+
+class BalanceItemForm(HouseholdScopedModelForm):
+    """Una linea del balance del hogar. El grupo va agrupado en activos y
+    pasivos en el desplegable: es lo unico que decide de que lado suma."""
+
+    class Meta:
+        model = BalanceItem
+        fields = ["group", "name", "amount", "note"]
+        help_texts = {
+            "amount": _("Today's value, as a positive number. A debt is what you still owe."),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["group"].choices = [
+            (_("Assets"), [(c, e) for c, t, e in GRUPOS if t == ASSET]),
+            (_("Liabilities"), [(c, e) for c, t, e in GRUPOS if t == LIABILITY]),
+        ]
