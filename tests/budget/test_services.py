@@ -7,7 +7,7 @@ import pytest
 
 from apps.budget import services
 from apps.budget.engine.cascade import ALLOWANCE, FIXED, GOAL, REMAINDER
-from apps.budget.models import AllowanceLedger, GoalContribution, MonthlyAllocation
+from apps.budget.models import AllowanceLedger, Goal, GoalContribution, MonthlyAllocation
 from apps.households.services import crear_hogar
 from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
 from tests.factories_budget import (
@@ -228,6 +228,26 @@ def test_el_aporte_de_la_cascada_no_se_atribuye_a_nadie():
 
     aporte = GoalContribution.objects.for_household(hogar).get(origen="cascade")
     assert aporte.member is None
+
+
+@pytest.mark.django_db
+def test_la_cascada_da_por_alcanzada_la_meta_que_cubre():
+    """El aporte automatico pasa por el mismo camino que el manual: si cubre
+    el objetivo, la meta cambia de estado sin que nadie la mire."""
+    hogar = HouseholdFactory()
+    MembershipFactory(household=hogar)
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=3)
+    meta = GoalFactory(household=hogar, target_amount=Decimal("200.00"))
+    AllocationRuleFactory(
+        household=hogar, order=1, target_type="goal", target_goal=meta,
+        method="fixed", amount=Decimal("200.00"),
+    )
+    services.planificar_mes(hogar, mes, Decimal("500.00"))
+
+    services.aplicar_cascada_al_cierre(mes, Decimal("500.00"))
+
+    meta.refresh_from_db()
+    assert meta.status == Goal.REACHED
 
 
 @pytest.mark.django_db

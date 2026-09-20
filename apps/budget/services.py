@@ -25,7 +25,6 @@ from apps.budget.models import (
     BudgetLine,
     BudgetMonth,
     ExpenseRule,
-    GoalContribution,
     IncomeSource,
     MesCerrado,
     MonthlyAllocation,
@@ -680,17 +679,20 @@ def aplicar_cascada_al_cierre(mes, sobrante_real):
         fila.save(update_fields=["actual_amount"])
 
         if fila.member_id is None and fila.rule.target_type == motor_cascade.GOAL:
-            aporte = GoalContribution(
-                household=hogar, goal=fila.rule.target_goal,
-                amount=fila.actual_amount, date=_ultimo_dia(mes.year, mes.month),
-                # Ahorra el hogar entero, no una persona. Atribuirlo al pk mas
-                # bajo era un dato falso en el historial de la meta, y con cero
-                # membresias activas reventaba el cierre con IntegrityError.
-                member=None,
-                budget_month=mes,
-                origen="cascade",
+            # Importado aqui y no arriba: services_goals importa de este
+            # modulo (mes_de_fecha), y un import circular en la cabecera
+            # reventaria al arrancar.
+            from . import services_goals
+
+            # Ahorra el hogar entero, no una persona. Atribuirlo al pk mas
+            # bajo era un dato falso en el historial de la meta, y con cero
+            # membresias activas reventaba el cierre con IntegrityError.
+            # Por services_goals y no a mano para que el aporte que cubre la
+            # meta la marque alcanzada igual que uno manual.
+            services_goals.aportar(
+                hogar, fila.rule.target_goal, fila.actual_amount,
+                _ultimo_dia(mes.year, mes.month), member=None, origen="cascade",
             )
-            aporte.save()
 
     # El ajuste viaja al mes siguiente: la mesada de este mes ya se gastó.
     if ajustes:
