@@ -213,3 +213,136 @@ def test_la_tarjeta_activa_ofrece_aportar_y_la_alcanzada_no(client, admin_con_ho
 
     assert html.count("Add to it") == 1
     assert f"?goal={activa.pk}" in html
+
+
+# --- corregir y quitar --------------------------------------------------------
+
+from tests.factories_budget import BudgetMonthFactory, GoalContributionFactory  # noqa: E402
+
+
+def _cascada(hogar, meta, **campos):
+    from apps.budget.models import GoalContribution
+
+    base = dict(household=hogar, goal=meta, amount=Decimal("50.00"),
+                date=date(2026, 3, 31), member=None, origen="cascade")
+    base.update(campos)
+    return GoalContribution.unscoped.create(**base)
+
+
+def test_corregir_un_aporte_recalcula_el_estado(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("100.00"))
+    aporte = GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("40.00"),
+                                     date=date(2026, 3, 1))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aporte_editar", args=[aporte.pk]), {
+        "goal": meta.pk, "amount": "100.00", "date": "2026-03-01",
+    })
+
+    assert respuesta.status_code == 302
+    aporte.refresh_from_db()
+    assert aporte.amount == Decimal("100.00")
+    meta.refresh_from_db()
+    assert meta.status == Goal.REACHED
+
+
+def test_quitar_un_aporte_reabre_la_meta(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar, target_amount=Decimal("100.00"), status=Goal.REACHED)
+    aporte = GoalContributionFactory(household=hogar, goal=meta, amount=Decimal("100.00"))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aporte_borrar", args=[aporte.pk]))
+
+    assert respuesta.status_code == 302
+    assert not meta.contributions.exists()
+    meta.refresh_from_db()
+    assert meta.status == Goal.ACTIVE
+
+
+def test_un_aporte_de_cascada_no_se_toca(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    aporte = _cascada(hogar, meta)
+    client.force_login(user)
+
+    assert client.get(reverse("budget:aporte_editar", args=[aporte.pk])).status_code == 403
+    assert client.post(reverse("budget:aporte_borrar", args=[aporte.pk])).status_code == 403
+    assert meta.contributions.filter(pk=aporte.pk).exists()
+
+
+def test_un_aporte_de_un_mes_cerrado_no_se_toca(client, admin_con_hogar):
+    from apps.budget.models import BudgetMonth
+
+    user, hogar = admin_con_hogar
+    # Se cierra DESPUES de sembrar el aporte: la guarda del modelo no deja
+    # escribir contra un mes cerrado, ni desde una factory.
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=1)
+    meta = GoalFactory(household=hogar)
+    aporte = GoalContributionFactory(household=hogar, goal=meta, date=date(2026, 1, 10),
+                                     budget_month=mes)
+    mes.status = BudgetMonth.CLOSED
+    mes.save(update_fields=["status"])
+    client.force_login(user)
+
+    editar = client.post(reverse("budget:aporte_editar", args=[aporte.pk]), {
+        "goal": meta.pk, "amount": "1.00", "date": "2026-02-10",
+    }, follow=True)
+    borrar = client.post(reverse("budget:aporte_borrar", args=[aporte.pk]), follow=True)
+
+    assert "This month is already closed." in editar.content.decode()
+    assert "This month is already closed." in borrar.content.decode()
+    aporte.refresh_from_db()
+    assert aporte.amount == Decimal("50.00")
+
+
+def test_mover_un_aporte_a_un_mes_cerrado_lo_dice_el_formulario(client, admin_con_hogar):
+    from apps.budget.models import BudgetMonth
+
+    user, hogar = admin_con_hogar
+    BudgetMonthFactory(household=hogar, year=2026, month=1, status=BudgetMonth.CLOSED)
+    meta = GoalFactory(household=hogar)
+    aporte = GoalContributionFactory(household=hogar, goal=meta, date=date(2026, 3, 10))
+    client.force_login(user)
+
+    respuesta = client.post(reverse("budget:aporte_editar", args=[aporte.pk]), {
+        "goal": meta.pk, "amount": "50.00", "date": "2026-01-10",
+    })
+
+    assert respuesta.status_code == 200
+    assert "This month is already closed." in respuesta.content.decode()
+    aporte.refresh_from_db()
+    assert aporte.date == date(2026, 3, 10)
+
+
+def test_los_aportes_editables_llevan_acciones_y_los_demas_no(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    meta = GoalFactory(household=hogar)
+    manual = GoalContributionFactory(household=hogar, goal=meta)
+    cascada = _cascada(hogar, meta)
+    client.force_login(user)
+
+    html = client.get(reverse("budget:metas", args=["household"])).content.decode()
+
+    assert reverse("budget:aporte_editar", args=[manual.pk]) in html
+    assert reverse("budget:aporte_editar", args=[cascada.pk]) not in html
+
+
+def test_tocar_un_aporte_exige_can_edit_budget(client, admin_con_hogar):
+    _user, hogar = admin_con_hogar
+    aporte = GoalContributionFactory(household=hogar, goal=GoalFactory(household=hogar))
+    client.force_login(_miembro(hogar, can_edit_budget=False).user)
+
+    assert client.get(reverse("budget:aporte_editar", args=[aporte.pk])).status_code == 403
+    assert client.post(reverse("budget:aporte_borrar", args=[aporte.pk])).status_code == 403
+
+
+def test_el_aporte_de_la_meta_personal_de_otro_es_un_404(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    ajena = GoalFactory(household=hogar, scope="personal", owner=_miembro(hogar))
+    aporte = GoalContributionFactory(household=hogar, goal=ajena)
+    client.force_login(user)
+
+    assert client.get(reverse("budget:aporte_editar", args=[aporte.pk])).status_code == 404
+    assert client.post(reverse("budget:aporte_borrar", args=[aporte.pk])).status_code == 404

@@ -7,4 +7,12 @@
     {% else %}{% translate "The household" %}{% endif %}
   </td>
   <td class="numero">{{ aporte.amount|money:hogar.currency }}</td>
+  <td>
+    {% if editable and nav_membresia.can_edit_budget %}
+      {% url 'budget:aporte_editar' aporte.pk as editar_url %}
+      {% url 'budget:aporte_borrar' aporte.pk as borrar_url %}
+      {% translate "Remove this contribution?" as confirmacion %}
+      {% include "budget/_fragmentos/acciones_icono.html" %}
+    {% endif %}
+  </td>
 </tr>

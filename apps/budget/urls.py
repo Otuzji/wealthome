@@ -37,6 +37,8 @@ urlpatterns = [
     path("goals/<int:pk>/", views_goals.meta_editar, name="meta_editar"),
     path("goals/<int:pk>/delete/", views_goals.meta_borrar, name="meta_borrar"),
     path("goals/<int:pk>/status/<str:estado>/", views_goals.meta_estado, name="meta_estado"),
+    path("goals/contributions/<int:pk>/", views_goals.aporte_editar, name="aporte_editar"),
+    path("goals/contributions/<int:pk>/delete/", views_goals.aporte_borrar, name="aporte_borrar"),
     # Antes de los patrones con <str:ambito>, o "personal" se comeria el
     # patron generico. Y sin ambito: la mesada es de un miembro por
     # definicion, y una "mesada del hogar" no significa nada.

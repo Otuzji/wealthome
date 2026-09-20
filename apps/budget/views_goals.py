@@ -7,7 +7,7 @@ ambito, y a el se vuelve.
 
 from django.contrib import messages
 from django.db.models import Prefetch, Q
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
-from . import services_goals
+from . import services, services_goals
 from .forms import GoalContributionForm, GoalForm
 from .models import Goal, GoalContribution, MesCerrado
 from .scopes import HOGAR, PERSONAL, acotar_por_dueno, validar
@@ -163,4 +163,70 @@ def meta_estado(request, hogar, pk, estado):
         services_goals.cambiar_estado(meta, estado)
     except ValueError:
         return HttpResponseBadRequest(_("That change is not possible."))
+    return redirect("budget:metas", meta.scope)
+
+
+def _aporte(request, hogar, pk):
+    """Como _meta, para un aporte: el de la meta personal de otro es 404."""
+    membresia = membresia_actual(request)
+    visibles = Q(goal__scope=HOGAR) | Q(goal__scope=PERSONAL, goal__owner=membresia)
+    return get_object_or_404(
+        GoalContribution.objects.for_household(hogar)
+        .select_related("goal", "budget_month").filter(visibles),
+        pk=pk,
+    )
+
+
+def _intocable(aporte):
+    """Por que un aporte no se corrige, o None si se puede."""
+    if aporte.origen != "manual":
+        return HttpResponseForbidden(
+            _("Contributions from the monthly split cannot be changed.")
+        )
+    return None
+
+
+@requiere_permiso("can_edit_budget")
+def aporte_editar(request, hogar, pk):
+    """Corregir un aporte mal tecleado. Si su mes ya esta cerrado no se toca:
+    moverle la fecha sacaria dinero de un balance ya cuadrado. Si la fecha
+    NUEVA cae en un mes cerrado, lo dice el formulario."""
+    aporte = _aporte(request, hogar, pk)
+    if (prohibido := _intocable(aporte)) is not None:
+        return prohibido
+    meta = aporte.goal
+    if aporte.budget_month_id and aporte.budget_month.esta_cerrado:
+        messages.error(request, _("This month is already closed."))
+        return redirect("budget:metas", meta.scope)
+    form = GoalContributionForm(request.POST or None, household=hogar,
+                                membresia=membresia_actual(request), instance=aporte)
+    if request.method == "POST" and form.is_valid():
+        aporte = form.save(commit=False)
+        aporte.budget_month = services.mes_de_fecha(hogar, aporte.date)
+        try:
+            aporte.full_clean()
+            aporte.save()
+        except MesCerrado:
+            form.add_error(None, _("This month is already closed."))
+        else:
+            services_goals.recalcular_estado(aporte.goal)
+            return redirect("budget:metas", aporte.goal.scope)
+    return render(request, "budget/formulario.html", {
+        "form": form, "titulo": _("Edit contribution"),
+        "cancelar": reverse("budget:metas", args=[meta.scope]),
+    })
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def aporte_borrar(request, hogar, pk):
+    aporte = _aporte(request, hogar, pk)
+    if (prohibido := _intocable(aporte)) is not None:
+        return prohibido
+    meta = aporte.goal
+    if aporte.budget_month_id and aporte.budget_month.esta_cerrado:
+        messages.error(request, _("This month is already closed."))
+    else:
+        aporte.delete()
+        services_goals.recalcular_estado(meta)
     return redirect("budget:metas", meta.scope)
