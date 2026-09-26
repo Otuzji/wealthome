@@ -204,8 +204,19 @@ python manage.py makemessages -l fr -l en --ignore=.venv
 python manage.py compilemessages
 ```
 
-Si no lo tiene, compila a mano con el `msgfmt.py` de la instalación de
-Python (sustituye la ruta por la de tu propio Python):
+Si no lo tiene, lo más cómodo es **pybabel**, que ya viene con las
+dependencias (Babel está en `requirements.txt`) y compila los dos catálogos de
+una vez sin necesitar gettext:
+
+```bash
+.venv/Scripts/pybabel.exe compile -d locale -D django --statistics
+```
+
+Imprime cuántos mensajes tiene cada catálogo y qué porcentaje está traducido,
+que es justo lo que hay que mirar tras editar un `.po` a mano.
+
+O, si se prefiere, con el `msgfmt.py` de la instalación de Python (sustituye la
+ruta por la de tu propio Python):
 
 ```bash
 python "<ruta-a-tu-Python>/Tools/i18n/msgfmt.py" -o locale/fr/LC_MESSAGES/django.mo locale/fr/LC_MESSAGES/django.po
@@ -215,3 +226,19 @@ python "<ruta-a-tu-Python>/Tools/i18n/msgfmt.py" -o locale/en/LC_MESSAGES/django
 `tests/test_traducciones.py` falla si queda alguna cadena francesa sin
 traducir o marcada `#, fuzzy` (una traducción "adivinada" que
 `compilemessages` descarta silenciosamente al compilar).
+
+## Despliegue
+
+`docs/DESPLIEGUE.md` tiene el procedimiento completo para el VPS: gunicorn
+detrás de nginx, WhiteNoise para los estáticos, Certbot para el certificado y
+un servicio de systemd, más la lista de comprobación de antes de abrirlo a
+nadie.
+
+Dos cosas de ahí que conviene no descubrir a mitad de un despliegue:
+
+- **nginx tiene que mandar `X-Forwarded-Proto`.** Sin esa cabecera Django cree
+  que la petición vino por http, y eso da a la vez un bucle infinito de
+  redirecciones y un 403 de CSRF en todos los formularios.
+- **Tras cada `migrate`, re-correr `scripts/endurecer_supabase.py`.** Una tabla
+  nueva nace sin RLS; los privilegios sí los hereda bien, pero el script no
+  dice `SEGURO` hasta que RLS está en todas.

@@ -1964,3 +1964,15 @@ msgstr "Moved to %(month)s."
 #: posponer-al-mes-siguiente
 msgid "Only an expense that was not planned can be moved. Change the plan in Plan the month."
 msgstr "Only an expense that was not planned can be moved. Change the plan in Plan the month."
+
+#: apps/subscriptions/views.py
+msgid "Payments are not configured on this server yet."
+msgstr "Payments are not configured on this server yet."
+
+#: templates/500.html
+msgid "Something went wrong"
+msgstr "Something went wrong"
+
+#: templates/500.html
+msgid "Nothing you entered was lost. Try again in a moment."
+msgstr "Nothing you entered was lost. Try again in a moment."

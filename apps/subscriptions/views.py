@@ -1,7 +1,8 @@
 from django.conf import settings
+from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
-from django.utils.translation import get_language
+from django.utils.translation import get_language, gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -23,6 +24,19 @@ def pagar(request, hogar):
     de estarlo — que es justo el punto muerto que el §2.2 quiere evitar.
     """
     if request.method != "POST":
+        return redirect("subscriptions:estado")
+    # Sin clave, `stripe` lanzaria AuthenticationError y el administrador veria
+    # un 500 en el momento exacto en que intenta pagar para recuperar la
+    # escritura de su hogar. Se comprueba aqui para que vea la pantalla de
+    # estado con un aviso y sepa que el problema es del despliegue, no suyo.
+    if not settings.STRIPE_SECRET_KEY:
+        # El literal va en UNA sola linea, y no partido en dos por el ancho:
+        # tests/test_catalogo_exhaustivo.py busca las cadenas traducibles con una
+        # expresion regular sobre el texto fuente y NO recompone la concatenacion
+        # implicita de Python (lo dice su docstring). Partido, la prueba buscaria
+        # en el catalogo la primera mitad —que no es el msgid que usa Django en
+        # tiempo de ejecucion— y daria la cadena por no traducida para siempre.
+        messages.error(request, _("Payments are not configured on this server yet."))
         return redirect("subscriptions:estado")
     url = crear_sesion_de_pago(
         household=hogar,

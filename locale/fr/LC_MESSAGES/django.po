@@ -2336,3 +2336,15 @@ msgstr "Reporté à %(month)s."
 #: posponer-al-mes-siguiente
 msgid "Only an expense that was not planned can be moved. Change the plan in Plan the month."
 msgstr "Seule une dépense non planifiée peut être reportée. Modifiez le plan dans Plan the month."
+
+#: apps/subscriptions/views.py
+msgid "Payments are not configured on this server yet."
+msgstr "Les paiements ne sont pas encore configurés sur ce serveur."
+
+#: templates/500.html
+msgid "Something went wrong"
+msgstr "Une erreur est survenue"
+
+#: templates/500.html
+msgid "Nothing you entered was lost. Try again in a moment."
+msgstr "Rien de ce que vous avez saisi n'a été perdu. Réessayez dans un instant."

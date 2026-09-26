@@ -1,8 +1,10 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 
@@ -14,6 +16,15 @@ User = get_user_model()
 
 
 def registro(request):
+    """Alta de un hogar nuevo. Se puede cerrar con DJANGO_REGISTRO_ABIERTO=0.
+
+    Cerrada, contesta 404 y no 403: un 403 confirmaria que el formulario existe
+    y que solo esta apagado. Se comprueba antes de mirar la sesion para que la
+    respuesta no dependa de quien pregunta.
+    """
+    if not settings.REGISTRO_ABIERTO:
+        raise Http404("El registro publico esta cerrado.")
+
     if request.user.is_authenticated:
         return redirect("accounts:inicio")
 
@@ -35,6 +46,14 @@ def registro(request):
 class Login(LoginView):
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
+
+    def get_context_data(self, **kwargs):
+        # Para que la pagina no ofrezca "Create a household" cuando ese enlace
+        # lleva a un 404. El menu no ofrece lo que no se puede hacer, igual que
+        # en `inicio`.
+        return super().get_context_data(**kwargs) | {
+            "registro_abierto": settings.REGISTRO_ABIERTO,
+        }
 
 
 class Logout(LogoutView):

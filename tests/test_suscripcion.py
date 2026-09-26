@@ -1,6 +1,7 @@
 import pytest
 from datetime import timedelta
 
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.households.services import crear_hogar
@@ -111,7 +112,11 @@ def test_un_hogar_en_prueba_escribe_sin_problema(client):
 
 
 @pytest.mark.django_db
+@override_settings(STRIPE_SECRET_KEY="sk_test_falsa")
 def test_pagar_manda_a_stripe_con_el_idioma_y_el_hogar(client, monkeypatch):
+    """La clave se declara aqui porque la vista comprueba que este puesta antes
+    de llamar a la pasarela: sin ella la prueba pasaria por el aviso de
+    "pagos sin configurar" y no llegaria a la funcion sustituida."""
     from django.urls import reverse
 
     from tests.factories import MembershipFactory
@@ -139,6 +144,7 @@ def test_pagar_manda_a_stripe_con_el_idioma_y_el_hogar(client, monkeypatch):
 
 
 @pytest.mark.django_db
+@override_settings(STRIPE_SECRET_KEY="sk_test_falsa")
 def test_un_hogar_expirado_si_puede_pagar(client, monkeypatch):
     """La exencion del §2.2: si la guardia cubriera esto, un hogar expirado no
     podria pagar para dejar de estarlo."""
@@ -158,7 +164,35 @@ def test_un_hogar_expirado_si_puede_pagar(client, monkeypatch):
     hogar.subscription.save()
     client.force_login(user)
 
-    assert client.post(reverse("subscriptions:pagar")).status_code == 302
+    respuesta = client.post(reverse("subscriptions:pagar"))
+    assert respuesta.status_code == 302
+    # Se comprueba el destino y no solo el 302: un 302 a la pantalla de estado
+    # tambien es un 302, y entonces la prueba pasaria sin que el hogar expirado
+    # hubiera llegado a la pasarela — que es justo lo que verifica.
+    assert respuesta["Location"].startswith("https://checkout.stripe.com/")
+
+
+@pytest.mark.django_db
+@override_settings(STRIPE_SECRET_KEY="")
+def test_sin_clave_de_stripe_pagar_avisa_en_vez_de_reventar(client):
+    """Sin clave, `stripe` lanzaria AuthenticationError y el administrador veria
+    un 500 en el momento exacto en que intenta pagar para recuperar la escritura
+    de su hogar. Tiene que ver un aviso y la pantalla de estado."""
+    from django.urls import reverse
+
+    from tests.factories import MembershipFactory
+
+    hogar = HouseholdFactory()
+    user = UserFactory()
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    respuesta = client.post(reverse("subscriptions:pagar"), follow=True)
+
+    assert respuesta.status_code == 200
+    assert respuesta.redirect_chain[-1][0] == reverse("subscriptions:estado")
+    avisos = [m.message for m in respuesta.context["messages"]]
+    assert any("not configured" in a for a in avisos), avisos
 
 
 @pytest.mark.django_db

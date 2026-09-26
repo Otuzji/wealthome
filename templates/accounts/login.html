@@ -8,6 +8,8 @@
     {{ form.as_div }}
     <button type="submit" class="btn btn--primary btn--bloque">{% translate "Sign in" %}</button>
   </form>
-  <p class="campo__ayuda"><a href="{% url 'accounts:registro' %}">{% translate "Create a household" %}</a></p>
+  {% if registro_abierto %}
+    <p class="campo__ayuda"><a href="{% url 'accounts:registro' %}">{% translate "Create a household" %}</a></p>
+  {% endif %}
 </section>
 {% endblock %}

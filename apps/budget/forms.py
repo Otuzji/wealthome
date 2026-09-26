@@ -12,6 +12,7 @@ from django import forms
 from django.db.models import Q
 from django.utils.formats import date_format
 from django.utils import timezone
+from django.utils.html import escapejs
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
@@ -36,6 +37,26 @@ from .models import (
     Merchant,
     Transaction,
 )
+
+
+def _js(valor):
+    """Un valor de formulario metido dentro de una cadena JavaScript, a salvo.
+
+    Los `x_data` de este modulo se pintan con `{{ form.x_data|safe }}` dentro de
+    `x-data="..."`, y `|safe` significa que NADA se escapa. El valor que
+    interpolan es `self["campo"].value()`, que en un formulario ENLAZADO es el
+    dato crudo que llego en el POST — sin pasar por la validacion, porque el
+    formulario se vuelve a pintar precisamente cuando es invalido. Sin escapar,
+    un `amount_type` con un `">` cerraba el atributo y el `<form>` y metia
+    etiquetas propias en la pagina: XSS reflejado.
+
+    `escapejs` es el escape correcto para este sitio y no `escape`: convierte
+    las comillas, los signos de mayor y menor y la barra invertida en secuencias
+    `\\uXXXX`, que son validas dentro de una cadena de JavaScript Y no pueden
+    salirse de un atributo HTML. `escape` habria metido `&quot;` literal, que
+    Alpine leeria como parte del valor.
+    """
+    return escapejs(valor or "")
 
 
 class CategoryForm(HouseholdScopedModelForm):
@@ -127,7 +148,7 @@ class IncomeSourceForm(HouseholdScopedModelForm):
             self.fields[nombre].x_show = f"{list(modos)!r}.includes(modo)"
         # El estado inicial de Alpine: el modo guardado al editar, ninguno al
         # crear (los tres importes escondidos hasta elegir uno).
-        self.x_data = "{ modo: '%s' }" % (self["amount_type"].value() or "")
+        self.x_data = "{ modo: '%s' }" % _js(self["amount_type"].value())
 
     def clean(self):
         datos = super().clean()
@@ -238,7 +259,9 @@ class TransactionForm(HouseholdScopedModelForm):
             "{ linea: '%s', restantes: {%s}, "
             "rellenar() { const r = this.restantes[this.linea]; "
             "if (r && !this.$refs.importe.value) this.$refs.importe.value = r; } }"
-            % (self["budget_line"].value() or "", restantes)
+            # `restantes` no se escapa porque no lo escribe nadie: son pk
+            # enteros e importes Decimal. `budget_line` si llega del POST.
+            % (_js(self["budget_line"].value()), restantes)
         )
 
     @staticmethod
@@ -334,7 +357,7 @@ class GoalForm(HouseholdScopedModelForm):
         self.fields["owner"].required = False
         for nombre, modos in self.CAMPOS_POR_MODO.items():
             self.fields[nombre].x_show = f"{list(modos)!r}.includes(modo)"
-        self.x_data = "{ modo: '%s' }" % (self["contribution_mode"].value() or "")
+        self.x_data = "{ modo: '%s' }" % _js(self["contribution_mode"].value())
         # Con aportes, el ambito se queda: un aporte a una meta del hogar lo
         # hizo cualquiera, y el de una personal tiene que ser de su dueno.
         # Cambiarlo dejaria aportes que no cuadran con la meta.
