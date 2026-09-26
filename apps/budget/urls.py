@@ -27,6 +27,8 @@ urlpatterns = [
     # Corregir o quitar un registro mal tecleado, desde "What actually happened".
     path("spend/<int:pk>/", views_month.registro_editar, name="registro_editar"),
     path("spend/<int:pk>/delete/", views_month.registro_borrar, name="registro_borrar"),
+    # Un gasto no planificado que en realidad cuenta para el mes que viene.
+    path("spend/<int:pk>/postpone/", views_month.registro_posponer, name="registro_posponer"),
     path("line/new/", views_month.linea_nueva, name="linea_nueva"),
     path("split/reorder/", wizards.reordenar_reglas, name="reordenar_reglas"),
     path("welcome/<int:paso>/", wizards.incorporacion, name="incorporacion"),

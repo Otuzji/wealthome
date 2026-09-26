@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
-from . import services
+from . import services, services_posponer
 from .forms import BudgetLineForm, TransactionForm
 from .models import AllowanceLedger, BudgetLine, MesCerrado, Transaction
 from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
@@ -169,17 +169,6 @@ def _ligar_al_plan(tx, form, mes, puntual=None):
     tx.budget_line = linea
 
 
-def _partida_solo_de(tx):
-    """La partida puntual que nacio de este registro, si sigue siendo solo
-    suya: alguien pudo haber pagado despues contra ella desde "What is it"."""
-    linea = tx.budget_line
-    if linea is None or not linea.is_exceptional:
-        return None
-    if linea.transacciones.exclude(pk=tx.pk).exists():
-        return None
-    return linea
-
-
 def _registro(hogar, pk):
     """`for_household` antes que `get_object_or_404`: el pk de otra familia es
     un 404 identico al de un pk inventado."""
@@ -201,7 +190,7 @@ def registro_editar(request, hogar, pk):
     tx = _registro(hogar, pk)
     mes_fila = tx.budget_month
     membresia = membresia_actual(request)
-    puntual = _partida_solo_de(tx)
+    puntual = tx.partida_propia
     kind = tx.category.kind
     # Un registro "not planned" se corrige como tal: con su categoria y su
     # nombre a la vista, y su propia partida fuera del desplegable — elegirla
@@ -246,11 +235,34 @@ def registro_borrar(request, hogar, pk):
     if mes_fila.esta_cerrado:
         messages.error(request, _("This month is already closed."))
     else:
-        puntual = _partida_solo_de(tx)
+        puntual = tx.partida_propia
         with transaction.atomic():
             tx.delete()
             if puntual is not None:
                 puntual.delete()
+    return redirect("budget:mes", "household", mes_fila.year, mes_fila.month)
+
+
+@require_POST
+@requiere_permiso("can_add_transactions")
+def registro_posponer(request, hogar, pk):
+    """Imputar al mes siguiente un gasto que no estaba planificado: lo pagaste
+    el 30, pero cuenta para octubre. La fecha se queda; su partida puntual se
+    muda con el. Lo planificado no se mueve: se corrige en Plan the month."""
+    tx = _registro(hogar, pk)
+    mes_fila = tx.budget_month
+    try:
+        services_posponer.posponer_registro(tx)
+    except MesCerrado:
+        messages.error(request, _("This month is already closed."))
+    except services_posponer.NoEsUnGastoSuelto:
+        # En una sola linea a proposito: el extractor de catalogos lee
+        # literales, y partirla en dos le hace ver una cadena que no existe.
+        messages.info(request, _("Only an expense that was not planned can be moved. Change the plan in Plan the month."))
+    else:
+        messages.success(request, _("Moved to %(month)s.") % {
+            "month": services_posponer.nombre_de_mes(tx.budget_month),
+        })
     return redirect("budget:mes", "household", mes_fila.year, mes_fila.month)
 
 
@@ -295,8 +307,13 @@ def mes(request, hogar, ambito, anio=None, numero=None):
             ambito, membresia,
         )
         contexto["bloques"] = _bloques_del_plan(lineas)
+        # `pagos_en_su_linea` anotado: cada fila pregunta si es un gasto sin
+        # planificar (para ofrecer Move to next month), y eso mira su partida y
+        # los pagos de esa partida. Sin la anotacion, dos consultas por fila.
         contexto["transacciones"] = acotar(
-            resultado.transacciones.select_related("category"), ambito, membresia
+            resultado.transacciones.select_related("category", "budget_line")
+            .annotate(pagos_en_su_linea=Count("budget_line__transacciones")),
+            ambito, membresia,
         )
         # Las cifras salen de las MISMAS lineas que la tarjeta Planned, y por
         # tanto respetan el ambito, igual que en el Overview.

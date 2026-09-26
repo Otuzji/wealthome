@@ -3,8 +3,24 @@
    registros de "What actually happened", las metas y sus movimientos. Quitar
    es un POST con confirmacion del navegador; un GET no destruye nada. Con
    `borrar_url` vacia solo hay Editar; con `editar_url` vacia solo hay
-   Quitar. Con `archivar` el boton dice Archive y lleva su icono. {% endcomment %}
+   Quitar. Con `archivar` el boton dice Archive y lleva su icono. Con
+   `posponer_url` se anade Move to next month: un POST con confirmacion, como
+   Quitar, pero no destruye nada. {% endcomment %}
 <span class="fila-regla__acciones">
+  {% if posponer_url %}
+  <form method="post" action="{{ posponer_url }}"
+        onsubmit="return confirm('{{ confirmacion_posponer|escapejs }}')">
+    {% csrf_token %}
+    <button class="btn btn--sutil btn--icono" type="submit"
+            aria-label="{% translate 'Move to next month' %}" title="{% translate 'Move to next month' %}">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/>
+        <path d="M8 3v4"/><path d="M16 3v4"/><path d="M9 16h6"/><path d="M13 13l3 3-3 3"/>
+      </svg>
+    </button>
+  </form>
+  {% endif %}
   {% if editar_url %}
   <a class="btn btn--sutil btn--icono" href="{{ editar_url }}"
      aria-label="{% translate 'Edit' %}" title="{% translate 'Edit' %}">

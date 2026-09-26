@@ -388,6 +388,14 @@
   .mes__real  { grid-area: real; }
   /* La columna estrecha: la fecha ("Sep 20") no se parte en dos lineas. */
   .mes__real .tabla__categoria { white-space: nowrap; }
+  /* Y sus tres iconos (mover, editar, quitar) caben en pantallas anchas:
+     celdas mas apretadas y los botones pegados. Por debajo de ~1400px la
+     tabla se desplaza dentro de su tarjeta, que es lo que .tabla__envoltura
+     existe para hacer; apretar mas dejaria los botones por debajo del area
+     tactil. */
+  .mes__real .tabla td { padding-inline: 8px; }
+  .mes__real .fila-regla__acciones { gap: 0; }
+  .mes__real .btn--icono { width: 40px; }
 }
 
 /* ---------- Cash Float ----------

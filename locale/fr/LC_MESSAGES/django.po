@@ -2320,3 +2320,19 @@ msgstr "groupe"
 #: summary-y-balance
 msgid "updated"
 msgstr "mis à jour"
+
+#: posponer-al-mes-siguiente
+msgid "Move to next month"
+msgstr "Reporter au mois prochain"
+
+#: posponer-al-mes-siguiente
+msgid "Count this record in next month instead? It keeps its date."
+msgstr "Compter cet enregistrement dans le mois prochain ? Il garde sa date."
+
+#: posponer-al-mes-siguiente
+msgid "Moved to %(month)s."
+msgstr "Reporté à %(month)s."
+
+#: posponer-al-mes-siguiente
+msgid "Only an expense that was not planned can be moved. Change the plan in Plan the month."
+msgstr "Seule une dépense non planifiée peut être reportée. Modifiez le plan dans Plan the month."

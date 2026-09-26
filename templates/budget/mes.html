@@ -135,7 +135,7 @@
             <td class="numero {% if tx.category.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
               {{ tx.amount|money:hogar.currency }}</td>
             {% if nav_fab and resultado.status == "open" %}
-              <td>{% include "budget/_fragmentos/acciones_registro.html" with pk=tx.pk %}</td>
+              <td>{% include "budget/_fragmentos/acciones_registro.html" with tx=tx %}</td>
             {% endif %}
           </tr>
         {% empty %}

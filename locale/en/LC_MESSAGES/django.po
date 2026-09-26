@@ -1948,3 +1948,19 @@ msgstr "Withdrawal"
 #: metas-ii
 msgid "Withdrawn"
 msgstr "Withdrawn"
+
+#: posponer-al-mes-siguiente
+msgid "Move to next month"
+msgstr "Move to next month"
+
+#: posponer-al-mes-siguiente
+msgid "Count this record in next month instead? It keeps its date."
+msgstr "Count this record in next month instead? It keeps its date."
+
+#: posponer-al-mes-siguiente
+msgid "Moved to %(month)s."
+msgstr "Moved to %(month)s."
+
+#: posponer-al-mes-siguiente
+msgid "Only an expense that was not planned can be moved. Change the plan in Plan the month."
+msgstr "Only an expense that was not planned can be moved. Change the plan in Plan the month."
