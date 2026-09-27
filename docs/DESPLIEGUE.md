@@ -1,5 +1,29 @@
 # Despliegue en un VPS de Hostinger (piloto de wealthome.site)
 
+> ## Estado real (27-09-2026)
+>
+> Wealthome **ya está desplegado** en el VPS `srv1513715.hstgr.cloud`
+> (`89.116.170.152`), **compartiendo servidor con el proyecto `fdhub`**
+> (`myfdhub.com`). Lo concreto de esa convivencia:
+>
+> | | |
+> |---|---|
+> | Ruta | `/opt/wealthome/app` |
+> | Usuario | `wealthome` (de sistema, sin privilegios) |
+> | Servicio | `wealthome.service` |
+> | Puerto | **`127.0.0.1:8001`** — el `8000` lo ocupa fdhub |
+> | nginx | `/etc/nginx/sites-available/wealthome` |
+> | Python | 3.12.3 del sistema (no 3.11; las 130 pruebas del motor pasan) |
+>
+> **Nada de fdhub se tocó**: ni su bloque de nginx, ni su servicio, ni su
+> PostgreSQL local, ni el puerto 8000. Hay copia de `/etc/nginx` en
+> `/root/nginx-backup-*.tar.gz` por si hiciera falta volver atrás.
+>
+> `ufw` se dejó **inactivo a propósito**: lo único a la escucha en público es
+> 22, 80 y 443 —que es justo lo que debe estar abierto— y el PostgreSQL de
+> fdhub está atado a `127.0.0.1`. Activarlo tocaría la red del otro proyecto a
+> cambio de poco. Si algún día algo nuevo se ata a `0.0.0.0`, entonces sí.
+
 Escrito para quien despliega, que es la misma persona que escribió la
 aplicación. Asume un VPS KVM de Hostinger con Ubuntu 24.04 y acceso `root` por
 SSH, y que la base de datos sigue siendo la de Supabase que ya se usa en
@@ -145,7 +169,7 @@ WorkingDirectory=/opt/wealthome/app
 # con la que systemd se queja y el servicio no arranca. Con una sola fuente
 # leyendo el archivo no hay dos sintaxis que cuadrar.
 ExecStart=/opt/wealthome/app/.venv/bin/gunicorn config.wsgi:application \
-    --bind 127.0.0.1:8000 \
+    --bind 127.0.0.1:8001 \
     --workers 3 \
     --timeout 60 \
     --access-logfile - \
@@ -171,7 +195,7 @@ systemctl enable --now wealthome
 systemctl status wealthome --no-pager
 ```
 
-`--bind 127.0.0.1:8000`: gunicorn **no** escucha en la IP pública. Lo único
+`--bind 127.0.0.1:8001`: gunicorn **no** escucha en la IP pública. Lo único
 expuesto es nginx.
 
 Los errores se leen con `journalctl -u wealthome -f`. El `LOGGING` de
@@ -188,8 +212,16 @@ server {
 
     client_max_body_size 5m;
 
+    # El desafio de Let's Encrypt se sirve del disco y NO se manda a Django.
+    # Con SECURE_SSL_REDIRECT puesto, Django contestaria un 301 a https —que
+    # todavia no existe cuando Certbot valida— y la emision fallaria sin decir
+    # por que. Hay que crear /var/www/html/.well-known/acme-challenge.
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
