@@ -44,3 +44,7 @@ capturas-ui/
 
 # Capturas de Playwright (MCP)
 .playwright-mcp/
+
+# Respaldos de la base de produccion: llevan datos financieros reales, correos
+# y hashes de contrasena. El repositorio es PUBLICO.
+/respaldos/
