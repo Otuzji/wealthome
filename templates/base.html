@@ -9,6 +9,10 @@
      Sereno, el tema por defecto. {% endcomment %}
   <link rel="manifest" href="{% static 'manifest.json' %}">
   <meta name="theme-color" content="#3f8f6f">
+  {% comment %} Sin este rel="icon", el navegador cae a /favicon.ico —que no
+     existe— y deja un 404 en la consola de cada pagina. Se reaprovecha el
+     icono de la PWA en vez de anadir un .ico mas. {% endcomment %}
+  <link rel="icon" href="{% estatico 'icons/icono-192.png' %}">
   <link rel="apple-touch-icon" href="{% static 'icons/icono-192.png' %}">
   <link rel="stylesheet" href="{% estatico 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% estatico 'css/base.css' %}">
