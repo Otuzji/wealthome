@@ -1,20 +1,24 @@
 {% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "This month" %} · Wealthome{% endblock %}
 {% block content %}
-<header class="pagina__cabecera">
+<header class="pagina__cabecera pagina__cabecera--mes">
+  {% comment %} ‹ Oct 2026 › : las flechas flanquean el mes, centrado en movil.
+     El texto "Previous"/"Next" queda para los lectores de pantalla. {% endcomment %}
   <nav class="mes__paginacion" aria-label="{% translate 'Months' %}">
-    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito anterior.0 anterior.1 %}">‹ {% translate "Previous" %}</a>
-    <a class="btn btn--sutil" href="{% url 'budget:mes' ambito siguiente.0 siguiente.1 %}">{% translate "Next" %} ›</a>
+    <a class="btn btn--sutil mes__flecha" href="{% url 'budget:mes' ambito anterior.0 anterior.1 %}"
+       aria-label="{% translate 'Previous' %}">‹</a>
+    <h1 class="mes__titulo">{{ primer_dia|date:"M Y" }}</h1>
+    <a class="btn btn--sutil mes__flecha" href="{% url 'budget:mes' ambito siguiente.0 siguiente.1 %}"
+       aria-label="{% translate 'Next' %}">›</a>
   </nav>
-  <h1>
-    {{ anio }}-{{ numero|stringformat:"02d" }}
+  <p class="mes__estado">
     {% if es_proyeccion %}
       <span class="pildora">{% translate "Not started" %}</span>
     {% else %}
       <span class="pildora {% if resultado.status == 'closed' %}pildora--bien{% endif %}">
         {{ resultado.get_status_display }}</span>
     {% endif %}
-  </h1>
+  </p>
   {% comment %} Plan y Close son el ciclo de vida del mes, no destinos del menu:
      viven aqui. Solo para quien puede editar y mientras el hogar pueda escribir:
      un boton que da 403 al tocarlo es correcto y grosero (§7). Cerrar solo tiene
@@ -55,8 +59,12 @@
   {% comment %} En escritorio, el plan ocupa el 70% y a su derecha se apilan las
      donas y lo que de verdad paso; en movil todo cae en una columna, resumen
      primero. Es un solo contenedor con areas de rejilla para que el orden del
-     DOM (donas, plan, real) sea el orden de lectura en movil. {% endcomment %}
-  <div class="mes__cuerpo">
+     DOM (donas, plan, real) sea el orden de lectura en movil.
+     En movil el plan y lo real son dos pestanas bajo las donas, Planned por
+     defecto. Las pestanas solo esconden con una clase que el CSS aplica bajo
+     900 px: en escritorio las dos tarjetas siguen a la vista. La clase de lo
+     real ya viene puesta del servidor para que no parpadee antes de Alpine. {% endcomment %}
+  <div class="mes__cuerpo" x-data="{ vista: 'plan' }">
   <section class="card mes__donas">
     <h2>{% translate "Where the month stands" %}</h2>
     <div class="donas">
@@ -86,12 +94,21 @@
       {% endfor %}
     </div>
   </section>
-  <section class="card mes__plan">
+  <div class="pestanas mes__pestanas" role="tablist" aria-label="{% translate 'Views' %}">
+    <button class="pestanas__boton" type="button" role="tab" id="pestana-plan"
+            aria-controls="panel-plan" aria-selected="true"
+            :aria-selected="vista === 'plan'" @click="vista = 'plan'">{% translate "Planned" %}</button>
+    <button class="pestanas__boton" type="button" role="tab" id="pestana-real"
+            aria-controls="panel-real" aria-selected="false"
+            :aria-selected="vista === 'real'" @click="vista = 'real'">{% translate "What actually happened" %}</button>
+  </div>
+  <section class="card mes__plan" id="panel-plan" role="tabpanel" aria-labelledby="pestana-plan"
+           :class="{ 'mes__panel--oculto': vista !== 'plan' }">
     <h2>{% translate "Planned" %}</h2>
     <div class="tabla__envoltura">
       <table class="tabla tabla--plan">
         <tr>
-          <th>{% translate "Category" %}</th><th>{% translate "Name" %}</th>
+          <th class="tabla__col-categoria">{% translate "Category" %}</th><th>{% translate "Name" %}</th>
           <th class="numero">{% translate "Planned" %}</th>
           <th>{% translate "Status" %}</th><th>{% translate "Due date" %}</th>
         </tr>
@@ -100,7 +117,7 @@
             <th colspan="5">{{ bloque.titulo }}</th></tr>
           {% for linea in bloque.lineas %}
             <tr>
-              <td class="tabla__categoria">{{ linea.category.etiqueta }}</td>
+              <td class="tabla__categoria tabla__col-categoria">{{ linea.category.etiqueta }}</td>
               <td>{{ linea.nombre }}</td>
               <td class="numero {% if bloque.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
                 {{ linea.planned_amount|money:hogar.currency }}</td>
@@ -113,7 +130,9 @@
               {% else %}{% translate "No fixed expenses fall in this month." %}{% endif %}</td></tr>
           {% endfor %}
           <tr class="tabla__total">
-            <td colspan="2">{% translate "Total" %}</td>
+            {% comment %} Dos celdas y no un colspan: si la de categoria se
+               esconde en movil, un colspan correria el importe de columna. {% endcomment %}
+            <td class="tabla__col-categoria"></td><td>{% translate "Total" %}</td>
             <td class="numero {% if bloque.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
               {{ bloque.total|money:hogar.currency }}</td>
             <td colspan="2"></td>
@@ -122,7 +141,8 @@
       </table>
     </div>
   </section>
-  <section class="card mes__real">
+  <section class="card mes__real mes__panel--oculto" id="panel-real" role="tabpanel"
+           aria-labelledby="pestana-real" :class="{ 'mes__panel--oculto': vista !== 'real' }">
     <h2>{% translate "What actually happened" %}</h2>
     <div class="tabla__envoltura">
       <table class="tabla">

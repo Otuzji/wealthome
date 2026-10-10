@@ -5,6 +5,7 @@ es una sola accion —la mas frecuente del §7.1— y el ambito de la fila lo de
 el formulario, no la URL de la que se entro.
 """
 
+from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
@@ -281,6 +282,8 @@ def mes(request, hogar, ambito, anio=None, numero=None):
     contexto = {
         "resultado": resultado, "es_proyeccion": es_proyeccion,
         "anio": anio, "numero": numero, "ambito": ambito,
+        # Para el titulo: "Oct 2026" con el mes en el idioma activo.
+        "primer_dia": date(anio, numero, 1),
         # Para llegar a un mes futuro sin escribir la URL.
         "anterior": services.mes_previo(anio, numero),
         "siguiente": services.mes_siguiente(anio, numero),

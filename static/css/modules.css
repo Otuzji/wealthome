@@ -399,8 +399,65 @@
   gap: 20px;
   align-items: start;
 }
-.mes__paginacion { display: flex; gap: 4px; }
-.pagina__cabecera h1 { display: flex; align-items: center; gap: 12px; font-size: 1.65em; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+/* ‹ Oct 2026 ›: las flechas flanquean el mes y el estado va debajo. */
+.mes__paginacion { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.mes__flecha {
+  min-width: var(--touch-target);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 1.6em;
+  line-height: 1;
+}
+.mes__titulo { min-width: 6.5em; text-align: center; font-size: 1.65em; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.mes__estado { margin: 0; }
+
+/* En movil la cabecera del mes se apila centrada y una banda de color baja
+   desde la barra hasta la mitad de los botones Plan / Close. La banda es un
+   ::before de la cabecera que se sale del relleno de .shell (20px arriba,
+   16 a los lados); isolation la deja detras del contenido sin hundirla
+   bajo el fondo. La barra toma el mismo color para que no se vea la costura. */
+@media (max-width: 899px) {
+  body:has(.pagina__cabecera--mes) .barra {
+    background: var(--banda);
+    border-bottom-color: transparent;
+  }
+  .pagina__cabecera--mes {
+    position: relative;
+    isolation: isolate;
+    flex-direction: column;
+    gap: 8px;
+  }
+  body:has(.pagina__cabecera--mes) { --banda: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+  .pagina__cabecera--mes::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: -20px;
+    left: -16px;
+    right: -16px;
+    bottom: calc(var(--touch-target) / 2);
+    background: var(--banda);
+  }
+  /* Sin botones (quien solo mira) la banda abraza la cabecera entera. */
+  .pagina__cabecera--mes:not(:has(.pagina__acciones))::before { bottom: -12px; }
+  .pagina__cabecera--mes .pagina__acciones { justify-content: center; }
+
+  /* Planned | What actually happened: pestanas bajo las donas. El titulo de
+     cada tarjeta ya lo dice la pestana. Sin la columna de categoria la tabla
+     del plan cabe sin desplazarse en horizontal. */
+  .mes__pestanas { margin-bottom: 0; }
+  .mes__pestanas .pestanas__boton { flex: 1 1 0; white-space: normal; line-height: 1.2; }
+  .mes__panel--oculto { display: none; }
+  .mes__plan > h2, .mes__real > h2 { display: none; }
+  .tabla--plan .tabla__col-categoria { display: none; }
+  /* Con 12px por lado no cabe en 360 px; con 6 si. */
+  .tabla--plan th, .tabla--plan td { padding-left: 6px; padding-right: 6px; }
+}
+/* En escritorio las dos tarjetas conviven: no hay pestanas. */
+@media (min-width: 900px) {
+  .mes__pestanas { display: none; }
+}
 @media (min-width: 900px) {
   .mes__cuerpo {
     grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
