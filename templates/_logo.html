@@ -1,0 +1,6 @@
+{% load estaticos %}{% comment %} El icono de la marca (branding/svg/). Dos <img> y el CSS ensena uno
+segun el tema: el de color en los claros y el blanco, la variante de la
+referencia para fondo oscuro, en Nocturno. Como archivos y no en linea: el
+trazo pesa unos 18 KB y asi se cachea en vez de viajar en cada pagina. {% endcomment %}
+<img class="logo__icono logo__icono--color" src="{% estatico 'brand/wealthome-icono.svg' %}" width="36" height="36" alt="">
+<img class="logo__icono logo__icono--blanco" src="{% estatico 'brand/wealthome-icono-blanco.svg' %}" width="36" height="36" alt="">

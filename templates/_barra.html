@@ -8,7 +8,9 @@ se pinta como un segmented control y no como dos enlaces de menu.
 El avatar abre el drawer (_drawer.html). Ahi vive todo lo que era "Settings". {% endcomment %}
 <header class="barra">
   <div class="barra_containers">
-    <a class="barra__logo" href="{% url 'accounts:inicio' %}">Wealthome</a>
+    <a class="barra__logo" href="{% url 'accounts:inicio' %}">
+      {% include "_logo.html" %}<span class="logo__palabra">Wealthome</span>
+    </a>
   </div>
   <div class="barra_containers">
   {% if nav_ambitos %}

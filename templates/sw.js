@@ -18,7 +18,7 @@
 // Sube la version con cada cambio de CSS o JS: los estaticos se sirven cache
 // primero, y sin esto un navegador con el worker instalado seguiria viendo la
 // hoja de estilos anterior hasta vaciar la cache a mano.
-var VERSION = "wealthome-v17";
+var VERSION = "wealthome-v18";
 var ARMAZON = "armazon-" + VERSION;
 var PAGINAS = "paginas-" + VERSION;
 
@@ -33,6 +33,10 @@ var PRECARGA = [
   "/static/js/graficas.js",
   "/static/manifest.json",
   "/static/icons/icono-192.png",
+  "/static/icons/favicon.svg",
+  "/static/brand/wealthome-palabra.svg",
+  "/static/brand/wealthome-icono.svg",
+  "/static/brand/wealthome-icono-blanco.svg",
   "/offline/"
 ];
 

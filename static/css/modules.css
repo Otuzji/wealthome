@@ -26,11 +26,29 @@
 }
 .barra__logo {
   flex: none;
-  color: var(--text);
-  font-weight: var(--font-weight-strong);
-  font-size: 1.15em;
-  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-decoration: none;
+}
+.logo__icono { flex: none; display: block; width: 36px; height: 36px; }
+.logo__icono--blanco,
+[data-theme="nocturno"] .logo__icono--color { display: none; }
+[data-theme="nocturno"] .logo__icono--blanco { display: block; }
+/* El nombre es el SVG de branding/ usado como mascara: el trazo es el de la
+   marca (vectorizado de la referencia, sin fuente que cargar) y el color, el
+   del tema. El texto sigue en el DOM para los lectores de pantalla; la mascara
+   lo tapa. */
+.logo__palabra {
+  display: block;
+  width: 125px;
+  height: 22px;
+  overflow: hidden;
+  color: transparent;
+  white-space: nowrap;
+  background: var(--logo-palabra);
+  -webkit-mask: url("../brand/wealthome-palabra.svg") center / contain no-repeat;
+  mask: url("../brand/wealthome-palabra.svg") center / contain no-repeat;
 }
 .barra__derecha { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .barra__aviso { text-decoration: none; }
@@ -136,10 +154,18 @@
   white-space: nowrap;
 }
 
-/* En 360 px el logo, el conmutador y el avatar van justos. */
+/* En 360 px el logo, el conmutador y el avatar van justos. Con el nombre
+   entero la barra medía 397 px tambien en 390: en movil queda solo el icono, y
+   el nombre sigue en el DOM para los lectores de pantalla. */
 @media (max-width: 479px) {
   .barra { gap: 8px; padding: 8px 12px; }
-  .barra__logo { font-size: 1.05em; }
+  .logo__icono { width: 30px; height: 30px; }
+  .logo__palabra {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    clip-path: inset(50%);
+  }
   .conmutador__opcion { padding: 0 12px; }
 }
 

@@ -50,6 +50,9 @@
   --chart-5: #6f7d8a;
   --chart-grid: #d2d8de;
   --backdrop: rgb(51 64 79 / 45%);
+
+  /* El nombre de la barra: el verde de branding/svg/wealthome-palabra-color. */
+  --logo-palabra: #0f4436;
 }
 
 /* ---------- Nocturno ---------- */
@@ -77,6 +80,10 @@
   --chart-5: #93a0ad;
   --chart-grid: #333b45;
   --backdrop: rgb(0 0 0 / 62%);
+
+  /* El verde de la marca se pierde sobre #232830: nombre e icono van en la
+     variante blanca de la referencia (ver .logo__icono--blanco). */
+  --logo-palabra: #eef2f6;
 }
 
 /* ---------- Accesible ----------
