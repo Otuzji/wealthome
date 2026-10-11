@@ -1976,3 +1976,7 @@ msgstr "Something went wrong"
 #: templates/500.html
 msgid "Nothing you entered was lost. Try again in a moment."
 msgstr "Nothing you entered was lost. Try again in a moment."
+
+#: templates/budget/mes.html
+msgid "Sort by"
+msgstr "Sort by"

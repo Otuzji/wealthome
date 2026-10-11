@@ -64,7 +64,7 @@
      defecto. Las pestanas solo esconden con una clase que el CSS aplica bajo
      900 px: en escritorio las dos tarjetas siguen a la vista. La clase de lo
      real ya viene puesta del servidor para que no parpadee antes de Alpine. {% endcomment %}
-  <div class="mes__cuerpo" x-data="{ vista: 'plan' }">
+  <div class="mes__cuerpo" x-data="{ vista: '{{ vista_inicial }}' }">
   <section class="card mes__donas">
     <h2>{% translate "Where the month stands" %}</h2>
     <div class="donas">
@@ -96,13 +96,13 @@
   </section>
   <div class="pestanas mes__pestanas" role="tablist" aria-label="{% translate 'Views' %}">
     <button class="pestanas__boton" type="button" role="tab" id="pestana-plan"
-            aria-controls="panel-plan" aria-selected="true"
+            aria-controls="panel-plan" aria-selected="{% if vista_inicial == 'plan' %}true{% else %}false{% endif %}"
             :aria-selected="vista === 'plan'" @click="vista = 'plan'">{% translate "Planned" %}</button>
     <button class="pestanas__boton" type="button" role="tab" id="pestana-real"
-            aria-controls="panel-real" aria-selected="false"
+            aria-controls="panel-real" aria-selected="{% if vista_inicial == 'real' %}true{% else %}false{% endif %}"
             :aria-selected="vista === 'real'" @click="vista = 'real'">{% translate "What actually happened" %}</button>
   </div>
-  <section class="card mes__plan" id="panel-plan" role="tabpanel" aria-labelledby="pestana-plan"
+  <section class="card mes__plan{% if vista_inicial != 'plan' %} mes__panel--oculto{% endif %}" id="panel-plan" role="tabpanel" aria-labelledby="pestana-plan"
            :class="{ 'mes__panel--oculto': vista !== 'plan' }">
     <h2>{% translate "Planned" %}</h2>
     <div class="tabla__envoltura">
@@ -141,17 +141,35 @@
       </table>
     </div>
   </section>
-  <section class="card mes__real mes__panel--oculto" id="panel-real" role="tabpanel"
+  <section class="card mes__real{% if vista_inicial != 'real' %} mes__panel--oculto{% endif %}" id="panel-real" role="tabpanel"
            aria-labelledby="pestana-real" :class="{ 'mes__panel--oculto': vista !== 'real' }">
     <h2>{% translate "What actually happened" %}</h2>
+    {% comment %} Sort by: enlaces y no JavaScript. Por categoria, cada grupo
+       lleva su cabecera y la fila dice el comercio o la nota en vez de repetir
+       la categoria. {% endcomment %}
+    {% if transacciones %}
+      <nav class="orden" aria-label="{% translate 'Sort by' %}">
+        <span class="orden__etiqueta">{% translate "Sort by" %}</span>
+        <a class="orden__opcion" href="?orden=fecha"{% if orden == "fecha" %} aria-current="true"{% endif %}>{% translate "Date" %}</a>
+        <a class="orden__opcion" href="?orden=categoria"{% if orden == "categoria" %} aria-current="true"{% endif %}>{% translate "Category" %}</a>
+      </nav>
+    {% endif %}
     <div class="tabla__envoltura">
       <table class="tabla">
         {% comment %} Editar y Quitar solo en el mes abierto y para quien puede
            registrar: el mismo permiso que el [+]. {% endcomment %}
         {% for tx in transacciones %}
+          {% if orden == "categoria" %}{% ifchanged tx.category_id %}
+            <tr class="tabla__bloque {% if tx.category.kind == 'income' %}tabla__bloque--ingreso{% else %}tabla__bloque--egreso{% endif %}">
+              <th colspan="4">{{ tx.category.etiqueta }}</th></tr>
+          {% endifchanged %}{% endif %}
           <tr>
             <td class="tabla__categoria">{{ tx.date|date:"M j" }}</td>
-            <td>{{ tx.category.etiqueta }}</td>
+            {% if orden == "categoria" %}
+              <td>{% if tx.merchant %}{{ tx.merchant.name }}{% elif tx.note %}{{ tx.note }}{% else %}—{% endif %}</td>
+            {% else %}
+              <td>{{ tx.category.etiqueta }}</td>
+            {% endif %}
             <td class="numero {% if tx.category.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
               {{ tx.amount|money:hogar.currency }}</td>
             {% if nav_fab and resultado.status == "open" %}

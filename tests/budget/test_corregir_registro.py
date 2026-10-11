@@ -1,6 +1,8 @@
 """Un registro mal tecleado se corrige o se quita desde "What actually happened".
 
-Edit es una pagina con el mismo formulario del registro; Remove es un POST.
+Edit es una pagina con el mismo formulario del registro; Remove es un POST
+que vive dentro de Edit, para que la fila solo lleve un icono y la tabla
+quepa en el movil sin desplazarse.
 La partida puntual que nacio de un registro "not planned" SIGUE al registro:
 se actualiza al editarlo y se borra al quitarlo, para que el plan no se quede
 con un "planned $38.20 / paid $32.80" fantasma. Un mes cerrado no admite ni
@@ -47,13 +49,31 @@ def _edicion(tx, **extra):
     return datos
 
 
-def test_el_mes_abierto_ofrece_editar_y_quitar_cada_registro(client, registro_no_planeado):
+def test_el_mes_abierto_ofrece_solo_editar_en_cada_registro(client, registro_no_planeado):
     admin, hogar, mes, tx = registro_no_planeado
 
     html = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
     assert reverse("budget:registro_editar", args=[tx.pk]) in html
-    assert reverse("budget:registro_borrar", args=[tx.pk]) in html
+    assert reverse("budget:registro_borrar", args=[tx.pk]) not in html
+
+
+def test_quitar_vive_dentro_de_editar(client, registro_no_planeado):
+    admin, hogar, mes, tx = registro_no_planeado
+
+    html = client.get(reverse("budget:registro_editar", args=[tx.pk])).content.decode()
+
+    assert f'action="{reverse("budget:registro_borrar", args=[tx.pk])}"' in html
+
+
+def test_editar_en_un_mes_cerrado_no_ofrece_quitar(client, registro_no_planeado):
+    admin, hogar, mes, tx = registro_no_planeado
+    mes.status = "closed"
+    mes.save()
+
+    html = client.get(reverse("budget:registro_editar", args=[tx.pk])).content.decode()
+
+    assert reverse("budget:registro_borrar", args=[tx.pk]) not in html
 
 
 def test_editar_muestra_el_registro_con_su_nombre_y_su_titulo(client, registro_no_planeado):

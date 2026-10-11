@@ -2348,3 +2348,7 @@ msgstr "Une erreur est survenue"
 #: templates/500.html
 msgid "Nothing you entered was lost. Try again in a moment."
 msgstr "Rien de ce que vous avez saisi n'a été perdu. Réessayez dans un instant."
+
+#: templates/budget/mes.html
+msgid "Sort by"
+msgstr "Trier par"

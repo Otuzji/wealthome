@@ -1,11 +1,7 @@
 {% load i18n %}
-{% comment %} Editar y Quitar de un registro de "What actually happened", y
-   Move to next month solo si es un gasto que no estaba planificado: lo
-   planificado se corrige en Plan the month. Los iconos viven en
-   acciones_icono.html, compartidos con las metas. {% endcomment %}
+{% comment %} Edit de un registro de "What actually happened". Remove y Move
+   to next month viven dentro de Edit (gasto.html): con un solo icono por fila
+   la tabla cabe en el movil sin desplazarse. El icono vive en
+   acciones_icono.html, compartido con las metas. {% endcomment %}
 {% url 'budget:registro_editar' tx.pk as editar_url %}
-{% url 'budget:registro_borrar' tx.pk as borrar_url %}
-{% if tx.se_puede_posponer %}{% url 'budget:registro_posponer' tx.pk as posponer_url %}{% endif %}
-{% translate "Remove this record? Its one-off line goes with it." as confirmacion %}
-{% translate "Count this record in next month instead? It keeps its date." as confirmacion_posponer %}
 {% include "budget/_fragmentos/acciones_icono.html" %}

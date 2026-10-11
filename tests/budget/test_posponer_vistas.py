@@ -1,5 +1,6 @@
-"""Move to next month desde This month: un icono en los gastos registrados
-que no estaban planificados, y en nada mas. Solo por POST, con el permiso de
+"""Move to next month desde la pagina de Edit de un gasto registrado que no
+estaba planificado, y en nada mas. La fila de This month solo lleva Edit: asi
+la tabla cabe en el movil. Solo por POST, con el permiso de
 registrar, y de vuelta a This month del mes de origen con un aviso que dice a
 que mes se fue.
 
@@ -58,20 +59,27 @@ def test_las_partidas_del_plan_no_tienen_ruta_para_moverse():
         reverse("budget:linea_posponer", args=["household", 1])
 
 
-def test_this_month_no_ofrece_mover_ninguna_partida(client, con_registros):
+def test_this_month_no_ofrece_mover_ninguna_fila(client, con_registros):
     admin, hogar, mes, suelto, del_plan = con_registros
 
     html = client.get(reverse("budget:mes", args=["household"])).content.decode()
 
-    # Un solo boton en toda la pantalla: el del gasto no planificado.
-    assert html.count("Move to next month") == 2   # aria-label y title del mismo boton
-    assert reverse("budget:registro_posponer", args=[suelto.pk]) in html
+    assert "Move to next month" not in html
+    assert reverse("budget:registro_posponer", args=[suelto.pk]) not in html
+
+
+def test_editar_un_gasto_suelto_ofrece_moverlo(client, con_registros):
+    admin, hogar, mes, suelto, del_plan = con_registros
+
+    html = client.get(reverse("budget:registro_editar", args=[suelto.pk])).content.decode()
+
+    assert f'action="{reverse("budget:registro_posponer", args=[suelto.pk])}"' in html
 
 
 def test_un_pago_contra_el_plan_no_ofrece_moverse(client, con_registros):
     admin, hogar, mes, suelto, del_plan = con_registros
 
-    html = client.get(reverse("budget:mes", args=["household"])).content.decode()
+    html = client.get(reverse("budget:registro_editar", args=[del_plan.pk])).content.decode()
 
     assert reverse("budget:registro_posponer", args=[del_plan.pk]) not in html
 
@@ -119,7 +127,7 @@ def test_un_mes_cerrado_no_ofrece_mover_ni_deja(client, con_registros):
     mes.status = "closed"
     mes.save()
 
-    html = client.get(reverse("budget:mes", args=["household", mes.year, mes.month])).content.decode()
+    html = client.get(reverse("budget:registro_editar", args=[suelto.pk])).content.decode()
     respuesta = client.post(reverse("budget:registro_posponer", args=[suelto.pk]))
 
     assert reverse("budget:registro_posponer", args=[suelto.pk]) not in html

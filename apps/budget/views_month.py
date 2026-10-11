@@ -193,6 +193,10 @@ def registro_editar(request, hogar, pk):
     membresia = membresia_actual(request)
     puntual = tx.partida_propia
     kind = tx.category.kind
+    # Remove y Move to next month viven aqui y no en la fila de This month: la
+    # fila solo lleva Edit y la tabla cabe en el movil. Se miran antes de que
+    # el formulario toque la instancia.
+    se_puede_posponer = tx.se_puede_posponer
     # Un registro "not planned" se corrige como tal: con su categoria y su
     # nombre a la vista, y su propia partida fuera del desplegable — elegirla
     # seria pagarse a si mismo.
@@ -221,7 +225,7 @@ def registro_editar(request, hogar, pk):
             return redirect("budget:mes", "household", mes_fila.year, mes_fila.month)
     return render(request, "budget/gasto.html", {
         "form": form, "kind": kind, "titulo": _("Edit record"), "editando": True,
-        "mes_fila": mes_fila,
+        "mes_fila": mes_fila, "tx": tx, "se_puede_posponer": se_puede_posponer,
     })
 
 
@@ -279,7 +283,12 @@ def mes(request, hogar, ambito, anio=None, numero=None):
     exigir_en_el_calendario(anio, numero)
     resultado = services.obtener_mes(hogar, anio, numero)
     es_proyeccion = isinstance(resultado, services.ProyeccionDeMes)
+    orden = "categoria" if request.GET.get("orden") == "categoria" else "fecha"
     contexto = {
+        "orden": orden,
+        # Quien acaba de ordenar lo real quiere seguir viendolo: en el movil
+        # la pestana abierta es la de lo real y no Planned.
+        "vista_inicial": "real" if "orden" in request.GET else "plan",
         "resultado": resultado, "es_proyeccion": es_proyeccion,
         "anio": anio, "numero": numero, "ambito": ambito,
         # Para el titulo: "Oct 2026" con el mes en el idioma activo.
@@ -314,10 +323,20 @@ def mes(request, hogar, ambito, anio=None, numero=None):
         # planificar (para ofrecer Move to next month), y eso mira su partida y
         # los pagos de esa partida. Sin la anotacion, dos consultas por fila.
         contexto["transacciones"] = acotar(
-            resultado.transacciones.select_related("category", "budget_line")
-            .annotate(pagos_en_su_linea=Count("budget_line__transacciones")),
+            resultado.transacciones.select_related("category", "budget_line", "merchant")
+            .annotate(pagos_en_su_linea=Count("budget_line__transacciones"))
+            # Explicito: con el Count hay GROUP BY, y Django ya no aplica ahi el
+            # Meta.ordering del modelo; las filas salian en el orden de la base.
+            .order_by("-date", "-pk"),
             ambito, membresia,
         )
+        # Sort by: la fecha es el orden del modelo; por categoria se ordena en
+        # Python porque la etiqueta de una categoria del sistema se traduce.
+        if orden == "categoria":
+            contexto["transacciones"] = sorted(
+                contexto["transacciones"],
+                key=lambda t: (t.category.etiqueta().casefold(), -t.date.toordinal(), -t.pk),
+            )
         # Las cifras salen de las MISMAS lineas que la tarjeta Planned, y por
         # tanto respetan el ambito, igual que en el Overview.
         donas = _real_contra_planeado(lineas, contexto["transacciones"])

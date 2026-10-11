@@ -299,6 +299,19 @@
 }
 .formulario div:has(> input[type="checkbox"]) > input, .formulario div:has(> input[type="radio"]) > input { order: -1; }
 .formulario .btn + .btn { margin-left: 10px; }
+/* Save y Cancel, uno sobre otro y del mismo ancho: Cancel al lado de un
+   boton de ancho completo quedaba suelto y desalineado. */
+.formulario__pie { display: grid; gap: 10px; margin: 8px 0 0; }
+.formulario .formulario__pie .btn + .btn { margin-left: 0; }
+/* Mover y quitar el registro: separados de Save por una raya. */
+.formulario__otras {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: var(--border-width) solid var(--border-color);
+}
+.formulario__otras .btn { gap: 8px; }
 
 /* ---------- reglas de reparto, arrastrables ----------
    El unico arrastre del plan (§4.5.6). El cursor y el realce tienen que decir
@@ -399,6 +412,25 @@
   gap: 20px;
   align-items: start;
 }
+/* Sort by de lo real: dos enlaces, el activo levantado. */
+.orden { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 0.875em; }
+.orden__etiqueta { margin-right: 4px; color: var(--text-muted); }
+.orden__opcion {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-strong);
+  text-decoration: none;
+}
+.orden__opcion[aria-current="true"] {
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-raised-sm);
+}
+.orden__opcion:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 /* ‹ Oct 2026 ›: las flechas flanquean el mes y el estado va debajo. */
 .mes__paginacion { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .mes__flecha {
@@ -451,8 +483,11 @@
   .mes__panel--oculto { display: none; }
   .mes__plan > h2, .mes__real > h2 { display: none; }
   .tabla--plan .tabla__col-categoria { display: none; }
-  /* Con 12px por lado no cabe en 360 px; con 6 si. */
-  .tabla--plan th, .tabla--plan td { padding-left: 6px; padding-right: 6px; }
+  /* Con 12px por lado no caben en 360 px; con 6 si. La fecha de lo real
+     ("Oct 8") no se parte en dos lineas. */
+  .tabla--plan th, .tabla--plan td,
+  .mes__real .tabla th, .mes__real .tabla td { padding-left: 6px; padding-right: 6px; }
+  .mes__real .tabla__categoria { white-space: nowrap; }
 }
 /* En escritorio las dos tarjetas conviven: no hay pestanas. */
 @media (min-width: 900px) {
