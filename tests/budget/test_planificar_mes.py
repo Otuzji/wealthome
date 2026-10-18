@@ -8,6 +8,7 @@ reglas. Aqui el asistente trabaja sobre las `BudgetLine` del mes: se edita el
 mes, no el setup (§2.3: "editar un mes concreto: tocas sus filas").
 """
 
+import re
 from decimal import Decimal
 
 import pytest
@@ -348,7 +349,7 @@ def test_la_tarjeta_planned_muestra_categoria_estado_y_vencimiento(client, hogar
     html = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month])).content.decode()
 
     for cabecera in ("Category", "Name", "Planned", "Status", "Due date"):
-        assert f"<th>{cabecera}</th>" in html or f'<th class="numero">{cabecera}</th>' in html
+        assert re.search(rf"<th( class=\"[^\"]*\")?>{cabecera}</th>", html), cabecera
     assert fijo.category.etiqueta() in html
     assert "Partial" in html and "800.00" in html          # lo que falta
     assert fijo.due_date.strftime("%b") in html            # la fecha, pintada
