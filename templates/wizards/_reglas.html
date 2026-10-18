@@ -6,9 +6,12 @@
         if (this.arrastrada === null || this.arrastrada === destino) return;
         const lista = this.$el;
         const nodos = Array.from(lista.children);
-        lista.insertBefore(nodos[this.arrastrada], nodos[destino]);
+        // Hacia abajo se suelta DESPUES del destino; hacia arriba, antes.
+        const ancla = this.arrastrada < destino ? nodos[destino].nextSibling : nodos[destino];
+        lista.insertBefore(nodos[this.arrastrada], ancla);
         htmx.ajax('POST', lista.dataset.url, {
           values: { orden: Array.from(lista.children).map(n => n.dataset.pk) },
+          headers: { 'X-CSRFToken': '{{ csrf_token }}' },
           target: '#reglas', swap: 'outerHTML'
         });
       }

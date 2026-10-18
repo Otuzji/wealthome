@@ -1118,3 +1118,37 @@ def test_this_month_no_trae_el_formulario_de_gasto_hasta_que_se_abre(client, adm
     assert 'hx-trigger="load"' not in cuerpo     # pero no se pide al cargar
     # El menu sigue teniendo la pagina entera como alternativa sin JavaScript.
     assert reverse("budget:registrar") in cuerpo
+
+
+def test_el_arrastre_de_reglas_manda_un_token_csrf_valido(admin_con_hogar):
+    """htmx.ajax no lleva el token de ningun formulario: sin cabecera, Django
+    contesta 403 en produccion y el orden nuevo nunca se guarda. El cliente de
+    pruebas normal se salta el CSRF; este no."""
+    import re
+
+    from django.test import Client
+    from django.utils import timezone
+
+    from apps.budget.models import AllocationRule
+    from tests.factories_budget import AllocationRuleFactory
+
+    user, hogar = admin_con_hogar
+    a = AllocationRuleFactory(household=hogar, order=1)
+    b = AllocationRuleFactory(household=hogar, order=2)
+    client = Client(enforce_csrf_checks=True)
+    client.force_login(user)
+    hoy = timezone.localdate()
+
+    html = client.get(
+        reverse("budget:planificar_mes", args=["household", hoy.year, hoy.month, 3])
+    ).content.decode()
+    token = re.search(r"'X-CSRFToken': '([^']+)'", html).group(1)
+
+    respuesta = client.post(
+        reverse("budget:reordenar_reglas"),
+        {"orden": [str(b.pk), str(a.pk)]},
+        HTTP_HX_REQUEST="true", HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert respuesta.status_code == 200
+    assert AllocationRule.objects.for_household(hogar).get(pk=b.pk).order == 1
