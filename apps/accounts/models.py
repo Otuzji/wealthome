@@ -47,6 +47,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(_("staff status"), default=False)
     date_joined = models.DateTimeField(_("date joined"), auto_now_add=True)
 
+    # Limite de intentos de entrada (apps/accounts/bloqueo.py). En la propia
+    # fila del usuario y no en la cache: gunicorn corre varios procesos y cada
+    # uno tendria su propio contador.
+    failed_logins = models.PositiveSmallIntegerField(_("failed sign-ins"), default=0)
+    last_failed_login = models.DateTimeField(_("last failed sign-in"), null=True, blank=True)
+    locked_until = models.DateTimeField(_("locked until"), null=True, blank=True)
+
     objects = UserManager()
 
     USERNAME_FIELD = "email"

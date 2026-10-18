@@ -1,0 +1,10 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with fecha=cuando|date:"DATETIME_FORMAT" %}There were {{ intentos }} failed attempts in a row to sign in to your Wealthome account ({{ fecha }}). To protect it, we have locked the account for 30 minutes.{% endblocktranslate %}
+
+{% translate "If it was you: wait 30 minutes and try again, or reset your password now with the link below." %}
+
+{% translate "If it was not you, someone may know or be guessing your password:" %}
+- {% translate "Change your password now with this link (it also unlocks your account):" %} {{ enlace }}
+- {% translate "Do not reuse your Wealthome password on other sites." %}
+- {% translate "If you use this password elsewhere, change it there too, starting with your email." %}
+- {% translate "Tell the administrator of your household." %}
+{% endautoescape %}

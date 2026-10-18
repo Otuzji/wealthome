@@ -1,0 +1,10 @@
+{% load i18n %}{% get_current_language as idioma %}<!doctype html>
+<html lang="{{ idioma }}"><body style="font-family:system-ui,sans-serif;color:#1f2937;line-height:1.5;max-width:36rem;margin:0 auto;padding:1.5rem">
+  <h1 style="font-size:1.25rem;margin:0 0 1rem">Wealthome</h1>
+  <p>{% translate "Someone asked to reset the password of your Wealthome account. To choose a new one, open this link:" %}</p>
+  <p style="margin:1.5rem 0">
+    <a href="{{ protocol }}://{{ domain }}{% url 'accounts:password_reset_confirm' uidb64=uid token=token %}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:.75rem 1.25rem;border-radius:.5rem;font-weight:600">{% translate "Choose a new password" %}</a>
+  </p>
+  <p style="font-size:.875rem;color:#6b7280">{% translate "The link works once and expires in 24 hours. If you did not ask for this, ignore this email: your password stays the same." %}</p>
+  <p style="font-size:.75rem;color:#9ca3af;word-break:break-all">{{ protocol }}://{{ domain }}{% url 'accounts:password_reset_confirm' uidb64=uid token=token %}</p>
+</body></html>

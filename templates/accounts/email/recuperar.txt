@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{% translate "Someone asked to reset the password of your Wealthome account. To choose a new one, open this link:" %}
+
+{{ protocol }}://{{ domain }}{% url 'accounts:password_reset_confirm' uidb64=uid token=token %}
+
+{% translate "The link works once and expires in 24 hours. If you did not ask for this, ignore this email: your password stays the same." %}
+{% endautoescape %}

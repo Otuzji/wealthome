@@ -1,0 +1,1 @@
+{% load i18n %}{% translate "Wealthome: reset your password" %}

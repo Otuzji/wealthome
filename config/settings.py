@@ -185,6 +185,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
+# El unico backend: tres fallos seguidos bloquean la cuenta, tambien en /admin/.
+AUTHENTICATION_BACKENDS = ["apps.accounts.bloqueo.BackendConLimiteDeIntentos"]
+# El enlace de recuperar la contrasena caduca a las 24 horas (Django: 3 dias).
+PASSWORD_RESET_TIMEOUT = 24 * 60 * 60
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:inicio"

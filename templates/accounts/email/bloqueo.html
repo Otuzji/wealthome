@@ -1,0 +1,17 @@
+{% load i18n %}<!doctype html>
+<html lang="{{ idioma }}"><body style="font-family:system-ui,sans-serif;color:#1f2937;line-height:1.5;max-width:36rem;margin:0 auto;padding:1.5rem">
+  <h1 style="font-size:1.25rem;margin:0 0 1rem">Wealthome</h1>
+  <p>{% blocktranslate with fecha=cuando|date:"DATETIME_FORMAT" %}There were {{ intentos }} failed attempts in a row to sign in to your Wealthome account ({{ fecha }}). To protect it, we have locked the account for 30 minutes.{% endblocktranslate %}</p>
+  <p>{% translate "If it was you: wait 30 minutes and try again, or reset your password now with the link below." %}</p>
+  <p><strong>{% translate "If it was not you, someone may know or be guessing your password:" %}</strong></p>
+  <ul>
+    <li>{% translate "Change your password now with this link (it also unlocks your account):" %}</li>
+    <li>{% translate "Do not reuse your Wealthome password on other sites." %}</li>
+    <li>{% translate "If you use this password elsewhere, change it there too, starting with your email." %}</li>
+    <li>{% translate "Tell the administrator of your household." %}</li>
+  </ul>
+  <p style="margin:1.5rem 0">
+    <a href="{{ enlace }}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:.75rem 1.25rem;border-radius:.5rem;font-weight:600">{% translate "Reset my password" %}</a>
+  </p>
+  <p style="font-size:.75rem;color:#9ca3af;word-break:break-all">{{ enlace }}</p>
+</body></html>

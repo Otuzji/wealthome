@@ -18,7 +18,7 @@
 // Sube la version con cada cambio de CSS o JS: los estaticos se sirven cache
 // primero, y sin esto un navegador con el worker instalado seguiria viendo la
 // hoja de estilos anterior hasta vaciar la cache a mano.
-var VERSION = "wealthome-v19";
+var VERSION = "wealthome-v20";
 var ARMAZON = "armazon-" + VERSION;
 var PAGINAS = "paginas-" + VERSION;
 
@@ -43,7 +43,7 @@ var PRECARGA = [
 // Nada de esto se cachea nunca: el webhook es de Stripe, y las paginas de
 // sesion tienen que hablar con el servidor siempre.
 var NUNCA = ["/subscription/webhook/", "/logout/", "/login/", "/signup/",
-             "/admin/"];
+             "/admin/", "/password-reset/"];
 
 self.addEventListener("install", function (evento) {
   evento.waitUntil(

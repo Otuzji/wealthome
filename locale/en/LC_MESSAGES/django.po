@@ -1980,3 +1980,127 @@ msgstr "Nothing you entered was lost. Try again in a moment."
 #: templates/budget/mes.html
 msgid "Sort by"
 msgstr "Sort by"
+
+#: apps/accounts/models.py
+msgid "failed sign-ins"
+msgstr "failed sign-ins"
+
+#: apps/accounts/models.py
+msgid "last failed sign-in"
+msgstr "last failed sign-in"
+
+#: apps/accounts/models.py
+msgid "locked until"
+msgstr "locked until"
+
+#: apps/accounts/admin.py
+msgid "Sign-in lockout"
+msgstr "Sign-in lockout"
+
+#: apps/accounts/forms.py
+msgid "This account is temporarily locked after several failed sign-in attempts. Try again later, or reset your password."
+msgstr "This account is temporarily locked after several failed sign-in attempts. Try again later, or reset your password."
+
+#: apps/accounts/views.py
+msgid "Your password has been changed. You can sign in now."
+msgstr "Your password has been changed. You can sign in now."
+
+#: apps/accounts/bloqueo.py
+msgid "Wealthome: failed sign-in attempts on your account"
+msgstr "Wealthome: failed sign-in attempts on your account"
+
+#: templates/accounts/login.html
+msgid "Forgot your password?"
+msgstr "Forgot your password?"
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Reset your password"
+msgstr "Reset your password"
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Enter the email you sign in with and we will send you a link to choose a new password."
+msgstr "Enter the email you sign in with and we will send you a link to choose a new password."
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Send me the link"
+msgstr "Send me the link"
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Back to sign in"
+msgstr "Back to sign in"
+
+#: templates/accounts/enlace_enviado.html
+msgid "Check your email"
+msgstr "Check your email"
+
+#: templates/accounts/enlace_enviado.html
+msgid "If an account exists with that email, we have sent it a link to choose a new password. The link works once and expires in 24 hours."
+msgstr "If an account exists with that email, we have sent it a link to choose a new password. The link works once and expires in 24 hours."
+
+#: templates/accounts/enlace_enviado.html
+msgid "Nothing arrived? Check your spam folder, or make sure you typed the email you sign in with."
+msgstr "Nothing arrived? Check your spam folder, or make sure you typed the email you sign in with."
+
+#: templates/accounts/contrasena_nueva.html
+msgid "Choose a new password"
+msgstr "Choose a new password"
+
+#: templates/accounts/contrasena_nueva.html
+msgid "Change my password"
+msgstr "Change my password"
+
+#: templates/accounts/contrasena_nueva.html
+msgid "This link is no longer valid"
+msgstr "This link is no longer valid"
+
+#: templates/accounts/contrasena_nueva.html
+msgid "The link has already been used or has expired. You can ask for a new one."
+msgstr "The link has already been used or has expired. You can ask for a new one."
+
+#: templates/accounts/contrasena_nueva.html
+msgid "Send me a new link"
+msgstr "Send me a new link"
+
+#: templates/accounts/email/recuperar_asunto.txt
+msgid "Wealthome: reset your password"
+msgstr "Wealthome: reset your password"
+
+#: templates/accounts/email/recuperar.txt
+msgid "Someone asked to reset the password of your Wealthome account. To choose a new one, open this link:"
+msgstr "Someone asked to reset the password of your Wealthome account. To choose a new one, open this link:"
+
+#: templates/accounts/email/recuperar.txt
+msgid "The link works once and expires in 24 hours. If you did not ask for this, ignore this email: your password stays the same."
+msgstr "The link works once and expires in 24 hours. If you did not ask for this, ignore this email: your password stays the same."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "There were %(intentos)s failed attempts in a row to sign in to your Wealthome account (%(fecha)s). To protect it, we have locked the account for 30 minutes."
+msgstr "There were %(intentos)s failed attempts in a row to sign in to your Wealthome account (%(fecha)s). To protect it, we have locked the account for 30 minutes."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "If it was you: wait 30 minutes and try again, or reset your password now with the link below."
+msgstr "If it was you: wait 30 minutes and try again, or reset your password now with the link below."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "If it was not you, someone may know or be guessing your password:"
+msgstr "If it was not you, someone may know or be guessing your password:"
+
+#: templates/accounts/email/bloqueo.txt
+msgid "Change your password now with this link (it also unlocks your account):"
+msgstr "Change your password now with this link (it also unlocks your account):"
+
+#: templates/accounts/email/bloqueo.txt
+msgid "Do not reuse your Wealthome password on other sites."
+msgstr "Do not reuse your Wealthome password on other sites."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "If you use this password elsewhere, change it there too, starting with your email."
+msgstr "If you use this password elsewhere, change it there too, starting with your email."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "Tell the administrator of your household."
+msgstr "Tell the administrator of your household."
+
+#: templates/accounts/email/bloqueo.html
+msgid "Reset my password"
+msgstr "Reset my password"

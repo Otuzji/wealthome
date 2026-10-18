@@ -2352,3 +2352,127 @@ msgstr "Rien de ce que vous avez saisi n'a été perdu. Réessayez dans un insta
 #: templates/budget/mes.html
 msgid "Sort by"
 msgstr "Trier par"
+
+#: apps/accounts/models.py
+msgid "failed sign-ins"
+msgstr "connexions échouées"
+
+#: apps/accounts/models.py
+msgid "last failed sign-in"
+msgstr "dernière connexion échouée"
+
+#: apps/accounts/models.py
+msgid "locked until"
+msgstr "verrouillé jusqu'à"
+
+#: apps/accounts/admin.py
+msgid "Sign-in lockout"
+msgstr "Verrouillage de connexion"
+
+#: apps/accounts/forms.py
+msgid "This account is temporarily locked after several failed sign-in attempts. Try again later, or reset your password."
+msgstr "Ce compte est temporairement verrouillé après plusieurs tentatives de connexion échouées. Réessayez plus tard ou réinitialisez votre mot de passe."
+
+#: apps/accounts/views.py
+msgid "Your password has been changed. You can sign in now."
+msgstr "Votre mot de passe a été modifié. Vous pouvez maintenant vous connecter."
+
+#: apps/accounts/bloqueo.py
+msgid "Wealthome: failed sign-in attempts on your account"
+msgstr "Wealthome : tentatives de connexion échouées sur votre compte"
+
+#: templates/accounts/login.html
+msgid "Forgot your password?"
+msgstr "Mot de passe oublié ?"
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Reset your password"
+msgstr "Réinitialiser votre mot de passe"
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Enter the email you sign in with and we will send you a link to choose a new password."
+msgstr "Entrez le courriel avec lequel vous vous connectez et nous vous enverrons un lien pour choisir un nouveau mot de passe."
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Send me the link"
+msgstr "Envoyez-moi le lien"
+
+#: templates/accounts/olvide_contrasena.html
+msgid "Back to sign in"
+msgstr "Retour à la connexion"
+
+#: templates/accounts/enlace_enviado.html
+msgid "Check your email"
+msgstr "Vérifiez vos courriels"
+
+#: templates/accounts/enlace_enviado.html
+msgid "If an account exists with that email, we have sent it a link to choose a new password. The link works once and expires in 24 hours."
+msgstr "Si un compte existe avec ce courriel, nous lui avons envoyé un lien pour choisir un nouveau mot de passe. Le lien ne fonctionne qu'une fois et expire dans 24 heures."
+
+#: templates/accounts/enlace_enviado.html
+msgid "Nothing arrived? Check your spam folder, or make sure you typed the email you sign in with."
+msgstr "Rien reçu ? Vérifiez vos courriels indésirables, ou assurez-vous d'avoir saisi le courriel avec lequel vous vous connectez."
+
+#: templates/accounts/contrasena_nueva.html
+msgid "Choose a new password"
+msgstr "Choisir un nouveau mot de passe"
+
+#: templates/accounts/contrasena_nueva.html
+msgid "Change my password"
+msgstr "Changer mon mot de passe"
+
+#: templates/accounts/contrasena_nueva.html
+msgid "This link is no longer valid"
+msgstr "Ce lien n'est plus valide"
+
+#: templates/accounts/contrasena_nueva.html
+msgid "The link has already been used or has expired. You can ask for a new one."
+msgstr "Le lien a déjà été utilisé ou a expiré. Vous pouvez en demander un nouveau."
+
+#: templates/accounts/contrasena_nueva.html
+msgid "Send me a new link"
+msgstr "Envoyez-moi un nouveau lien"
+
+#: templates/accounts/email/recuperar_asunto.txt
+msgid "Wealthome: reset your password"
+msgstr "Wealthome : réinitialiser votre mot de passe"
+
+#: templates/accounts/email/recuperar.txt
+msgid "Someone asked to reset the password of your Wealthome account. To choose a new one, open this link:"
+msgstr "Quelqu'un a demandé la réinitialisation du mot de passe de votre compte Wealthome. Pour en choisir un nouveau, ouvrez ce lien :"
+
+#: templates/accounts/email/recuperar.txt
+msgid "The link works once and expires in 24 hours. If you did not ask for this, ignore this email: your password stays the same."
+msgstr "Le lien ne fonctionne qu'une fois et expire dans 24 heures. Si vous n'avez rien demandé, ignorez ce courriel : votre mot de passe reste le même."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "There were %(intentos)s failed attempts in a row to sign in to your Wealthome account (%(fecha)s). To protect it, we have locked the account for 30 minutes."
+msgstr "Il y a eu %(intentos)s tentatives de connexion échouées d'affilée sur votre compte Wealthome (%(fecha)s). Pour le protéger, nous avons verrouillé le compte pendant 30 minutes."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "If it was you: wait 30 minutes and try again, or reset your password now with the link below."
+msgstr "Si c'était vous : attendez 30 minutes et réessayez, ou réinitialisez votre mot de passe dès maintenant avec le lien ci-dessous."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "If it was not you, someone may know or be guessing your password:"
+msgstr "Si ce n'était pas vous, quelqu'un connaît ou essaie de deviner votre mot de passe :"
+
+#: templates/accounts/email/bloqueo.txt
+msgid "Change your password now with this link (it also unlocks your account):"
+msgstr "Changez votre mot de passe dès maintenant avec ce lien (il déverrouille aussi votre compte) :"
+
+#: templates/accounts/email/bloqueo.txt
+msgid "Do not reuse your Wealthome password on other sites."
+msgstr "N'utilisez pas votre mot de passe Wealthome sur d'autres sites."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "If you use this password elsewhere, change it there too, starting with your email."
+msgstr "Si vous utilisez ce mot de passe ailleurs, changez-le là aussi, en commençant par votre courriel."
+
+#: templates/accounts/email/bloqueo.txt
+msgid "Tell the administrator of your household."
+msgstr "Prévenez l'administrateur de votre foyer."
+
+#: templates/accounts/email/bloqueo.html
+msgid "Reset my password"
+msgstr "Réinitialiser mon mot de passe"

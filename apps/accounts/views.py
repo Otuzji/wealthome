@@ -1,16 +1,25 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib import messages
+from django.contrib.auth.views import (
+    LoginView,
+    LogoutView,
+    PasswordResetConfirmView,
+    PasswordResetDoneView,
+    PasswordResetView,
+)
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.utils.translation import gettext as _
 
 from apps.households.services import crear_hogar
 
-from .forms import PreferenciasForm, RegistroForm
+from . import bloqueo
+from .forms import EntradaForm, OlvideContrasenaForm, PreferenciasForm, RegistroForm
 
 User = get_user_model()
 
@@ -45,6 +54,7 @@ def registro(request):
 
 class Login(LoginView):
     template_name = "accounts/login.html"
+    authentication_form = EntradaForm
     redirect_authenticated_user = True
 
     def get_context_data(self, **kwargs):
@@ -54,6 +64,38 @@ class Login(LoginView):
         return super().get_context_data(**kwargs) | {
             "registro_abierto": settings.REGISTRO_ABIERTO,
         }
+
+
+class OlvideContrasena(PasswordResetView):
+    """Pedir el enlace. Responde lo mismo exista o no la cuenta: el formulario
+    no sirve para averiguar que correos estan registrados."""
+
+    template_name = "accounts/olvide_contrasena.html"
+    form_class = OlvideContrasenaForm
+    email_template_name = "accounts/email/recuperar.txt"
+    html_email_template_name = "accounts/email/recuperar.html"
+    subject_template_name = "accounts/email/recuperar_asunto.txt"
+    success_url = reverse_lazy("accounts:password_reset_done")
+
+
+class EnlaceEnviado(PasswordResetDoneView):
+    template_name = "accounts/enlace_enviado.html"
+
+
+class ContrasenaNueva(PasswordResetConfirmView):
+    """Poner la contrasena nueva desde el enlace. No inicia sesion: vuelve a la
+    entrada con un aviso, y la persona entra con la clave que acaba de poner."""
+
+    template_name = "accounts/contrasena_nueva.html"
+    success_url = reverse_lazy("accounts:login")
+
+    def form_valid(self, form):
+        respuesta = super().form_valid(form)
+        # Quien demuestra que controla el correo recupera la cuenta al momento,
+        # aunque un desconocido la hubiera bloqueado probando contrasenas.
+        bloqueo.desbloquear(form.user)
+        messages.success(self.request, _("Your password has been changed. You can sign in now."))
+        return respuesta
 
 
 class Logout(LogoutView):

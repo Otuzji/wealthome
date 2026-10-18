@@ -46,11 +46,13 @@ class UserAdmin(DjangoUserAdmin):
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
+        # Para desbloquear a mano: vaciar "locked until" y poner el contador a 0.
+        (_("Sign-in lockout"), {"fields": ("failed_logins", "last_failed_login", "locked_until")}),
     )
     add_fieldsets = (
         (None, {"classes": ("wide",), "fields": ("email", "password1", "password2")}),
     )
-    list_display = ("email", "display_name", "is_staff", "is_active")
+    list_display = ("email", "display_name", "is_staff", "is_active", "locked_until")
     list_filter = ("is_staff", "is_superuser", "is_active")
     search_fields = ("email", "display_name")
     ordering = ("email",)

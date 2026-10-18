@@ -1,8 +1,12 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm
 from django.contrib.auth.password_validation import validate_password
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 
+from apps.accounts import bloqueo
 from apps.accounts.models import Profile
 
 User = get_user_model()
@@ -64,3 +68,34 @@ class PreferenciasForm(forms.ModelForm):
             "theme": _("Theme"),
             "language": _("Language"),
         }
+
+
+class EntradaForm(AuthenticationForm):
+    """La entrada de siempre, que dice "bloqueada" cuando el backend lo marco.
+
+    El mensaje no dice cuanto falta a proposito: a quien prueba contrasenas
+    ajenas no hay que decirle cuando volver a intentarlo.
+    """
+
+    error_messages = AuthenticationForm.error_messages | {
+        # En una sola linea: test_catalogo_exhaustivo no recompone literales partidos.
+        "bloqueada": _("This account is temporarily locked after several failed sign-in attempts. Try again later, or reset your password."),  # noqa: E501
+    }
+
+    def get_invalid_login_error(self):
+        if self.request is not None and getattr(self.request, bloqueo.MARCA, False):
+            return forms.ValidationError(self.error_messages["bloqueada"], code="bloqueada")
+        return super().get_invalid_login_error()
+
+
+class OlvideContrasenaForm(PasswordResetForm):
+    """El correo de recuperar sale en el idioma del dueno de la cuenta, no en
+    el de quien lo pide (como el aviso de bloqueo)."""
+
+    def send_mail(self, subject_template_name, email_template_name, context,
+                  from_email, to_email, html_email_template_name=None):
+        perfil = getattr(context["user"], "profile", None)
+        idioma = getattr(perfil, "language", None) or settings.LANGUAGE_CODE
+        with translation.override(idioma):
+            super().send_mail(subject_template_name, email_template_name, context,
+                              from_email, to_email, html_email_template_name)
