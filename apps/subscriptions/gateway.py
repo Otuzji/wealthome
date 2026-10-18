@@ -40,7 +40,12 @@ def leer_evento(cuerpo, firma):
     Lanza ValueError si la firma falta, no cuadra, o el cuerpo no es JSON. El
     webhook traduce eso a un 400 sin escribir nada: un cuerpo que no podemos
     verificar no es de Stripe, venga de donde venga.
+
+    Sin secreto configurado no se acepta nada: Stripe calcula el HMAC tambien
+    con una clave vacia, asi que cualquiera podria firmar un evento valido.
     """
+    if not settings.STRIPE_WEBHOOK_SECRET:
+        raise ValueError("STRIPE_WEBHOOK_SECRET no esta configurado")
     try:
         evento = stripe.Webhook.construct_event(
             payload=cuerpo, sig_header=firma,

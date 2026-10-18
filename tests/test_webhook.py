@@ -164,3 +164,42 @@ def test_un_cuerpo_que_no_es_json_devuelve_400(client, sin_verificar_firma):
 def test_un_get_al_webhook_no_pasa(client, sin_verificar_firma):
     """@require_POST: Stripe siempre manda POST, y un GET no debe llegar al cuerpo."""
     assert client.get(URL).status_code == 405
+
+
+def _firmar(cuerpo, secreto):
+    import hashlib
+    import hmac
+    import time
+
+    t = int(time.time())
+    firma = hmac.new(secreto.encode(), f"{t}.{cuerpo}".encode(), hashlib.sha256).hexdigest()
+    return f"t={t},v1={firma}"
+
+
+@pytest.mark.django_db
+def test_sin_secreto_configurado_el_webhook_no_acepta_nada(client, settings):
+    """Stripe calcula el HMAC tambien con clave vacia: sin secreto, cualquiera
+    podria firmar un evento y acreditarse un pago."""
+    settings.STRIPE_WEBHOOK_SECRET = ""
+    hogar = HouseholdFactory()
+    cuerpo = json.dumps(_evento(hogar.pk))
+
+    respuesta = client.post(URL, cuerpo, content_type="application/json",
+                            HTTP_STRIPE_SIGNATURE=_firmar(cuerpo, ""))
+
+    assert respuesta.status_code == 400
+    hogar.refresh_from_db()
+    assert hogar.subscription.status != Subscription.ACTIVE
+    assert not StripeEvent.objects.exists()
+
+
+@pytest.mark.django_db
+def test_con_secreto_una_firma_real_se_acepta(client, settings):
+    settings.STRIPE_WEBHOOK_SECRET = "whsec_prueba"
+    hogar = HouseholdFactory()
+    cuerpo = json.dumps(_evento(hogar.pk) | {"object": "event"})
+
+    respuesta = client.post(URL, cuerpo, content_type="application/json",
+                            HTTP_STRIPE_SIGNATURE=_firmar(cuerpo, "whsec_prueba"))
+
+    assert respuesta.status_code == 200
