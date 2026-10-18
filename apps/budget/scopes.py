@@ -10,6 +10,7 @@ porque el service worker cachea por URL: con el ambito fuera de la ruta, la
 cache servira la pagina del hogar a quien pidio la personal.
 """
 
+from django.db.models import Q
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 
@@ -47,3 +48,15 @@ def acotar_por_dueno(queryset, ambito, membresia):
     if ambito == PERSONAL:
         return queryset.filter(scope=PERSONAL, owner=membresia)
     return queryset.filter(scope=HOGAR)
+
+
+def visibles(queryset, membresia):
+    """Lo que un miembro puede abrir POR PK, en cualquier ambito: lo del hogar y
+    lo personal suyo. Lo personal de otro miembro es un 404, como un pk de otra
+    familia. Para las vistas que reciben un pk y no un ambito."""
+    return queryset.filter(Q(scope=HOGAR) | Q(member=membresia))
+
+
+def visibles_por_dueno(queryset, membresia):
+    """Igual, para BudgetLine y Goal (`owner` en vez de `member`)."""
+    return queryset.filter(Q(scope=HOGAR) | Q(owner=membresia))

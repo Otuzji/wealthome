@@ -13,14 +13,14 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
-from apps.households.permissions import requiere_permiso
+from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services
 from .engine.cascade import repartir
 from .forms import LineasDelMesForm
 from .models import AllocationRule, MesCerrado
 from .models.catalog import EXPENSE, INCOME
-from .scopes import validar
+from .scopes import acotar_por_dueno, validar
 from .views_month import exigir_en_el_calendario
 
 PASOS = (1, 2, 3)
@@ -57,7 +57,9 @@ def planificar(request, hogar, ambito, paso=1, anio=None, numero=None):
         messages.info(request, _("This month is already closed."))
         return redirect("budget:mes", ambito, anio, numero)
 
-    lineas = mes.lineas.select_related(
+    # En Hogar las del hogar; en Personal solo las propias. Las personales de
+    # otro miembro no se ven ni se editan desde aqui.
+    lineas = acotar_por_dueno(mes.lineas, ambito, membresia_actual(request)).select_related(
         "category", "source_income", "source_expense_rule"
     ).order_by("is_exceptional", "pk")
     contexto = {"paso": paso, "ambito": ambito, "mes": mes, "anio": anio, "numero": numero}

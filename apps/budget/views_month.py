@@ -25,7 +25,7 @@ from . import services, services_posponer
 from .forms import BudgetLineForm, TransactionForm
 from .models import AllowanceLedger, BudgetLine, MesCerrado, Transaction
 from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
-from .scopes import acotar, acotar_por_dueno, validar
+from .scopes import acotar, acotar_por_dueno, validar, visibles, visibles_por_dueno
 
 # El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
 # PositiveSmallIntegerField del modelo y en el que un presupuesto tiene sentido.
@@ -170,11 +170,13 @@ def _ligar_al_plan(tx, form, mes, puntual=None):
     tx.budget_line = linea
 
 
-def _registro(hogar, pk):
+def _registro(request, hogar, pk):
     """`for_household` antes que `get_object_or_404`: el pk de otra familia es
-    un 404 identico al de un pk inventado."""
+    un 404 identico al de un pk inventado. Y `visibles`: el registro personal
+    de otro miembro del mismo hogar, tambien."""
     return get_object_or_404(
-        Transaction.objects.for_household(hogar).select_related("budget_line", "category",
+        visibles(Transaction.objects.for_household(hogar),
+                 membresia_actual(request)).select_related("budget_line", "category",
                                                                 "budget_month", "merchant"),
         pk=pk,
     )
@@ -188,7 +190,7 @@ def registro_editar(request, hogar, pk):
     La partida puntual sigue al registro: si sigue siendo solo suya, se
     actualiza con lo corregido; si el registro pasa a una linea del plan, la
     puntual huerfana se borra. Un mes cerrado lo para la guarda del modelo."""
-    tx = _registro(hogar, pk)
+    tx = _registro(request, hogar, pk)
     mes_fila = tx.budget_month
     membresia = membresia_actual(request)
     puntual = tx.partida_propia
@@ -235,7 +237,7 @@ def registro_borrar(request, hogar, pk):
     """Quitar un registro. Solo por POST: un GET no destruye nada. Se lleva
     su partida puntual si quedo sin pagos; un pago contra el plan deja la
     linea pendiente otra vez. En un mes cerrado no se toca nada."""
-    tx = _registro(hogar, pk)
+    tx = _registro(request, hogar, pk)
     mes_fila = tx.budget_month
     if mes_fila.esta_cerrado:
         messages.error(request, _("This month is already closed."))
@@ -254,7 +256,7 @@ def registro_posponer(request, hogar, pk):
     """Imputar al mes siguiente un gasto que no estaba planificado: lo pagaste
     el 30, pero cuenta para octubre. La fecha se queda; su partida puntual se
     muda con el. Lo planificado no se mueve: se corrige en Plan the month."""
-    tx = _registro(hogar, pk)
+    tx = _registro(request, hogar, pk)
     mes_fila = tx.budget_month
     try:
         services_posponer.posponer_registro(tx)
@@ -531,7 +533,8 @@ def linea_quitar(request, hogar, ambito, pk):
     haria que el mes ya no contara con ese gasto sin dejar rastro."""
     ambito = validar(ambito)
     linea = get_object_or_404(
-        BudgetLine.objects.for_household(hogar).select_related("budget_month"),
+        visibles_por_dueno(BudgetLine.objects.for_household(hogar),
+                           membresia_actual(request)).select_related("budget_month"),
         pk=pk, is_exceptional=True,
     )
     mes = linea.budget_month
