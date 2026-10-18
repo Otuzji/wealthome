@@ -48,6 +48,14 @@
     }
     // El segundo mecanismo de la purga: Clear-Site-Data lo hace el navegador, y
     // esto cubre a los que no la implementan.
+    {% if not user.is_authenticated and not sin_purga %}
+    // Una pagina sin sesion (la entrada, recuperar la contrasena, o adonde
+    // redirige una sesion vencida) vacia lo guardado: sin sesion no queda nada
+    // de nadie en este dispositivo, aunque nadie pulsara "Sign out".
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage("purgar");
+    }
+    {% endif %}
     document.addEventListener("submit", function (evento) {
       var accion = evento.target.getAttribute("action") || "";
       if (accion.indexOf("logout") !== -1 && navigator.serviceWorker.controller) {

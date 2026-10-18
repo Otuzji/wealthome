@@ -18,7 +18,7 @@
 // Sube la version con cada cambio de CSS o JS: los estaticos se sirven cache
 // primero, y sin esto un navegador con el worker instalado seguiria viendo la
 // hoja de estilos anterior hasta vaciar la cache a mano.
-var VERSION = "wealthome-v20";
+var VERSION = "wealthome-v21";
 var ARMAZON = "armazon-" + VERSION;
 var PAGINAS = "paginas-" + VERSION;
 
@@ -40,10 +40,26 @@ var PRECARGA = [
   "/offline/"
 ];
 
-// Nada de esto se cachea nunca: el webhook es de Stripe, y las paginas de
-// sesion tienen que hablar con el servidor siempre.
+// Nada de esto se cachea nunca: el webhook es de Stripe, las paginas de
+// sesion tienen que hablar con el servidor siempre, y /household/ lleva enlaces
+// de invitacion vivos que no pueden quedarse en un telefono.
 var NUNCA = ["/subscription/webhook/", "/logout/", "/login/", "/signup/",
-             "/admin/", "/password-reset/"];
+             "/admin/", "/password-reset/", "/household/"];
+
+// Una pagina guardada hace mas de lo que dura una sesion (SESSION_COOKIE_AGE,
+// 14 dias) no se sirve sin red: su dueno ya no podria verla con red.
+var VIGENCIA_MS = 14 * 24 * 60 * 60 * 1000;
+
+// Solo se guarda lo que de verdad es la pagina: ni un 502 de un despliegue, ni
+// un 403, ni la entrada a la que redirige una sesion vencida.
+function guardable(respuesta) {
+  return respuesta.ok && !respuesta.redirected && respuesta.type === "basic";
+}
+
+function vigente(respuesta) {
+  var fecha = Date.parse(respuesta.headers.get("Date") || "");
+  return !isNaN(fecha) && Date.now() - fecha < VIGENCIA_MS;
+}
 
 self.addEventListener("install", function (evento) {
   evento.waitUntil(
@@ -84,8 +100,12 @@ self.addEventListener("fetch", function (evento) {
       caches.match(peticion).then(function (r) {
         if (r) { return r; }
         return fetch(peticion).then(function (respuesta) {
-          var copia = respuesta.clone();
-          caches.open(ARMAZON).then(function (cache) { cache.put(peticion, copia); });
+          if (guardable(respuesta)) {
+            var copia = respuesta.clone();
+            evento.waitUntil(caches.open(ARMAZON).then(function (cache) {
+              return cache.put(peticion, copia);
+            }));
+          }
           return respuesta;
         }).catch(function () {
           return caches.match(peticion, { ignoreSearch: true });
@@ -98,12 +118,18 @@ self.addEventListener("fetch", function (evento) {
   // Red primero para las paginas: lo cacheado es la reserva, no la verdad.
   evento.respondWith(
     fetch(peticion).then(function (respuesta) {
-      var copia = respuesta.clone();
-      caches.open(PAGINAS).then(function (cache) { cache.put(peticion, copia); });
+      // Dentro de waitUntil: un guardado a medias no puede rehacer la cache
+      // justo despues de que la purga la borro.
+      if (guardable(respuesta)) {
+        var copia = respuesta.clone();
+        evento.waitUntil(caches.open(PAGINAS).then(function (cache) {
+          return cache.put(peticion, copia);
+        }));
+      }
       return respuesta;
     }).catch(function () {
       return caches.match(peticion).then(function (r) {
-        return r || caches.match("/offline/");
+        return (r && vigente(r)) ? r : caches.match("/offline/");
       });
     })
   );

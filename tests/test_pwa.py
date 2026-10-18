@@ -175,16 +175,21 @@ def test_cerrar_sesion_deja_la_cache_vacia(page, live_server, settings):
     page.fill("input[name='password']", "clave-larga-123")
     page.click("button[type='submit']")
 
-    page.goto(live_server.url + "/household/settings/")
+    # Una pantalla con cifras. No /household/settings/: desde la revision del
+    # 2026-10-18 esa no se guarda nunca (lleva enlaces de invitacion).
+    from django.urls import reverse
+    pantalla = reverse("budget:mes", args=["household"])
+    page.goto(live_server.url + pantalla)
     page.wait_for_function("navigator.serviceWorker.controller !== null")
+    page.reload()
     page.wait_for_function("caches.keys().then(k => k.length > 0)")
 
     # Antes de salir, la cache de PAGINAS tiene la pantalla del hogar.
     paginas_antes = page.evaluate(
-        "caches.open('paginas-wealthome-v20')"
+        "caches.open('paginas-wealthome-v21')"
         ".then(c => c.keys()).then(k => k.map(r => new URL(r.url).pathname))"
     )
-    assert any("/household/settings/" in ruta for ruta in paginas_antes), (
+    assert any(pantalla in ruta for ruta in paginas_antes), (
         f"la cache de paginas no llego a guardar la pantalla: {paginas_antes}"
     )
 
@@ -254,7 +259,7 @@ def test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline(
     page.goto(live_server.url + "/budget/household/month/")
     page.wait_for_function("navigator.serviceWorker.controller !== null")
     page.wait_for_function(
-        "caches.open('paginas-wealthome-v20').then(c => c.keys())"
+        "caches.open('paginas-wealthome-v21').then(c => c.keys())"
         ".then(k => k.some(r => r.url.includes('/month/')))"
     )
 
@@ -292,3 +297,64 @@ def test_el_service_worker_se_sirve_sin_error(client):
     respuesta = client.get("/sw.js")
     assert respuesta.status_code == 200
     assert b"ignoreSearch" in respuesta.content
+
+
+# --- lo guardado no sobrevive a la sesion (revision del 2026-10-18) -----------
+
+
+def test_el_service_worker_no_guarda_ajustes_ni_invitaciones():
+    """/household/settings/ lleva enlaces de invitacion vivos: guardado en un
+    telefono, cualquiera que lo abra sin red podria unirse al hogar."""
+    sw = (RAIZ / "templates" / "sw.js").read_text(encoding="utf-8")
+    assert '"/household/"' in sw
+
+
+def test_el_service_worker_no_guarda_errores_ni_redirecciones():
+    sw = (RAIZ / "templates" / "sw.js").read_text(encoding="utf-8")
+    assert "respuesta.ok" in sw and "respuesta.redirected" in sw
+    # Cada cache.put dentro de waitUntil, para que la purga no pierda la carrera.
+    assert sw.count("cache.put") == sw.count("evento.waitUntil(caches.open(")
+
+
+@pytest.mark.django_db
+def test_una_pagina_sin_sesion_vacia_lo_guardado(client, settings):
+    from django.urls import reverse
+
+    settings.DEBUG = False
+    html = client.get(reverse("accounts:login")).content.decode()
+    assert 'postMessage("purgar")' in html.split("document.addEventListener")[0]
+
+
+@pytest.mark.django_db
+def test_una_pagina_con_sesion_no_vacia_lo_guardado(client, settings):
+    from django.urls import reverse
+
+    from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
+
+    settings.DEBUG = False
+    user = UserFactory()
+    MembershipFactory(user=user, household=HouseholdFactory(), role="admin")
+    client.force_login(user)
+    html = client.get(reverse("accounts:inicio")).content.decode()
+    assert 'postMessage("purgar")' not in html.split("document.addEventListener")[0]
+
+
+@pytest.mark.django_db
+def test_la_pagina_de_sin_conexion_no_lleva_datos_de_nadie_ni_purga(client, settings):
+    """Se precarga con la sesion de quien instalo la app."""
+    from django.urls import reverse
+
+    from tests.factories import HouseholdFactory, MembershipFactory, UserFactory
+
+    settings.DEBUG = False
+    user = UserFactory(email="dueno-del-telefono@example.com", display_name="NOMBRE-PRIVADO")
+    hogar = HouseholdFactory(name="HOGAR-PRIVADO")
+    MembershipFactory(user=user, household=hogar, role="admin")
+    client.force_login(user)
+
+    html = client.get(reverse("sin_conexion")).content.decode()
+
+    assert "NOMBRE-PRIVADO" not in html
+    assert "dueno-del-telefono" not in html
+    assert "HOGAR-PRIVADO" not in html
+    assert 'postMessage("purgar")' not in html.split("document.addEventListener")[0]

@@ -5,6 +5,18 @@ from django.views.generic import TemplateView
 
 from apps.households.permissions import SuscripcionVencida
 
+
+def sin_conexion(request):
+    """La pagina que el service worker ensena sin red. Se genera SIEMPRE como
+    anonima: se precarga con la sesion de quien instalo la app, y si llevara su
+    nombre y su hogar los ensenaria a quien tenga el telefono despues. Y sin
+    purga: ensenarla sin red no puede borrar lo que si estaba guardado."""
+    from django.contrib.auth.models import AnonymousUser
+
+    request.user = AnonymousUser()
+    return render(request, "sin-conexion.html", {"sin_purga": True})
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("household/", include("apps.households.urls")),
@@ -12,8 +24,7 @@ urlpatterns = [
     path("subscription/", include("apps.subscriptions.urls")),
     # Sin decorador de sesion a proposito: el service worker tiene que poder
     # precargarla, y es una pagina sin datos.
-    path("offline/", TemplateView.as_view(template_name="sin-conexion.html"),
-         name="sin_conexion"),
+    path("offline/", sin_conexion, name="sin_conexion"),
     # Desde la raiz y no desde /static/: el alcance de un service worker es su
     # propio directorio, asi que uno servido en /static/js/ no puede controlar
     # el sitio entero. Ver el comentario de templates/sw.js.
