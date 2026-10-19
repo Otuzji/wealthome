@@ -31,7 +31,7 @@ from apps.budget.models import (
     MonthlyClose,
     Transaction,
 )
-from apps.budget.models.catalog import EXPENSE, INCOME
+from apps.budget.models.catalog import EXPENSE, HOUSEHOLD, INCOME
 
 
 @dataclass(frozen=True)
@@ -197,9 +197,12 @@ def cerrar_mes(mes):
 
     reales = _reales_por_categoria(mes)
 
+    # El cierre es del HOGAR: lo personal sale de la mesada de cada miembro, y
+    # contarlo aqui tambien haria salir el mismo dinero dos veces. La mesada
+    # sigue bajando con lo personal (ver aplicar_cascada_al_cierre).
     renglones = []
     vistos = set()
-    for linea in mes.lineas.all():
+    for linea in mes.lineas.filter(scope=HOUSEHOLD):
         clave = (linea.category_id, linea.kind)
         vistos.add(clave)
         renglones.append(
@@ -252,7 +255,7 @@ def cerrar_mes(mes):
 def _reales_por_categoria(mes):
     reales = {}
     for tx in Transaction.objects.for_household(mes.household).filter(
-        budget_month=mes
+        budget_month=mes, scope=HOUSEHOLD,
     ).select_related("category"):
         clave = (tx.category_id, tx.category.kind)
         reales[clave] = reales.get(clave, Decimal("0.00")) + tx.amount
@@ -447,8 +450,10 @@ def totales_del_mes(mes):
     lee las reglas: una partida excepcional anadida en el paso 2 no entraba en
     el sobrante, y un importe corregido para ese mes tampoco.
     """
+    # Solo las del hogar: lo personal no entra en el sobrante que reparte la
+    # cascada, igual que no entra en el cierre.
     por_kind = dict(
-        mes.lineas.values_list("kind").annotate(total=Sum("planned_amount"))
+        mes.lineas.filter(scope=HOUSEHOLD).values_list("kind").annotate(total=Sum("planned_amount"))
     )
     ingresos = centavos(por_kind.get(INCOME) or 0)
     egresos = centavos(por_kind.get(EXPENSE) or 0)

@@ -2476,3 +2476,15 @@ msgstr "Prévenez l'administrateur de votre foyer."
 #: templates/accounts/email/bloqueo.html
 msgid "Reset my password"
 msgstr "Réinitialiser mon mot de passe"
+
+#: templates/budget/summary.html
+msgid "Left"
+msgstr "Reste"
+
+#: apps/budget/services_balance.py
+msgid "The balance of your personal goals."
+msgstr "Le solde de vos objectifs personnels."
+
+#: apps/budget/services_balance.py
+msgid "What is left of your allowance this month."
+msgstr "Ce qu'il vous reste de votre argent de poche ce mois-ci."

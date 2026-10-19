@@ -23,7 +23,7 @@ def balance(request, hogar, ambito):
     ambito = validar(ambito)
     return render(request, "budget/balance.html", {
         "ambito": ambito,
-        "patrimonio": services_balance.patrimonio(hogar, membresia_actual(request)),
+        "patrimonio": services_balance.patrimonio(hogar, membresia_actual(request), ambito),
     })
 
 

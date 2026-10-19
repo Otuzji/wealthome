@@ -9,7 +9,7 @@
       <div class="fila-regla">
         <span><h3>{{ grupo.etiqueta }}</h3></span>
         <span class="balance__total">{{ grupo.total|money:hogar.currency }}</span>
-        {% if nav_membresia.can_edit_budget %}
+        {% if nav_membresia.can_edit_budget and ambito == "household" %}
           <a class="btn btn--sutil" href="{% url 'budget:balance_item_nuevo' %}?group={{ grupo.clave }}">{% translate "Add" %}</a>
         {% endif %}
       </div>

@@ -87,7 +87,9 @@
     var lienzoM = document.getElementById("grafica-meses");
     if (meses && lienzoM && meses.etiquetas.length) {
       var lineas = [["ingresos", "--chart-1"], ["gastos", "--chart-3"],
-                    ["ahorro", "--chart-2"], ["mesada", "--chart-4"]];
+                    ["ahorro", "--chart-2"], ["mesada", "--chart-4"]]
+        // En Personal solo vienen ingresos (la mesada) y gastos.
+        .filter(function (par) { return meses[par[0]]; });
       pintar(lienzoM, {
         type: "line",
         data: {

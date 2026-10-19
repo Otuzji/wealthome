@@ -3,7 +3,7 @@
 {% block content %}
 <header class="pagina__cabecera">
   <h1>{% translate "Balance" %}</h1>
-  {% if nav_membresia.can_edit_budget %}
+  {% if nav_membresia.can_edit_budget and ambito == "household" %}
     <a class="btn btn--primary" href="{% url 'budget:balance_item_nuevo' %}">{% translate "Add an item" %}</a>
   {% endif %}
 </header>
@@ -27,5 +27,7 @@
 </div>
 
 {% include "budget/_fragmentos/balance_lado.html" with lado="assets" grupos=patrimonio.activos %}
+{% if ambito == "household" %}
 {% include "budget/_fragmentos/balance_lado.html" with lado="liabilities" grupos=patrimonio.pasivos %}
+{% endif %}
 {% endblock %}

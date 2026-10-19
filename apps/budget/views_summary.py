@@ -11,7 +11,7 @@ from django.shortcuts import redirect, render
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services_goals, services_summary
-from .scopes import validar
+from .scopes import PERSONAL, validar
 
 
 @requiere_permiso("can_view_budget")
@@ -30,7 +30,13 @@ def summary(request, hogar, ambito):
     no se migra); services_summary reconstruye los Decimal al leer.
     """
     ambito = validar(ambito)
-    resumen = services_summary.resumen_de_cierres(hogar)
+    membresia = membresia_actual(request)
+    # Hogar y Personal no se mezclan: el del hogar sale de los cierres, que
+    # solo cuentan lo comun; el personal, de lo de quien mira.
+    if ambito == PERSONAL:
+        resumen = services_summary.resumen_personal(hogar, membresia)
+    else:
+        resumen = services_summary.resumen_de_cierres(hogar)
     return render(request, "budget/summary.html", {
         "ambito": ambito,
         "cierres": resumen["filas"],
@@ -39,5 +45,5 @@ def summary(request, hogar, ambito):
         "series_categorias": resumen["series"]["categorias"],
         # El ahorro no sale de los cierres: un aporte a mano es dinero de
         # fuera del presupuesto, y aqui es donde se ve.
-        "ahorro": services_goals.resumen_ahorro(hogar, ambito, membresia_actual(request)),
+        "ahorro": services_goals.resumen_ahorro(hogar, ambito, membresia),
     })

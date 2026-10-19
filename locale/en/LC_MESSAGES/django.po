@@ -2104,3 +2104,15 @@ msgstr "Tell the administrator of your household."
 #: templates/accounts/email/bloqueo.html
 msgid "Reset my password"
 msgstr "Reset my password"
+
+#: templates/budget/summary.html
+msgid "Left"
+msgstr "Left"
+
+#: apps/budget/services_balance.py
+msgid "The balance of your personal goals."
+msgstr "The balance of your personal goals."
+
+#: apps/budget/services_balance.py
+msgid "What is left of your allowance this month."
+msgstr "What is left of your allowance this month."

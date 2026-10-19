@@ -15,28 +15,61 @@ from django.utils.translation import gettext_lazy as _
 from apps.budget.engine.money import centavos
 
 from . import services_goals
-from .models import BalanceItem, BudgetMonth, Transaction
+from .models import AllowanceLedger, BalanceItem, BudgetMonth, Transaction
 from .models.balance import ASSET, GRUPOS, LIABILITY, LIQUID
-from .models.catalog import EXPENSE, INCOME
-from .scopes import HOGAR
+from .models.catalog import EXPENSE, HOUSEHOLD, INCOME
+from .scopes import HOGAR, PERSONAL
 
 CERO = Decimal("0.00")
 
 
-def efectivo_del_mes_abierto(hogar):
-    """Lo que el mes abierto lleva en mano: ingresos reales menos gastos
-    reales, como la tarjeta Cash Float. Sin mes abierto, cero."""
-    mes = (
+def _mes_abierto(hogar):
+    return (
         BudgetMonth.objects.for_household(hogar)
         .filter(status=BudgetMonth.OPEN).order_by("-year", "-month").first()
     )
+
+
+def efectivo_del_mes_abierto(hogar):
+    """Lo que el mes abierto lleva en mano: ingresos reales menos gastos
+    reales del HOGAR, como la tarjeta Cash Float. Lo personal sale de la
+    mesada, no de aqui. Sin mes abierto, cero."""
+    mes = _mes_abierto(hogar)
     if mes is None:
         return CERO
     por_tipo = dict(
-        Transaction.objects.for_household(hogar).filter(budget_month=mes)
+        Transaction.objects.for_household(hogar).filter(budget_month=mes, scope=HOUSEHOLD)
         .values_list("category__kind").annotate(total=Sum("amount"))
     )
     return centavos((por_tipo.get(INCOME) or CERO) - (por_tipo.get(EXPENSE) or CERO))
+
+
+def efectivo_personal(hogar, membresia):
+    """Lo que le queda de mesada al miembro en el mes abierto: lo recibido
+    (arrastre, asignado y ajuste) menos lo gastado en lo personal hasta hoy.
+    Se lee el libro sin crearlo: mirar el balance no escribe nada."""
+    from . import services
+
+    mes = _mes_abierto(hogar)
+    if mes is None:
+        return CERO
+    libro = AllowanceLedger.objects.for_household(hogar).filter(
+        member=membresia, budget_month=mes
+    ).first()
+    recibido = (libro.carried_in + libro.granted + libro.adjustment) if libro else CERO
+    return centavos(recibido - services.gasto_personal_del_mes(membresia, mes))
+
+
+def filas_personales(hogar, membresia):
+    """Balance en Personal: solo lo del miembro. Las partidas tecleadas (casa,
+    coche, prestamos) son del hogar y no tienen dueno: alli se quedan."""
+    ahorro = services_goals.resumen_ahorro(hogar, PERSONAL, membresia)["saldo_total"]
+    return [
+        {"nombre": _("Savings"), "importe": ahorro, "automatico": True,
+         "nota": _("The balance of your personal goals.")},
+        {"nombre": _("Cash"), "importe": efectivo_personal(hogar, membresia), "automatico": True,
+         "nota": _("What is left of your allowance this month.")},
+    ]
 
 
 def filas_automaticas(hogar, membresia):
@@ -51,8 +84,18 @@ def filas_automaticas(hogar, membresia):
     ]
 
 
-def patrimonio(hogar, membresia):
-    """Los grupos con sus lineas y su total, y las tres cifras de cabecera."""
+def patrimonio(hogar, membresia, ambito=HOGAR):
+    """Los grupos con sus lineas y su total, y las tres cifras de cabecera.
+
+    En Personal, un solo grupo (efectivo) con las filas del miembro."""
+    if ambito == PERSONAL:
+        filas = filas_personales(hogar, membresia)
+        total = centavos(sum((f["importe"] for f in filas), CERO))
+        etiqueta = next(e for clave, _t, e in GRUPOS if clave == LIQUID)
+        grupo = {"clave": LIQUID, "tipo": ASSET, "etiqueta": etiqueta,
+                 "filas": filas, "total": total}
+        return {"grupos": [grupo], "activos": [grupo], "pasivos": [],
+                "total_activos": total, "total_pasivos": CERO, "neto": total}
     items = list(BalanceItem.objects.for_household(hogar))
     grupos = []
     activos = pasivos = CERO

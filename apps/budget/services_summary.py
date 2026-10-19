@@ -13,8 +13,17 @@ from decimal import Decimal
 
 from django.db.models import Sum
 
-from .models import BudgetLine, Category, MonthlyAllocation, MonthlyClose, Transaction
-from .models.catalog import EXPENSE, INCOME
+from apps.budget.engine.money import centavos
+
+from .models import (
+    AllowanceLedger,
+    BudgetLine,
+    Category,
+    MonthlyAllocation,
+    MonthlyClose,
+    Transaction,
+)
+from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
 
 # Las graficas mes a mes muestran el ultimo ano; la tabla, todo.
 MESES_EN_LAS_GRAFICAS = 12
@@ -41,17 +50,27 @@ def _repartos(hogar, ids):
     return ahorro, mesada
 
 
-def _por_categoria(hogar, ids):
-    """(mes, categoria) → planeado y real, en dos consultas agregadas."""
+def _por_categoria(hogar, ids, membresia=None):
+    """(mes, categoria) → planeado y real, en dos consultas agregadas.
+
+    Sin `membresia`, lo del hogar; con ella, lo personal de ese miembro. Nunca
+    los dos juntos: lo personal sale de la mesada, no del presupuesto comun.
+    """
     planeado, real = {}, {}
+    if membresia is None:
+        de_las_lineas = {"scope": HOUSEHOLD}
+        de_los_registros = {"scope": HOUSEHOLD}
+    else:
+        de_las_lineas = {"scope": PERSONAL, "owner": membresia}
+        de_los_registros = {"scope": PERSONAL, "member": membresia}
     lineas = (
-        BudgetLine.objects.for_household(hogar).filter(budget_month_id__in=ids)
+        BudgetLine.objects.for_household(hogar).filter(budget_month_id__in=ids, **de_las_lineas)
         .values("budget_month_id", "category_id").annotate(total=Sum("planned_amount"))
     )
     for fila in lineas:
         planeado[(fila["budget_month_id"], fila["category_id"])] = fila["total"]
     registros = (
-        Transaction.objects.for_household(hogar).filter(budget_month_id__in=ids)
+        Transaction.objects.for_household(hogar).filter(budget_month_id__in=ids, **de_los_registros)
         .values("budget_month_id", "category_id").annotate(total=Sum("amount"))
     )
     for fila in registros:
@@ -113,6 +132,75 @@ def resumen_de_cierres(hogar):
             "gastos": [str(f["gastos"]) for f in recientes],
             "ahorro": [str(f["ahorro"]) for f in recientes],
             "mesada": [str(f["mesada"]) for f in recientes],
+        },
+        "por_mes": _series_por_mes(recientes, categorias, planeado, real),
+        "categorias": _series_por_categoria(recientes, categorias, planeado, real),
+    }
+    filas.reverse()
+    return {"filas": filas, "series": series}
+
+
+def resumen_personal(hogar, membresia):
+    """El Summary en Personal: por cada mes cerrado del hogar, lo que el miembro
+    recibio de mesada, lo que gasto en lo personal y lo que le quedo; y sus
+    categorias personales, previsto contra real.
+
+    Se calcula al mirar: el cierre oficial (`MonthlyClose`) es del hogar, y uno
+    personal no existe. Lo gastado sale de los registros y no de
+    `AllowanceLedger.spent`, que solo se escribe si el mes se planifico.
+    """
+    cierres = list(
+        MonthlyClose.objects.for_household(hogar)
+        .select_related("budget_month")
+        .order_by("budget_month__year", "budget_month__month")
+    )
+    ids = [c.budget_month_id for c in cierres]
+    libros = {
+        l.budget_month_id: l
+        for l in AllowanceLedger.objects.for_household(hogar).filter(
+            member=membresia, budget_month_id__in=ids
+        )
+    }
+    planeado, real = _por_categoria(hogar, ids, membresia)
+    categorias = {
+        c.pk: c for c in Category.objects.for_household(hogar).filter(
+            pk__in={cat for _, cat in list(planeado) + list(real)}
+        )
+    }
+
+    filas = []
+    for cierre in cierres:
+        mes = cierre.budget_month
+        libro = libros.get(mes.pk)
+        recibido = (
+            centavos(libro.carried_in + libro.granted + libro.adjustment) if libro else CERO
+        )
+        gastado = centavos(sum(
+            (importe for (mes_id, cat), importe in real.items()
+             if mes_id == mes.pk and categorias[cat].kind == EXPENSE),
+            CERO,
+        ))
+        varianza = [
+            {"categoria": c, "importe": centavos(
+                (planeado.get((mes.pk, c.pk)) or CERO) - (real.get((mes.pk, c.pk)) or CERO))}
+            for c in categorias.values()
+            if c.kind == EXPENSE and ((mes.pk, c.pk) in planeado or (mes.pk, c.pk) in real)
+        ]
+        varianza = [v for v in varianza if v["importe"]]
+        varianza.sort(key=lambda v: v["importe"])
+        filas.append({
+            "mes": mes, "etiqueta": _etiqueta(mes),
+            "ingresos": recibido, "gastos": gastado,
+            "balance": centavos(recibido - gastado),
+            "varianza": varianza,
+        })
+
+    recientes = filas[-MESES_EN_LAS_GRAFICAS:]
+    series = {
+        "meses": {
+            "etiquetas": [f["etiqueta"] for f in recientes],
+            "ingresos": [str(f["ingresos"]) for f in recientes],
+            "gastos": [str(f["gastos"]) for f in recientes],
         },
         "por_mes": _series_por_mes(recientes, categorias, planeado, real),
         "categorias": _series_por_categoria(recientes, categorias, planeado, real),

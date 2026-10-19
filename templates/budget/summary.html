@@ -28,6 +28,23 @@
   <div role="tabpanel" aria-labelledby="pestana-meses" x-show="tab === 'meses'">
     <div class="tabla__envoltura">
       <table class="tabla">
+        {% if ambito == "personal" %}
+        {# En Personal: lo que recibiste de mesada, lo que gastaste y lo que te quedo. #}
+        <tr>
+          <th>{% translate "Month" %}</th>
+          <th class="numero">{% translate "Allowance" %}</th>
+          <th class="numero">{% translate "Spent" %}</th>
+          <th class="numero">{% translate "Left" %}</th>
+        </tr>
+        {% for fila in cierres %}
+          <tr>
+            <td>{{ fila.etiqueta }}</td>
+            <td class="numero cifra__valor--ingreso">{{ fila.ingresos|money:hogar.currency }}</td>
+            <td class="numero movimiento--salida">{{ fila.gastos|money:hogar.currency }}</td>
+            <td class="numero{% if fila.balance < 0 %} cifra__valor--mal{% endif %}">{{ fila.balance|money:hogar.currency }}</td>
+          </tr>
+        {% endfor %}
+        {% else %}
         <tr>
           <th>{% translate "Month" %}</th>
           <th class="numero">{% translate "Income" %}</th>
@@ -46,6 +63,7 @@
             <td class="numero{% if fila.balance < 0 %} cifra__valor--mal{% endif %}">{{ fila.balance|money:hogar.currency }}</td>
           </tr>
         {% endfor %}
+        {% endif %}
       </table>
     </div>
   </div>
@@ -76,7 +94,7 @@
   <div role="tabpanel" aria-labelledby="pestana-tendencia" x-show="tab === 'tendencia'" x-cloak>
     <div class="grafica">
     <canvas id="grafica-meses"
-            data-etiqueta-ingresos="{% translate 'Income' %}"
+            data-etiqueta-ingresos="{% if ambito == 'personal' %}{% translate 'Allowance' %}{% else %}{% translate 'Income' %}{% endif %}"
             data-etiqueta-gastos="{% translate 'Spent' %}"
             data-etiqueta-ahorro="{% translate 'Saved' %}"
             data-etiqueta-mesada="{% translate 'Allowance' %}"></canvas>
