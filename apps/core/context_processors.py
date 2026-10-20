@@ -145,6 +145,9 @@ def _drawer(membresia):
     """Lo que abre el avatar: tú, tu hogar, y salir. En ese orden."""
     entradas = [{"nombre": "preferencias", "url": reverse("accounts:preferencias"),
                  "etiqueta": _("My preferences"), "grupo": "yo"}]
+    if _permiso(membresia, "can_view_reports"):
+        entradas.append({"nombre": "reportes", "url": reverse("budget:reportes"),
+                         "etiqueta": _("Reports"), "grupo": "hogar"})
     if _permiso(membresia, "can_edit_budget"):
         entradas.append({"nombre": "configurar", "url": reverse("budget:configurar"),
                          "etiqueta": _("Budget setup"), "grupo": "hogar"})

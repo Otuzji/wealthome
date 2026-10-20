@@ -1,0 +1,97 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Reports" %} · Wealthome{% endblock %}
+{% block content %}
+<header class="pagina__cabecera">
+  <h1>{% translate "Reports" %}</h1>
+  <div class="pagina__acciones">
+    <a class="btn" href="?{{ consulta_csv }}">{% translate "Download CSV" %}</a>
+  </div>
+</header>
+
+{% comment %} Los filtros van por GET: el reporte es una vista de los registros,
+   y el enlace con sus filtros se puede guardar o compartir. {% endcomment %}
+<section class="card card--ancho">
+  <h2>{% translate "Filters" %}</h2>
+  <form method="get" class="formulario reporte__filtros">
+    {{ form.as_div }}
+    <div class="reporte__aplicar">
+      <button type="submit" class="btn btn--primary">{% translate "Apply" %}</button>
+      <a class="btn btn--sutil" href="{% url 'budget:reportes' %}">{% translate "Clear" %}</a>
+    </div>
+  </form>
+</section>
+
+<div class="cifras">
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Income" %}</div>
+    <div class="cifra__valor cifra__valor--ingreso">{{ reporte.total_ingresos|money:hogar.currency }}</div>
+  </div>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Expenses" %}</div>
+    <div class="cifra__valor cifra__valor--egreso">{{ reporte.total_gastos|money:hogar.currency }}</div>
+  </div>
+  <div class="cifra">
+    <div class="cifra__etiqueta">{% translate "Net" %}</div>
+    <div class="cifra__valor{% if reporte.neto < 0 %} cifra__valor--mal{% endif %}">{{ reporte.neto|money:hogar.currency }}</div>
+  </div>
+</div>
+
+{% if reporte.filas %}
+<section class="card">
+  <h2>{% if reporte.desglose_kind == "income" %}{% translate "Income by category" %}{% else %}{% translate "Expenses by category" %}{% endif %}</h2>
+  {% for fila in reporte.por_categoria %}
+    <div class="reporte__desglose">
+      <div class="fila-regla">
+        <span>{{ fila.categoria.etiqueta }}</span>
+        <span class="numero">{{ fila.total|money:hogar.currency }} · {{ fila.porcentaje }}%</span>
+      </div>
+      <div class="progreso"><div class="progreso__relleno" style="width: {{ fila.porcentaje }}%"></div></div>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>{% if reporte.desglose_kind == "income" %}{% translate "Income by member" %}{% else %}{% translate "Expenses by member" %}{% endif %}</h2>
+  {% for fila in reporte.por_miembro %}
+    <div class="reporte__desglose">
+      <div class="fila-regla">
+        <span>{{ fila.miembro.user }}</span>
+        <span class="numero">{{ fila.total|money:hogar.currency }} · {{ fila.porcentaje }}%</span>
+      </div>
+      <div class="progreso"><div class="progreso__relleno" style="width: {{ fila.porcentaje }}%"></div></div>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card card--ancho">
+  <h2>{% translate "Records" %} ({{ reporte.filas|length }})
+    <small class="tabla__categoria">{{ reporte.desde|date:"SHORT_DATE_FORMAT" }} – {{ reporte.hasta|date:"SHORT_DATE_FORMAT" }}</small></h2>
+  <div class="tabla__envoltura">
+    <table class="tabla tabla--reporte">
+      {% if reporte.filas %}
+      <tr>
+        <th>{% translate "Date" %}</th>
+        <th>{% translate "Category" %}</th>
+        <th class="reporte__col-secundaria">{% translate "Merchant" %}</th>
+        <th class="reporte__col-secundaria">{% translate "Member" %}</th>
+        <th class="numero">{% translate "Amount" %}</th>
+      </tr>
+      {% endif %}
+      {% for tx in reporte.filas %}
+        <tr>
+          <td class="tabla__categoria">{{ tx.date|date:"M j" }}</td>
+          <td>{{ tx.category.etiqueta }}{% if tx.scope == "personal" %} <span class="pildora">{% translate "Personal" %}</span>{% endif %}
+            {% if tx.note %}<small class="tabla__categoria">{{ tx.note }}</small>{% endif %}</td>
+          <td class="reporte__col-secundaria">{% if tx.merchant %}{{ tx.merchant.name }}{% else %}—{% endif %}</td>
+          <td class="reporte__col-secundaria">{{ tx.member.user }}</td>
+          <td class="numero {% if tx.category.kind == 'income' %}importe--ingreso{% else %}importe--egreso{% endif %}">
+            {{ tx.amount|money:hogar.currency }}</td>
+        </tr>
+      {% empty %}
+        <tr><td class="tabla__vacio">{% translate "Nothing matches these filters." %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+{% endblock %}

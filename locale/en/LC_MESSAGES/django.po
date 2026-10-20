@@ -2116,3 +2116,91 @@ msgstr "The balance of your personal goals."
 #: apps/budget/services_balance.py
 msgid "What is left of your allowance this month."
 msgstr "What is left of your allowance this month."
+
+#: apps/budget/views_reportes.py
+msgid "Income and expenses"
+msgstr "Income and expenses"
+
+#: apps/budget/views_reportes.py
+msgid "Expenses"
+msgstr "Expenses"
+
+#: apps/budget/views_reportes.py
+msgid "Household and mine"
+msgstr "Household and mine"
+
+#: apps/budget/views_reportes.py
+msgid "Mine (personal)"
+msgstr "Mine (personal)"
+
+#: apps/budget/views_reportes.py
+msgid "From"
+msgstr "From"
+
+#: apps/budget/views_reportes.py
+msgid "Type"
+msgstr "Type"
+
+#: apps/budget/views_reportes.py
+msgid "All categories"
+msgstr "All categories"
+
+#: apps/budget/views_reportes.py
+msgid "All members"
+msgstr "All members"
+
+#: apps/budget/views_reportes.py
+msgid "Merchant"
+msgstr "Merchant"
+
+#: apps/budget/views_reportes.py
+msgid "Reports"
+msgstr "Reports"
+
+#: apps/budget/views_reportes.py
+msgid "Note"
+msgstr "Note"
+
+#: apps/budget/views_reportes.py
+msgid "Download CSV"
+msgstr "Download CSV"
+
+#: apps/budget/views_reportes.py
+msgid "Filters"
+msgstr "Filters"
+
+#: apps/budget/views_reportes.py
+msgid "Apply"
+msgstr "Apply"
+
+#: apps/budget/views_reportes.py
+msgid "Clear"
+msgstr "Clear"
+
+#: apps/budget/views_reportes.py
+msgid "Net"
+msgstr "Net"
+
+#: apps/budget/views_reportes.py
+msgid "Income by category"
+msgstr "Income by category"
+
+#: apps/budget/views_reportes.py
+msgid "Expenses by category"
+msgstr "Expenses by category"
+
+#: apps/budget/views_reportes.py
+msgid "Income by member"
+msgstr "Income by member"
+
+#: apps/budget/views_reportes.py
+msgid "Expenses by member"
+msgstr "Expenses by member"
+
+#: apps/budget/views_reportes.py
+msgid "Nothing matches these filters."
+msgstr "Nothing matches these filters."
+
+#: apps/budget/views_reportes.py
+msgid "Records"
+msgstr "Records"

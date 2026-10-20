@@ -573,3 +573,19 @@
 .dona figcaption { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
 .dona figcaption span { color: var(--text-muted); font-size: 0.85em; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .dona__valor { transition: none; } }
+
+/* ---------- reportes ----------
+   Los filtros en rejilla: tantos por fila como quepan, uno en movil. El
+   boton de aplicar ocupa la fila entera al final. */
+.reporte__filtros { display: grid; gap: 0 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.reporte__filtros > div { margin-bottom: 12px; }
+.reporte__aplicar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; }
+.reporte__desglose { margin-bottom: 12px; }
+.reporte__desglose .fila-regla { margin-bottom: 4px; }
+/* En movil la tabla de registros se queda en fecha, categoria e importe:
+   comercio y miembro estan en el CSV y en los desgloses. */
+@media (max-width: 899px) {
+  .tabla--reporte .reporte__col-secundaria { display: none; }
+  .tabla--reporte th, .tabla--reporte td { padding-left: 6px; padding-right: 6px; }
+  .tabla--reporte .tabla__categoria { white-space: nowrap; }
+}

@@ -49,7 +49,7 @@ ESPERADO_PANTALLAS = {
 
 # Lo que abre el avatar, por perfil.
 ESPERADO_DRAWER = {
-    ADMIN: ["preferencias", "configurar", "miembros", "invitar", "suscripcion"],
+    ADMIN: ["preferencias", "reportes", "configurar", "miembros", "invitar", "suscripcion"],
     SOLO_VER: ["preferencias", "miembros", "suscripcion"],
     ADOLESCENTE: ["preferencias", "miembros", "suscripcion"],
 }

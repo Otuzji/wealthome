@@ -528,3 +528,59 @@ class BalanceItemForm(HouseholdScopedModelForm):
             (_("Assets"), [(c, e) for c, t, e in GRUPOS if t == ASSET]),
             (_("Liabilities"), [(c, e) for c, t, e in GRUPOS if t == LIABILITY]),
         ]
+
+
+class _CategoriaChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return obj.etiqueta()
+
+
+class _MiembroChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return str(obj.user)
+
+
+class ReporteForm(forms.Form):
+    """Los filtros del reporte. Van en la query string (GET): un reporte es una
+    vista de los registros, no una escritura, y asi se puede guardar o
+    compartir el enlace.
+
+    Nunca invalida la pagina: un filtro que no se entiende (una fecha mal
+    escrita, una categoria de otro hogar) se ignora y vale su valor por
+    defecto. Ver `filtros()`.
+    """
+
+    TIPOS = [("", _("Income and expenses")), (EXPENSE, _("Expenses")), (INCOME, _("Income"))]
+    AMBITOS = [("all", _("Household and mine")), (HOUSEHOLD, _("Household")),
+               (PERSONAL, _("Mine (personal)"))]
+
+    desde = forms.DateField(label=_("From"), required=False,
+                            widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+    hasta = forms.DateField(label=_("To"), required=False,
+                            widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+    tipo = forms.ChoiceField(label=_("Type"), choices=TIPOS, required=False)
+    ambito = forms.ChoiceField(label=_("Scope"), choices=AMBITOS,
+                               required=False)
+    categoria = _CategoriaChoiceField(label=_("Category"), queryset=None, required=False,
+                                      empty_label=_("All categories"))
+    miembro = _MiembroChoiceField(label=_("Member"), queryset=None, required=False,
+                                  empty_label=_("All members"))
+    comercio = forms.CharField(label=_("Merchant"), required=False, max_length=120)
+
+    def __init__(self, *args, household, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["categoria"].queryset = Category.objects.for_household(household)
+        self.fields["miembro"].queryset = household.active_memberships().select_related("user")
+
+    def filtros(self):
+        """Lo valido de lo pedido, con los valores por defecto para el resto:
+        el mes en curso, todo tipo, lo del hogar y lo mio."""
+        self.is_valid()
+        datos = dict(getattr(self, "cleaned_data", {}))
+        hoy = timezone.localdate()
+        desde = datos.get("desde") or hoy.replace(day=1)
+        hasta = datos.get("hasta") or hoy
+        if desde > hasta:
+            desde, hasta = hasta, desde
+        datos.update(desde=desde, hasta=hasta)
+        return datos

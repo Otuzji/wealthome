@@ -1,6 +1,14 @@
 from django.urls import path
 
-from . import views_balance, views_goals, views_month, views_setup, views_summary, wizards
+from . import (
+    views_balance,
+    views_goals,
+    views_month,
+    views_reportes,
+    views_setup,
+    views_summary,
+    wizards,
+)
 from .models.catalog import INCOME
 
 app_name = "budget"
@@ -48,6 +56,9 @@ urlpatterns = [
     # patron generico. Y sin ambito: la mesada es de un miembro por
     # definicion, y una "mesada del hogar" no significa nada.
     path("personal/allowance/", views_month.mesada, name="mesada"),
+    # Sin ambito en la ruta: el ambito es uno de sus filtros (hogar, mio o
+    # los dos), y va en la query string con el resto.
+    path("reports/", views_reportes.reportes, name="reportes"),
     # Las lineas del balance del hogar. Sin ambito: el balance es del hogar.
     path("balance/items/new/", views_balance.item_nuevo, name="balance_item_nuevo"),
     path("balance/items/<int:pk>/", views_balance.item_editar, name="balance_item_editar"),
