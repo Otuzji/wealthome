@@ -35,6 +35,9 @@ def test_registrarse_deja_la_sesion_iniciada(client):
     client.post(reverse("accounts:registro"), DATOS)
     respuesta = client.get(reverse("accounts:inicio"), follow=True)
     assert respuesta.status_code == 200
+    # Con la sesion perdida la cadena acabaria en /login/ y tambien daria 200:
+    # lo que prueba la sesion es DONDE termina.
+    assert respuesta.request["PATH_INFO"] == reverse("budget:overview", args=["household"])
 
 
 @pytest.mark.django_db

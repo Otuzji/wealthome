@@ -74,7 +74,10 @@ def test_registrarse_desde_la_invitacion_crea_la_cuenta_como_miembro(client, inv
 
 def test_registrarse_desde_la_invitacion_deja_la_sesion_iniciada(client, invitacion):
     client.post(_url(invitacion), DATOS)
-    assert client.get(reverse("accounts:inicio"), follow=True).status_code == 200
+    respuesta = client.get(reverse("accounts:inicio"), follow=True)
+    assert respuesta.status_code == 200
+    # Sin sesion la cadena acabaria en /login/ y tambien daria 200.
+    assert respuesta.request["PATH_INFO"] == reverse("budget:overview", args=["household"])
 
 
 def test_el_perfil_nace_en_el_idioma_de_la_invitacion(client, invitacion):

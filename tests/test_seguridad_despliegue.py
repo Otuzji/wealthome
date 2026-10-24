@@ -239,6 +239,10 @@ def test_la_aplicacion_responde_en_modo_produccion():
                    "subscriptions:estado", "accounts:preferencias"):
         r = c.get(reverse(nombre), HTTP_X_FORWARDED_PROTO="https", follow=True)
         assert r.status_code == 200, f"{nombre} -> {r.status_code}"
+        # inicio redirige al Overview; las demas pantallas no redirigen. Un 200
+        # en /login/ (sesion perdida) no debe contar como exito.
+        destino = reverse("budget:overview", args=["household"]) if nombre == "accounts:inicio" else reverse(nombre)
+        assert r.request["PATH_INFO"] == destino, f"{nombre} acabo en {r.request['PATH_INFO']}"
 
 
 def test_la_pagina_500_se_pinta_sin_peticion_y_sin_contexto():
