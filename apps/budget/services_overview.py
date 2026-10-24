@@ -233,6 +233,13 @@ def _proximos_del_mes_siguiente(hogar, mes):
                     if ambito == HOUSEHOLD]
 
     proyeccion = services.proyectar(hogar, anio, num)
+    return [(l.kind, l.fecha, l.importe) for l in lineas_proyectadas_del_hogar(hogar, proyeccion)]
+
+
+def lineas_proyectadas_del_hogar(hogar, proyeccion):
+    """Las lineas de una proyeccion cuya regla es del hogar. `proyectar` lee
+    todas las reglas, tambien las personales de cada miembro; en una cifra del
+    hogar esas no cuentan. No toca `proyectar`: This month sigue como estaba."""
     del_hogar = {
         "income": set(IncomeSource.objects.for_household(hogar).filter(
             scope=HOUSEHOLD, pk__in={l.origen_id for l in proyeccion.lineas if l.origen == "income"},
@@ -241,8 +248,17 @@ def _proximos_del_mes_siguiente(hogar, mes):
             scope=HOUSEHOLD, pk__in={l.origen_id for l in proyeccion.lineas if l.origen == "expense"},
         ).values_list("pk", flat=True)),
     }
-    return [(l.kind, l.fecha, l.importe) for l in proyeccion.lineas
-            if l.origen_id in del_hogar[l.origen]]
+    return [l for l in proyeccion.lineas if l.origen_id in del_hogar[l.origen]]
+
+
+def totales_proyectados_del_hogar(hogar, proyeccion):
+    """`totales` de una proyeccion, solo con lo del hogar y sin nada real."""
+    lineas = lineas_proyectadas_del_hogar(hogar, proyeccion)
+    return totales(
+        sum((l.importe for l in lineas if l.kind == INCOME), CERO),
+        sum((l.importe for l in lineas if l.kind == EXPENSE), CERO),
+        CERO, CERO,
+    )
 
 
 def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
@@ -300,11 +316,12 @@ def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
 
 
 def sugerencia_saldo_inicial(mes):
-    """El saldo con el que el mes anterior cerro, para sugerirlo como saldo
-    inicial. `_arrastre_previo` da 0 cuando no hay cierre, y 0 no es una
-    sugerencia: sin cierre previo no hay nada que sugerir."""
-    hay_cierre = MonthlyClose.objects.for_household(mes.household).filter(
-        Q(budget_month__year__lt=mes.year)
-        | Q(budget_month__year=mes.year, budget_month__month__lt=mes.month)
-    ).exists()
-    return services.centavos(services._arrastre_previo(mes)) if hay_cierre else None
+    """El saldo con el que el mes ANTERIOR cerro, para sugerirlo como saldo
+    inicial. Solo el del mes inmediato: el anterior se cierra solo 5 dias
+    despues de acabar, y en esos dias un cierre mas viejo contradiria el "last
+    month closed at" de la tarjeta. Sin ese cierre no hay nada que sugerir."""
+    anio, num = services.mes_previo(mes.year, mes.month)
+    cierre = MonthlyClose.objects.for_household(mes.household).filter(
+        budget_month__year=anio, budget_month__month=num,
+    ).first()
+    return services.centavos(cierre.arrastre) if cierre else None

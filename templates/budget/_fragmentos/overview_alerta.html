@@ -3,8 +3,9 @@
    proximo ingreso. Solo en el hogar y con el mes abierto. En mano = saldo
    inicial del mes + lo que el mes ha dejado hasta hoy. Sin saldo inicial la
    cifra es aproximada, y se dice. El saldo inicial se escribe aqui mismo (htmx
-   sustituye toda la seccion al guardar) y solo lo ofrece `puede_fijar_saldo`:
-   permiso de edicion Y hogar que puede escribir. Sin saldo, el formulario ya
+   sustituye toda la seccion al guardar) y solo lo ofrece `puede_editar`:
+   permiso de edicion Y hogar que puede escribir; quien no puede ve a quien
+   pedirselo. Sin saldo, el formulario ya
    esta abierto; con saldo, "Edit" lo abre. {% endcomment %}
 <section class="card card--ancho" id="overview-alerta"
          x-data="{ editando: {% if form.errors %}true{% else %}false{% endif %} }">
@@ -25,7 +26,8 @@
     {% blocktranslate with total=alerta.en_mano|money:hogar.currency opening=alerta.saldo_inicial|default_if_none:0|money:hogar.currency month=alerta.real_del_mes|money:hogar.currency %}In hand: {{ total }} (opening {{ opening }} + this month {{ month }}){% endblocktranslate %}
   </p>
   {% if alerta.falta_saldo %}
-    <p class="campo__ayuda">{% translate "Add this month's opening balance for an accurate check" %}
+    <p class="campo__ayuda">
+      {% if puede_editar %}{% translate "Add this month's opening balance for an accurate check" %}{% else %}{% translate "Ask the household owner to add this month's opening balance." %}{% endif %}
       {% if sugerencia_saldo is not None %}
         ({% blocktranslate with amount=sugerencia_saldo|money:hogar.currency %}last month closed at {{ amount }}{% endblocktranslate %})
       {% endif %}</p>

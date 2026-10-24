@@ -142,6 +142,13 @@
   box-shadow: var(--shadow-inset);
   background: var(--field-bg);
 }
+/* Con seis pestanas (Personal) la barra fija no cabe en 360-390 px con huecos
+   de 12 px y destinos de 56 px de ancho: se reparte el ancho entre todas, sin
+   hueco, y se conserva el alto del objetivo tactil. */
+@media (max-width: 899px) {
+  .tabs { gap: 0; }
+  .tabs__enlace { flex: 1 1 0; min-width: 0; }
+}
 .nav__icono { flex: none; }
 
 /* En movil MANDA el icono: cinco destinos con etiqueta no caben en 390 px. La

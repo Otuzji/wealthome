@@ -2646,6 +2646,10 @@ msgid "Add this month's opening balance for an accurate check"
 msgstr "Ajoutez le solde initial de ce mois-ci pour un contrôle précis"
 
 #: templates/budget/_fragmentos/overview_alerta.html
+msgid "Ask the household owner to add this month's opening balance."
+msgstr "Demandez au responsable du foyer d'ajouter le solde initial de ce mois-ci."
+
+#: templates/budget/_fragmentos/overview_alerta.html
 msgid "last month closed at %(amount)s"
 msgstr "le mois dernier s'est clôturé à %(amount)s"
 

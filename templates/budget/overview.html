@@ -42,6 +42,14 @@
         </div>
         <dl class="flotante__destinos">
           <div class="flotante__fila">
+            <dt>{% translate "Income" %}</dt>
+            <dd class="numero importe--ingreso">{{ forecast.ingresos|money:hogar.currency }}</dd>
+          </div>
+          <div class="flotante__fila">
+            <dt>{% translate "Expenses" %}</dt>
+            <dd class="numero importe--egreso">{{ forecast.egresos|money:hogar.currency }}</dd>
+          </div>
+          <div class="flotante__fila">
             <dt>{% translate "Allowance" %}</dt>
             <dd class="numero">{{ forecast.mesada|money:hogar.currency }}</dd>
           </div>

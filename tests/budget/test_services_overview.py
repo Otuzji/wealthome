@@ -433,3 +433,33 @@ def test_sin_cierre_previo_no_hay_sugerencia(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
 
     assert services_overview.sugerencia_saldo_inicial(mes) is None
+
+
+def test_un_cierre_mas_viejo_no_se_sugiere_si_el_mes_previo_no_cerro(hogar_y_mes):
+    """Dias 1-5: el mes previo aun no se cierra solo. Sugerir el cierre de hace
+    dos meses contradice el "last month closed at" de la tarjeta."""
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    agosto = BudgetMonthFactory(household=hogar, year=2026, month=8)
+    MonthlyCloseFactory(household=hogar, budget_month=agosto, arrastre=Decimal("640.00"))
+    BudgetMonthFactory(household=hogar, year=2026, month=9)    # septiembre, sin cierre
+
+    assert services_overview.sugerencia_saldo_inicial(mes) is None
+
+
+def test_con_el_mes_previo_cerrado_se_sugiere_el_suyo_y_no_el_de_antes(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    agosto = BudgetMonthFactory(household=hogar, year=2026, month=8)
+    MonthlyCloseFactory(household=hogar, budget_month=agosto, arrastre=Decimal("100.00"))
+    septiembre = BudgetMonthFactory(household=hogar, year=2026, month=9)
+    MonthlyCloseFactory(household=hogar, budget_month=septiembre, arrastre=Decimal("640.00"))
+
+    assert services_overview.sugerencia_saldo_inicial(mes) == Decimal("640.00")
+
+
+def test_el_mes_previo_de_enero_es_diciembre_del_anio_anterior(hogar_y_mes):
+    hogar, _mes, entra, sale, otto = hogar_y_mes
+    enero = BudgetMonthFactory(household=hogar, year=2027, month=1)
+    diciembre = BudgetMonthFactory(household=hogar, year=2026, month=12)
+    MonthlyCloseFactory(household=hogar, budget_month=diciembre, arrastre=Decimal("75.00"))
+
+    assert services_overview.sugerencia_saldo_inicial(enero) == Decimal("75.00")

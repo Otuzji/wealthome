@@ -17,8 +17,8 @@ from apps.budget.models import BudgetMonth
 from tests.budget.test_cash_float import mes_con_dinero  # noqa: F401
 from tests.budget.test_views import _miembro, admin_con_hogar  # noqa: F401
 from tests.factories_budget import (
-    BudgetLineFactory, BudgetMonthFactory, CategoryFactory, IncomeSourceFactory,
-    MonthlyCloseFactory, TransactionFactory,
+    BudgetLineFactory, BudgetMonthFactory, CategoryFactory, ExpenseRuleFactory,
+    IncomeSourceFactory, MonthlyCloseFactory, TransactionFactory,
 )
 
 pytestmark = pytest.mark.django_db
@@ -126,6 +126,32 @@ def test_un_hogar_sin_escritura_ve_la_proyeccion(client, admin_con_hogar):
     assert r.context["alerta"] is None
     assert r.context["forecast"]["ingresos"] == Decimal("3000.00")
     assert not BudgetMonth.objects.for_household(hogar).exists()
+
+
+def test_la_proyeccion_del_hogar_no_cuenta_las_reglas_personales_de_otro(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    otto = hogar.active_memberships().get(user=user)
+    diana = _miembro(hogar, can_view_budget=True)
+    desde = timezone.localdate().replace(day=1)
+    IncomeSourceFactory(household=hogar, owner=otto, effective_from=desde)
+    ExpenseRuleFactory(household=hogar, amount=Decimal("400.00"), effective_from=desde)
+    # Las de Diana: personales, no son del hogar.
+    IncomeSourceFactory(household=hogar, owner=diana, scope="personal",
+                        amount=Decimal("777.00"), effective_from=desde)
+    ExpenseRuleFactory(household=hogar, owner=diana, scope="personal",
+                       amount=Decimal("123.00"), effective_from=desde)
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+    client.force_login(user)
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+
+    assert r.context["es_proyeccion"] is True
+    assert r.context["forecast"]["ingresos"] == Decimal("3000.00")
+    assert r.context["forecast"]["egresos"] == Decimal("400.00")
+    assert r.context["forecast"]["sobrante"] == Decimal("2600.00")
+    assert r.context["real"]["ingresos"] == Decimal("3000.00")
+    assert r.context["real"]["egresos"] == Decimal("400.00")
 
 
 def test_un_ambito_inventado_es_404(client, admin_con_hogar):
@@ -273,3 +299,103 @@ def test_el_saldo_inicial_no_toca_la_tarjeta_cash_float(client, mes_con_dinero):
 
     despues = client.get(reverse("budget:mes", args=["household"])).context["cash_float"]
     assert despues == antes
+
+
+# --- lo que un hogar sin escritura o un miembro de solo lectura no puede usar ---
+
+
+def _caducar(hogar):
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+
+
+def test_un_hogar_caducado_sin_presupuesto_no_ofrece_configurarlo(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    _caducar(hogar)
+    client.force_login(user)
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+    html = r.content.decode()
+
+    assert r.context["sin_presupuesto"] is True
+    # El cajon de la navegacion enlaza "Budget setup": se mira el boton de esta pantalla.
+    assert "Set up the budget" not in html
+
+
+def test_un_hogar_caducado_no_ofrece_planear_el_mes_siguiente(client, mes_con_dinero):
+    _user, hogar, mes, _otto, _diana = mes_con_dinero
+    BudgetMonth.objects.for_household(hogar).filter(pk=mes.pk).update(status="closed")
+    _caducar(hogar)
+
+    html = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert "is closed." in html
+    assert "Plan next month" not in html
+    anio, numero = (mes.year + 1, 1) if mes.month == 12 else (mes.year, mes.month + 1)
+    assert reverse("budget:planificar_mes", args=["household", anio, numero, 1]) not in html
+
+
+def test_un_hogar_caducado_no_ofrece_montar_un_ingreso(client, mes_con_dinero):
+    _user, hogar, _mes, _otto, _diana = mes_con_dinero
+    _caducar(hogar)
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+    html = r.content.decode()
+
+    assert r.context["alerta"]["sin_ingreso"] is True
+    assert "No upcoming income planned" in html
+    assert "Set up an income" not in html
+
+
+def test_con_escritura_si_se_ofrece_montar_un_ingreso(client, mes_con_dinero):
+    html = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert "Set up an income" in html and reverse("budget:configurar") in html
+
+
+def test_el_forecast_personal_ensena_lo_planeado_de_ingresos_y_gastos(client, mes_con_dinero):
+    _user, hogar, mes, otto, _diana = mes_con_dinero
+    entra = mes.lineas.filter(kind="income").first().category
+    sale = mes.lineas.filter(kind="expense").first().category
+    BudgetLineFactory(household=hogar, budget_month=mes, category=entra, kind="income",
+                      planned_amount=Decimal("611.00"), scope="personal", owner=otto)
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale, kind="expense",
+                      planned_amount=Decimal("321.00"), scope="personal", owner=otto)
+
+    r = client.get(reverse("budget:overview", args=["personal"]))
+    html = r.content.decode()
+    # La tarjeta Real tambien nombra lo planeado: se mira solo la del Forecast.
+    forecast = html.split("overview__forecast", 1)[1].split("overview__real", 1)[0]
+
+    assert r.context["forecast"]["ingresos"] == Decimal("611.00")
+    assert r.context["forecast"]["egresos"] == Decimal("321.00")
+    assert "$611.00" in forecast and "$321.00" in forecast
+
+
+def test_quien_no_puede_fijar_el_saldo_ve_a_quien_pedirselo(client, mes_con_dinero):
+    _user, hogar, _mes, _otto, _diana = mes_con_dinero
+    client.force_login(_miembro(hogar, can_view_budget=True).user)
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+    html = r.content.decode()
+
+    assert r.context["alerta"]["falta_saldo"] is True
+    assert "Ask the household owner to add this month's opening balance." in html
+    assert "Add this month's opening balance for an accurate check" not in html
+
+
+def test_un_hogar_sin_escritura_tampoco_pide_el_saldo_a_quien_no_puede_darlo(client, mes_con_dinero):
+    _user, hogar, _mes, _otto, _diana = mes_con_dinero
+    _caducar(hogar)
+
+    html = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert "Ask the household owner to add this month's opening balance." in html
+    assert "Add this month's opening balance for an accurate check" not in html
+
+
+def test_quien_puede_fijar_el_saldo_ve_la_invitacion_a_anotarlo(client, mes_con_dinero):
+    html = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert "Add this month's opening balance for an accurate check" in html
+    assert "Ask the household owner to add" not in html

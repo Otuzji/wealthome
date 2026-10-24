@@ -50,10 +50,10 @@ def _contexto(request, hogar, ambito, form=None):
     contexto = {
         "ambito": ambito,
         "primer_dia": hoy.replace(day=1),
-        "puede_editar": membresia.can_edit_budget,
-        # El saldo inicial es una escritura: ademas del permiso, el hogar tiene
-        # que poder escribir (§5.2). Sin ello el campo ni se ofrece.
-        "puede_fijar_saldo": membresia.can_edit_budget and hogar.puede_escribir,
+        # Todo lo que el Overview ofrece (montar el presupuesto, planear el mes
+        # siguiente, anotar el saldo) es una escritura: ademas del permiso, el
+        # hogar tiene que poder escribir (§5.2), como en This month.
+        "puede_editar": membresia.can_edit_budget and hogar.puede_escribir,
         "es_proyeccion": es_proyeccion,
         "cerrado": False,
         "sin_presupuesto": not services_overview.hay_presupuesto(hogar, mes, hoy),
@@ -67,9 +67,9 @@ def _contexto(request, hogar, ambito, form=None):
         # de las reglas y no hay nada real que contar. En Personal no hay
         # proyeccion que valga (la mesada pide las lineas del mes).
         if ambito == HOUSEHOLD:
-            planeado = services_overview.totales(
-                mes.total_ingresos, mes.total_egresos, CERO, CERO,
-            )
+            # `proyectar` lee tambien las reglas personales de cada miembro;
+            # las cifras del hogar llevan solo las del hogar.
+            planeado = services_overview.totales_proyectados_del_hogar(hogar, mes)
             contexto["forecast"] = services_overview.forecast_hogar(hogar, planeado)
         else:
             planeado = services_overview.totales(CERO, CERO, CERO, CERO)
@@ -109,7 +109,7 @@ def _contexto(request, hogar, ambito, form=None):
         contexto["alerta"] = alerta
         if alerta["falta_saldo"]:
             contexto["sugerencia_saldo"] = services_overview.sugerencia_saldo_inicial(mes)
-        if contexto["puede_fijar_saldo"]:
+        if contexto["puede_editar"]:
             contexto["form"] = form if form is not None else _formulario_del_saldo(mes, contexto)
     return contexto
 
