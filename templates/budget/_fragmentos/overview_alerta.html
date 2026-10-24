@@ -1,0 +1,30 @@
+{% load i18n money %}
+{% comment %} La alerta del Overview: si lo que hay en mano alcanza hasta el
+   proximo ingreso. Solo en el hogar y con el mes abierto. En mano = saldo
+   inicial del mes + lo que el mes ha dejado hasta hoy. Sin saldo inicial la
+   cifra es aproximada, y se dice. {% endcomment %}
+<section class="card card--ancho" id="overview-alerta">
+  <h2>{% translate "Is the cash enough?" %}</h2>
+  <p class="{% if alerta.cubierto %}importe--ingreso{% else %}importe--mal{% endif %}"><strong>
+    {% if alerta.sin_ingreso %}
+      {% translate "No upcoming income planned" %}
+    {% elif alerta.cubierto %}
+      {% blocktranslate with amount=alerta.margen|money:hogar.currency date=alerta.proximo_ingreso|date:"M j" %}Covered: {{ amount }} to spare until {{ date }}{% endblocktranslate %}
+    {% else %}
+      {% blocktranslate with amount=alerta.faltante|money:hogar.currency date=alerta.proximo_ingreso|date:"M j" %}Short {{ amount }} for what's due before {{ date }}{% endblocktranslate %}
+    {% endif %}
+  </strong></p>
+  {% if alerta.sin_ingreso and puede_editar %}
+    <p><a href="{% url 'budget:configurar' %}">{% translate "Set up an income" %}</a></p>
+  {% endif %}
+  <p class="campo__ayuda">
+    {% blocktranslate with total=alerta.en_mano|money:hogar.currency opening=alerta.saldo_inicial|default_if_none:0|money:hogar.currency month=alerta.real_del_mes|money:hogar.currency %}In hand: {{ total }} (opening {{ opening }} + this month {{ month }}){% endblocktranslate %}
+  </p>
+  {% if alerta.falta_saldo %}
+    <p class="campo__ayuda">{% translate "Add this month's opening balance for an accurate check" %}
+      {% if sugerencia_saldo is not None %}
+        ({% blocktranslate with amount=sugerencia_saldo|money:hogar.currency %}last month closed at {{ amount }}{% endblocktranslate %})
+      {% endif %}</p>
+  {% endif %}
+  <p><a href="{% url 'budget:mes' 'household' %}">{% translate "See the Cash Float" %}</a></p>
+</section>

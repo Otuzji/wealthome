@@ -4,6 +4,7 @@ from . import (
     views_balance,
     views_goals,
     views_month,
+    views_overview,
     views_reportes,
     views_setup,
     views_summary,
@@ -67,10 +68,9 @@ urlpatterns = [
 
 # Y estas si: son las cuatro del §7.1, en sus dos ambitos.
 urlpatterns += [
-    # La raiz del ambito era el Overview; hoy redirige a This month, que es
-    # la pantalla principal. El nombre se conserva: el context processor lo
-    # usa como prefijo del ambito.
-    path("<str:ambito>/", views_summary.overview, name="overview"),
+    # La raiz del ambito es el Overview, el mes de un vistazo. El nombre del
+    # patron sirve ademas al context processor como prefijo del ambito.
+    path("<str:ambito>/", views_overview.overview, name="overview"),
     path("<str:ambito>/month/", views_month.mes, name="mes"),
     path("<str:ambito>/month/<int:anio>/<int:numero>/", views_month.mes, name="mes"),
     path("<str:ambito>/plan/", wizards.planificar, name="planificar"),

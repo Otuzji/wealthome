@@ -1,0 +1,153 @@
+{% extends "base.html" %}{% load i18n money %}
+{% block title %}{% translate "Overview" %} · Wealthome{% endblock %}
+{% block content %}
+<header class="pagina__cabecera">
+  <h1>{% translate "Overview" %} · {{ primer_dia|date:"M Y" }}</h1>
+</header>
+
+{% if sin_presupuesto %}
+  {% comment %} Sin reglas ni lineas no hay nada que resumir: solo la invitacion.
+     En Personal tambien, porque el presupuesto que falta es el del hogar. {% endcomment %}
+  <section class="card card--ancho">
+    <h2>{% translate "Let's set up your budget" %}</h2>
+    <p>{% translate "Add your income and your regular expenses, and this page will show where the month stands." %}</p>
+    {% if puede_editar %}
+      <a class="btn btn--primary" href="{% url 'budget:configurar' %}">{% translate "Set up the budget" %}</a>
+    {% else %}
+      <p class="campo__ayuda">{% translate "Ask the household owner to set up the budget." %}</p>
+    {% endif %}
+  </section>
+{% else %}
+  {% if cerrado %}
+    <p class="aviso card--ancho">
+      {% blocktranslate with month=primer_dia|date:"F Y" %}{{ month }} is closed.{% endblocktranslate %}
+      {% if puede_editar %}
+        <a href="{% url 'budget:planificar_mes' ambito siguiente.0 siguiente.1 1 %}">{% translate "Plan next month" %}</a>
+      {% endif %}
+    </p>
+  {% endif %}
+  {% if es_proyeccion %}
+    <p class="aviso card--ancho">{% translate "This month has not started yet — these numbers come from your rules." %}</p>
+  {% endif %}
+
+  <div class="overview">
+    {% if alerta %}{% include "budget/_fragmentos/overview_alerta.html" %}{% endif %}
+
+    <section class="card overview__forecast">
+      <h2>{% translate "Forecast" %}</h2>
+      {% if ambito == "personal" %}
+        <div class="cifra">
+          <div class="cifra__etiqueta">{% translate "Left to spend" %}</div>
+          <div class="cifra__valor {% if forecast.queda < 0 %}cifra__valor--mal{% endif %}">{{ forecast.queda|money:hogar.currency }}</div>
+        </div>
+        <dl class="flotante__destinos">
+          <div class="flotante__fila">
+            <dt>{% translate "Allowance" %}</dt>
+            <dd class="numero">{{ forecast.mesada|money:hogar.currency }}</dd>
+          </div>
+          {% if forecast.arrastre %}
+            <div class="flotante__fila">
+              <dt>{% translate "Carried over" %}</dt>
+              <dd class="numero">{{ forecast.arrastre|money:hogar.currency }}</dd>
+            </div>
+          {% endif %}
+          {% if forecast.ajuste %}
+            <div class="flotante__fila">
+              <dt>{% translate "Adjustment" %}</dt>
+              <dd class="numero">{{ forecast.ajuste|money:hogar.currency }}</dd>
+            </div>
+          {% endif %}
+        </dl>
+      {% else %}
+        <div class="cifra">
+          <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
+          <div class="cifra__valor {% if forecast.sobrante < 0 %}cifra__valor--mal{% endif %}">{{ forecast.sobrante|money:hogar.currency }}</div>
+        </div>
+        <dl class="flotante__destinos">
+          <div class="flotante__fila">
+            <dt>{% translate "Income" %}</dt>
+            <dd class="numero importe--ingreso">{{ forecast.ingresos|money:hogar.currency }}</dd>
+          </div>
+          <div class="flotante__fila">
+            <dt>{% translate "Expenses" %}</dt>
+            <dd class="numero importe--egreso">{{ forecast.egresos|money:hogar.currency }}</dd>
+          </div>
+          {% if forecast.sobrante > 0 %}
+            <div class="flotante__fila">
+              <dt>{% translate "Savings" %}</dt>
+              <dd class="numero importe--ingreso">{{ forecast.ahorro|money:hogar.currency }}</dd>
+            </div>
+            <div class="flotante__fila">
+              <dt>{% translate "Allowance" %}</dt>
+              <dd class="numero">{{ forecast.mesada|money:hogar.currency }}</dd>
+            </div>
+            {% if forecast.sin_asignar > 0 %}
+              <div class="flotante__fila">
+                <dt>{% translate "Unassigned" %}</dt>
+                <dd class="numero">{{ forecast.sin_asignar|money:hogar.currency }}</dd>
+              </div>
+            {% endif %}
+          {% endif %}
+        </dl>
+        {% if forecast.sobrante <= 0 %}
+          <p class="campo__ayuda">{% translate "Nothing left to split" %}</p>
+        {% endif %}
+      {% endif %}
+    </section>
+
+    <section class="card overview__real">
+      <h2>{% translate "Real" %}</h2>
+      <div class="cifra">
+        <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
+        <div class="cifra__valor {% if real.sobrante_real < 0 %}cifra__valor--mal{% endif %}">{{ real.sobrante_real|money:hogar.currency }}</div>
+      </div>
+      <dl class="flotante__destinos">
+        <div class="flotante__fila">
+          <dt>{% translate "Income" %}</dt>
+          <dd class="numero importe--ingreso">
+            {% blocktranslate with real=real.ingresos_real|money:hogar.currency planned=real.ingresos|money:hogar.currency %}{{ real }} of {{ planned }}{% endblocktranslate %}</dd>
+        </div>
+        <div class="flotante__fila">
+          <dt>{% translate "Expenses" %}</dt>
+          <dd class="numero importe--egreso">
+            {% blocktranslate with real=real.egresos_real|money:hogar.currency planned=real.egresos|money:hogar.currency %}{{ real }} of {{ planned }}{% endblocktranslate %}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card overview__desvios">
+      <h2>{% translate "Off plan" %}</h2>
+      {% if desvios %}
+        <dl class="flotante__destinos">
+          {% for d in desvios %}
+            <div class="flotante__fila">
+              <dt><a href="{% url 'budget:mes' ambito %}?orden=categoria">{{ d.categoria.etiqueta }}</a></dt>
+              {% if d.exceso %}
+                <dd class="numero importe--mal">{% blocktranslate with amount=d.magnitud|money:hogar.currency %}+{{ amount }} over plan{% endblocktranslate %}</dd>
+              {% else %}
+                <dd class="numero importe--ingreso">{% blocktranslate with amount=d.magnitud|money:hogar.currency %}−{{ amount }} under plan{% endblocktranslate %}</dd>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </dl>
+      {% else %}
+        <p class="campo__ayuda">{% translate "Everything is on plan so far." %}</p>
+      {% endif %}
+    </section>
+
+    <section class="card overview__expenses">
+      <h2>{% translate "Expenses" %}</h2>
+      <dl class="flotante__destinos">
+        <div class="flotante__fila">
+          <dt>{% translate "Budget" %}</dt>
+          <dd class="numero importe--egreso">{{ expenses.budget|money:hogar.currency }}</dd>
+        </div>
+        <div class="flotante__fila">
+          <dt>{% translate "One-off" %}</dt>
+          <dd class="numero importe--egreso">{{ expenses.one_off|money:hogar.currency }}</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+{% endif %}
+{% endblock %}

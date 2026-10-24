@@ -269,6 +269,17 @@ def test_los_desvios_van_por_tamano(hogar_y_mes):
     ds = _desvios(hogar, mes, otto, date(2026, 10, 10))
 
     assert [d.diferencia for d in ds] == [Decimal("-50.00"), Decimal("20.00"), Decimal("5.00")]
+    assert [d.magnitud for d in ds] == [Decimal("50.00"), Decimal("20.00"), Decimal("5.00")]
+
+
+def test_hay_presupuesto_con_las_lineas_del_mes(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    hoy = date(2026, 10, 10)
+    assert services_overview.hay_presupuesto(hogar, mes, hoy) is False
+
+    _linea(hogar, mes, sale, "100.00")
+
+    assert services_overview.hay_presupuesto(hogar, mes, hoy) is True
 
 
 # --- alerta de cash float -----------------------------------------------------
@@ -309,6 +320,7 @@ def test_no_cubierto(hogar_y_mes):
     a = _alerta(hogar, mes, otto)
 
     assert a["cubierto"] is False and a["margen"] == Decimal("-200.00")
+    assert a["faltante"] == Decimal("200.00")      # lo que falta, sin signo
 
 
 def test_un_gasto_del_mismo_dia_que_el_ingreso_lo_cubre_el_ingreso(hogar_y_mes):

@@ -1,22 +1,14 @@
 """Summary: lo que los meses cerrados dicen, en tabla y en graficas.
 
-Antes aqui vivia tambien el Overview. Se quito: This month es la pantalla
-principal, y sus graficas del mes en curso ya no aportaban nada que la
-tarjeta de This month no ensene. La ruta raiz del ambito se queda como
-redireccion para no romper enlaces ni lo que el service worker tenga.
+El Overview vive en `views_overview`.
 """
 
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services_goals, services_summary
 from .scopes import PERSONAL, validar
-
-
-@requiere_permiso("can_view_budget")
-def overview(request, hogar, ambito):
-    return redirect("budget:mes", validar(ambito))
 
 
 # `can_view_reports` y no `can_view_budget`: Summary ES un informe —los

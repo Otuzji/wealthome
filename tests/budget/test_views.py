@@ -594,15 +594,15 @@ def test_el_ambito_del_hogar_no_ensena_lo_personal_de_nadie(client, admin_con_ho
     assert Decimal("77.00") not in importes
 
 
-def test_la_raiz_del_ambito_redirige_a_this_month(client, admin_con_hogar):
-    """El Overview se quito: This month es la pantalla principal. La ruta se
-    conserva como redireccion para no romper enlaces ni lo cacheado."""
+def test_la_raiz_del_ambito_es_el_overview(client, admin_con_hogar):
+    """La raiz del ambito es el Overview, el mes de un vistazo; Summary y
+    Balance siguen donde estaban."""
     user, _hogar = admin_con_hogar
     client.force_login(user)
     for ambito in ("household", "personal"):
         respuesta = client.get(reverse("budget:overview", args=[ambito]))
-        assert respuesta.status_code == 302
-        assert respuesta.url == reverse("budget:mes", args=[ambito])
+        assert respuesta.status_code == 200
+        assert "budget/overview.html" in [t.name for t in respuesta.templates]
         assert client.get(reverse("budget:summary", args=[ambito])).status_code == 200
         assert client.get(reverse("budget:balance", args=[ambito])).status_code == 200
 

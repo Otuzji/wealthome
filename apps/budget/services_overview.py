@@ -46,6 +46,24 @@ def real_contra_planeado(lineas, transacciones):
     return donas
 
 
+def hay_presupuesto(hogar, mes, hoy: date) -> bool:
+    """Si el hogar tiene algo con que mostrar un Overview: una fuente de
+    ingreso o una regla de gasto vigentes, o un mes que ya trae lineas. Sin
+    ninguna de las tres, la pantalla invita a montar el presupuesto.
+
+    `mes` es la fila o la proyeccion que devolvio `obtener_mes`; de la
+    proyeccion basta mirar si trae lineas. Es del hogar entero: en Personal
+    tambien decide el presupuesto comun."""
+    vigentes = Q(effective_to__isnull=True) | Q(effective_to__gte=hoy)
+    if IncomeSource.objects.for_household(hogar).filter(vigentes).exists():
+        return True
+    if ExpenseRule.objects.for_household(hogar).filter(vigentes).exists():
+        return True
+    if isinstance(mes, services.ProyeccionDeMes):
+        return bool(mes.lineas)
+    return mes.lineas.exists()
+
+
 def lineas_del_ambito(mes, ambito, membresia):
     """Las lineas del mes en ese ambito, con lo que la plantilla lee ya
     cargado: la categoria y la regla de origen (`linea.nombre`) y los pagos
@@ -158,6 +176,12 @@ class Desvio:
     def exceso(self):
         return self.diferencia > 0
 
+    @property
+    def magnitud(self):
+        """Cuanto se aparta, sin signo: la plantilla pone el signo y el "over
+        plan"/"under plan" por su cuenta."""
+        return abs(self.diferencia)
+
 
 def desvios(lineas, transacciones, hoy: date):
     """Las categorias de gasto que se desvian de lo planeado. Solo lineas no
@@ -267,6 +291,8 @@ def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
         "proximo_ingreso": proximo,
         "pendiente": services.centavos(pendiente),
         "margen": services.centavos(margen),
+        # Lo que falta, sin signo: la plantilla no sabe restar ni negar.
+        "faltante": services.centavos(max(-margen, CERO)),
         "cubierto": margen >= 0,
         "sin_ingreso": proximo is None,
         "falta_saldo": saldo is None,

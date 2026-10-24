@@ -15,7 +15,7 @@ from django.utils import timezone
 from apps.households.services import crear_hogar
 from tests.factories import UserFactory
 from tests.factories_budget import (
-    BudgetMonthFactory, CategoryFactory, GoalFactory, TransactionFactory,
+    BudgetLineFactory, BudgetMonthFactory, CategoryFactory, GoalFactory, TransactionFactory,
 )
 
 # Historia de estos dos numeros, porque explica por que estan donde estan:
@@ -56,6 +56,15 @@ CONSULTAS_METAS = 8
 # el tope no crece ni con los meses cerrados ni con los movimientos. Medido con
 # tres meses y cincuenta movimientos por mes.
 CONSULTAS_SUMMARY = 10
+# El Overview del hogar (2026-10-24). Medido con 50 transacciones: 4 de sesion
+# y membresia, 3 de `obtener_mes` (cerrar vencidos, la fila del mes y si ya
+# trae lineas), 3 de `hay_presupuesto` (fuentes, reglas y lineas),
+# 1 las lineas y 1 las transacciones —con categoria y partida ya cargadas—, y 6
+# de la alerta, que al no haber ingreso por cobrar mira el mes siguiente SIN
+# crearlo: su fila, la categoria de ingreso, las fuentes y las reglas que
+# `proyectar` lee, el hogar del mes y si hubo un cierre previo (el saldo que
+# se sugiere). Ninguna crece con las transacciones.
+CONSULTAS_OVERVIEW = 18
 
 
 @pytest.fixture
@@ -88,6 +97,21 @@ def test_la_pantalla_del_mes_no_hace_una_consulta_por_transaccion(
     client.force_login(user)
     with django_assert_num_queries(CONSULTAS_MES):
         respuesta = client.get(reverse("budget:mes", args=["household", mes.year, mes.month]))
+    assert respuesta.status_code == 200
+
+
+@pytest.mark.django_db
+def test_el_overview_no_hace_una_consulta_por_transaccion(
+    client, django_assert_num_queries, hogar_con_movimiento
+):
+    hogar, user, mes = hogar_con_movimiento
+    # Sin una linea el hogar no tiene presupuesto y la pantalla solo invita a
+    # crearlo: con ella se pintan las cuatro tarjetas y la alerta.
+    BudgetLineFactory(household=hogar, budget_month=mes, kind="expense",
+                      planned_amount=Decimal("100.00"))
+    client.force_login(user)
+    with django_assert_num_queries(CONSULTAS_OVERVIEW):
+        respuesta = client.get(reverse("budget:overview", args=["household"]))
     assert respuesta.status_code == 200
 
 

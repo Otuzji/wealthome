@@ -1,0 +1,100 @@
+"""Overview: el mes en curso de un vistazo, solo lectura.
+
+Forecast (lo planeado y como se reparte), Real (lo que paso), Desvios (donde
+lo real se aparta del plan), Expenses (lo del presupuesto contra lo puntual)
+y, en el hogar, la alerta de si lo que hay en mano alcanza hasta el proximo
+ingreso. Las cifras salen de `services_overview`, las mismas funciones que
+usa This month: las dos pantallas no pueden divergir.
+
+Un GET no escribe: salvo lo que ya hace `obtener_mes` del mes corriente, nada
+se crea aqui.
+"""
+
+from decimal import Decimal
+
+from django.shortcuts import render
+from django.utils import timezone
+
+from apps.households.permissions import membresia_actual, requiere_permiso
+
+from . import services, services_overview
+from .models.catalog import EXPENSE, HOUSEHOLD, INCOME
+from .scopes import validar
+
+CERO = Decimal("0.00")
+
+# El Forecast personal de quien aun no tiene mes: todo en cero. No se llama a
+# `forecast_personal`, que leeria el libro de la mesada de un mes sin fila.
+FORECAST_PERSONAL_VACIO = {
+    "ingresos": CERO, "egresos": CERO, "mesada": CERO, "arrastre": CERO,
+    "ajuste": CERO, "disponible": CERO, "queda": CERO,
+}
+
+
+@requiere_permiso("can_view_budget")
+def overview(request, hogar, ambito):
+    ambito = validar(ambito)
+    membresia = membresia_actual(request)
+    hoy = timezone.localdate()
+    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    es_proyeccion = isinstance(mes, services.ProyeccionDeMes)
+    contexto = {
+        "ambito": ambito,
+        "primer_dia": hoy.replace(day=1),
+        "puede_editar": membresia.can_edit_budget,
+        "es_proyeccion": es_proyeccion,
+        "cerrado": False,
+        "sin_presupuesto": not services_overview.hay_presupuesto(hogar, mes, hoy),
+        "alerta": None,
+    }
+    if contexto["sin_presupuesto"]:
+        return render(request, "budget/overview.html", contexto)
+
+    if es_proyeccion:
+        # El hogar no puede escribir, o el mes aun no existe: lo planeado sale
+        # de las reglas y no hay nada real que contar. En Personal no hay
+        # proyeccion que valga (la mesada pide las lineas del mes).
+        if ambito == HOUSEHOLD:
+            planeado = services_overview.totales(
+                mes.total_ingresos, mes.total_egresos, CERO, CERO,
+            )
+            contexto["forecast"] = services_overview.forecast_hogar(hogar, planeado)
+        else:
+            planeado = services_overview.totales(CERO, CERO, CERO, CERO)
+            contexto["forecast"] = FORECAST_PERSONAL_VACIO
+        contexto.update(
+            real=planeado, expenses=services_overview.expenses([]), desvios=[],
+        )
+        return render(request, "budget/overview.html", contexto)
+
+    # Las mismas lineas, transacciones y totales que This month.
+    lineas = services_overview.lineas_del_ambito(mes, ambito, membresia)
+    transacciones = services_overview.transacciones_del_ambito(mes, ambito, membresia)
+    donas = services_overview.real_contra_planeado(lineas, transacciones)
+    totales = services_overview.totales(
+        donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
+        donas[INCOME]["real"], donas[EXPENSE]["real"],
+    )
+    if ambito == HOUSEHOLD:
+        forecast = services_overview.forecast_hogar(hogar, totales)
+    else:
+        forecast = services_overview.forecast_personal(hogar, mes, membresia, totales)
+
+    cerrado = mes.esta_cerrado
+    contexto.update(
+        cerrado=cerrado, forecast=forecast, real=totales,
+        expenses=services_overview.expenses(transacciones),
+        desvios=services_overview.desvios(lineas, transacciones, hoy),
+    )
+    if cerrado:
+        contexto["siguiente"] = services.mes_siguiente(mes.year, mes.month)
+    elif ambito == HOUSEHOLD:
+        # La alerta es de lo que hay en mano del hogar. Un mes cerrado ya no
+        # espera nada, y en Personal el dinero en mano no es de uno.
+        alerta = services_overview.alerta_cash_float(
+            hogar, mes, lineas, totales["sobrante_real"], hoy,
+        )
+        contexto["alerta"] = alerta
+        if alerta["falta_saldo"]:
+            contexto["sugerencia_saldo"] = services_overview.sugerencia_saldo_inicial(mes)
+    return render(request, "budget/overview.html", contexto)

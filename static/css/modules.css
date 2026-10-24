@@ -516,6 +516,21 @@
   .mes__real .btn--icono { width: 40px; }
 }
 
+/* ---------- Overview ----------
+   Tarjetas en dos columnas desde 900 px y una en movil. La alerta lleva
+   `card--ancho` y ocupa la fila entera. */
+.overview {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.overview .cifra { margin-bottom: 12px; }
+
 /* ---------- Cash Float ----------
    A todo el ancho debajo del plan. El total a la izquierda, en grande; a su
    derecha la lista de destinos, concepto y cifra en la misma linea. En movil
