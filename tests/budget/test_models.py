@@ -650,3 +650,12 @@ def test_la_migracion_0008_solo_siembra_los_hogares_que_no_tienen_arbol():
 
     # el hogar que ya tenía árbol no se toca: ni se duplica ni se le añade
     assert Category.objects.for_household(con_arbol).count() == len(ARBOL)
+
+
+def test_el_mes_guarda_un_saldo_inicial_opcional(db):
+    mes = BudgetMonthFactory()
+    assert mes.opening_balance is None
+    mes.opening_balance = Decimal("1250.50")
+    mes.save(update_fields=["opening_balance"])
+    mes.refresh_from_db()
+    assert mes.opening_balance == Decimal("1250.50")

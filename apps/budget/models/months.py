@@ -33,6 +33,9 @@ class BudgetMonth(HouseholdScoped):
     status = models.CharField(_("status"), max_length=10, choices=STATUS_CHOICES, default=OPEN)
     opened_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    # Saldo con el que se abre el mes. None = no introducido. Solo lo usa la
+    # alerta del Overview (§3.6); el resto de la app no lo lee.
+    opening_balance = MoneyField(_("opening balance"), null=True, blank=True)
 
     class Meta(HouseholdScoped.Meta):
         verbose_name = _("budget month")
