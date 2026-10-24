@@ -21,11 +21,11 @@ from django.views.decorators.http import require_POST
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
-from . import services, services_posponer
+from . import services, services_overview, services_posponer
 from .forms import BudgetLineForm, TransactionForm
 from .models import AllowanceLedger, BudgetLine, MesCerrado, Transaction
 from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
-from .scopes import acotar, acotar_por_dueno, validar, visibles, visibles_por_dueno
+from .scopes import validar, visibles, visibles_por_dueno
 
 # El calendario, no una preferencia: 1..12, y un rango de años que cabe en el
 # PositiveSmallIntegerField del modelo y en el que un presupuesto tiene sentido.
@@ -313,24 +313,18 @@ def mes(request, hogar, ambito, anio=None, numero=None):
         # consulta por fila.
         # `pagado_total` anotado: el estado de cada linea sale de sus pagos, y
         # sin la anotacion serian una consulta por fila.
-        lineas = acotar_por_dueno(
-            resultado.lineas.select_related(
-                "category", "source_income", "source_expense_rule"
-            ).annotate(pagado_total=Sum("transacciones__amount"))
-            .order_by("due_date", "pk"),
-            ambito, membresia,
-        )
+        lineas = services_overview.lineas_del_ambito(resultado, ambito, membresia)
         contexto["bloques"] = _bloques_del_plan(lineas)
         # `pagos_en_su_linea` anotado: cada fila pregunta si es un gasto sin
         # planificar (para ofrecer Move to next month), y eso mira su partida y
         # los pagos de esa partida. Sin la anotacion, dos consultas por fila.
-        contexto["transacciones"] = acotar(
-            resultado.transacciones.select_related("category", "budget_line", "merchant")
+        contexto["transacciones"] = (
+            services_overview.transacciones_del_ambito(resultado, ambito, membresia)
+            .select_related("merchant")
             .annotate(pagos_en_su_linea=Count("budget_line__transacciones"))
             # Explicito: con el Count hay GROUP BY, y Django ya no aplica ahi el
             # Meta.ordering del modelo; las filas salian en el orden de la base.
-            .order_by("-date", "-pk"),
-            ambito, membresia,
+            .order_by("-date", "-pk")
         )
         # Sort by: la fecha es el orden del modelo; por categoria se ordena en
         # Python porque la etiqueta de una categoria del sistema se traduce.
@@ -341,9 +335,9 @@ def mes(request, hogar, ambito, anio=None, numero=None):
             )
         # Las cifras salen de las MISMAS lineas que la tarjeta Planned, y por
         # tanto respetan el ambito, igual que en el Overview.
-        donas = _real_contra_planeado(lineas, contexto["transacciones"])
+        donas = services_overview.real_contra_planeado(lineas, contexto["transacciones"])
         contexto["donas"] = donas
-        contexto["totales"] = totales(
+        contexto["totales"] = services_overview.totales(
             donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
             donas[INCOME]["real"], donas[EXPENSE]["real"],
         )
@@ -354,30 +348,6 @@ def mes(request, hogar, ambito, anio=None, numero=None):
                 resultado, lineas, contexto["totales"]["sobrante_real"],
             )
     return render(request, "budget/mes.html", contexto)
-
-
-def totales(ingresos, egresos, ingresos_real, egresos_real):
-    """Las tres cifras de cabecera, planeado y real, las mismas en Overview y
-    en This month: una sola funcion para que no diverjan. Lo real sale de los
-    registros del mes; el sobrante real es lo que entro menos lo que salio."""
-    return {
-        "ingresos": ingresos, "egresos": egresos, "sobrante": ingresos - egresos,
-        "ingresos_real": ingresos_real, "egresos_real": egresos_real,
-        "sobrante_real": ingresos_real - egresos_real,
-    }
-
-
-def _real_contra_planeado(lineas, transacciones):
-    """Por tipo: lo planeado, lo que de verdad paso y el porcentaje entero
-    que la dona pinta. Lo real sale de las transacciones y no de los pagos de
-    las lineas: un gasto sin partida tambien salio del bolsillo."""
-    donas = {}
-    for kind in (INCOME, EXPENSE):
-        planeado = sum((l.planned_amount for l in lineas if l.kind == kind), Decimal("0.00"))
-        real = sum((t.amount for t in transacciones if t.category.kind == kind), Decimal("0.00"))
-        porcentaje = int(real * 100 / planeado) if planeado else 0
-        donas[kind] = {"planeado": planeado, "real": real, "porcentaje": porcentaje}
-    return donas
 
 
 def _bloques_del_plan(lineas):
