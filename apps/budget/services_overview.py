@@ -7,6 +7,8 @@ las dos pantallas no pueden divergir. El reparto del sobrante es el de
 `services._reglas_del_motor`.
 """
 
+from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from django.db.models import Sum
@@ -14,7 +16,7 @@ from django.db.models import Sum
 from . import services
 from .engine import cascade as motor_cascade
 from .models import AllowanceLedger
-from .models.catalog import EXPENSE, HOUSEHOLD, INCOME
+from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, Category
 from .scopes import acotar, acotar_por_dueno
 
 CERO = Decimal("0.00")
@@ -138,3 +140,54 @@ def expenses(transacciones):
         else:
             budget += t.amount
     return {"budget": services.centavos(budget), "one_off": services.centavos(puntual)}
+
+
+@dataclass(frozen=True)
+class Desvio:
+    """Una categoria de gasto cuyo real se aparta de lo planeado."""
+
+    categoria: Category
+    planeado: Decimal
+    real: Decimal
+
+    @property
+    def diferencia(self):
+        return self.real - self.planeado
+
+    @property
+    def exceso(self):
+        return self.diferencia > 0
+
+
+def desvios(lineas, transacciones, hoy: date):
+    """Las categorias de gasto que se desvian de lo planeado. Solo lineas no
+    excepcionales: lo puntual no estaba en el presupuesto.
+
+    Un exceso se muestra siempre, aunque la categoria siga abierta; un ahorro
+    solo cuando esta terminada (todas sus lineas pagadas o vencidas), porque a
+    mitad de mes "gastar menos" aun no es un ahorro. Primero lo mas grande."""
+    por_categoria = {}
+    categoria_de_linea = {}
+    for l in lineas:
+        if l.kind == EXPENSE and not l.is_exceptional:
+            por_categoria.setdefault(l.category_id, []).append(l)
+            categoria_de_linea[l.pk] = l.category_id
+    real_de = {}
+    for t in transacciones:
+        categoria_id = categoria_de_linea.get(t.budget_line_id)
+        if categoria_id is not None and t.category.kind == EXPENSE:
+            real_de[categoria_id] = real_de.get(categoria_id, CERO) + t.amount
+
+    resultado = []
+    for categoria_id, de_la_categoria in por_categoria.items():
+        planeado = sum((l.planned_amount for l in de_la_categoria), CERO)
+        real = real_de.get(categoria_id, CERO)
+        desvio = Desvio(de_la_categoria[0].category, planeado, real)
+        terminada = all(
+            l.pagado >= l.planned_amount or (l.due_date is not None and l.due_date < hoy)
+            for l in de_la_categoria
+        )
+        if desvio.diferencia > 0 or (desvio.diferencia < 0 and terminada):
+            resultado.append(desvio)
+    resultado.sort(key=lambda d: (-abs(d.diferencia), d.categoria.etiqueta().casefold()))
+    return resultado

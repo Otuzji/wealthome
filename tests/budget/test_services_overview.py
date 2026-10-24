@@ -4,6 +4,7 @@ Salen de las mismas funciones que This month (`totales`, `real_contra_planeado`)
 estas pruebas fijan las cifras que el Overview deriva de ellas.
 """
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -186,3 +187,84 @@ def test_forecast_personal_sin_libro_no_lo_crea(hogar_y_mes):
     assert f["mesada"] == Decimal("500.00")
     assert f["queda"] == Decimal("500.00")
     assert not AllowanceLedger.objects.for_household(hogar).exists()
+
+
+# --- desvios por categoria ----------------------------------------------------
+
+
+def _desvios(hogar, mes, miembro, hoy):
+    lineas = services_overview.lineas_del_ambito(mes, "household", miembro)
+    txs = services_overview.transacciones_del_ambito(mes, "household", miembro)
+    return services_overview.desvios(lineas, txs, hoy=hoy)
+
+
+def _gasto(hogar, mes, miembro, linea, importe):
+    return TransactionFactory(household=hogar, budget_month=mes, category=linea.category,
+                              member=miembro, amount=Decimal(importe), budget_line=linea)
+
+
+def test_un_exceso_aparece_a_mitad_de_mes(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    fuel = CategoryFactory(household=hogar, slug="gasolina-prueba", name="Fuel", kind="expense")
+    linea = _linea(hogar, mes, fuel, "100.00", due_date=date(2026, 10, 28))
+    _gasto(hogar, mes, otto, linea, "120.00")
+
+    [d] = _desvios(hogar, mes, otto, date(2026, 10, 10))
+
+    assert (d.diferencia, d.exceso) == (Decimal("20.00"), True)
+    assert d.categoria == fuel
+    assert (d.planeado, d.real) == (Decimal("100.00"), Decimal("120.00"))
+
+
+def test_un_ahorro_no_aparece_si_la_categoria_sigue_abierta(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    linea = _linea(hogar, mes, sale, "100.00", due_date=date(2026, 10, 28))
+    _gasto(hogar, mes, otto, linea, "30.00")
+
+    assert _desvios(hogar, mes, otto, date(2026, 10, 10)) == []
+
+
+def test_un_ahorro_aparece_cuando_la_linea_vencio(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    linea = _linea(hogar, mes, sale, "100.00", due_date=date(2026, 10, 5))
+    _gasto(hogar, mes, otto, linea, "80.00")
+
+    [d] = _desvios(hogar, mes, otto, date(2026, 10, 10))
+
+    assert d.diferencia == Decimal("-20.00")
+    assert d.exceso is False
+
+
+def test_una_linea_sin_vencimiento_solo_termina_pagada(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    linea = _linea(hogar, mes, sale, "100.00")
+    _gasto(hogar, mes, otto, linea, "80.00")
+
+    assert _desvios(hogar, mes, otto, date(2026, 10, 31)) == []
+
+
+def test_las_one_off_y_lo_cuadrado_no_desvian(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    puntual = _linea(hogar, mes, sale, "50.00", is_exceptional=True)
+    _gasto(hogar, mes, otto, puntual, "90.00")
+    cuadrada = CategoryFactory(household=hogar, slug="cuadrada", name="Cuadrada", kind="expense")
+    linea = _linea(hogar, mes, cuadrada, "100.00", due_date=date(2026, 10, 5))
+    _gasto(hogar, mes, otto, linea, "100.00")
+
+    assert _desvios(hogar, mes, otto, date(2026, 10, 31)) == []
+
+
+def test_los_desvios_van_por_tamano(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    for slug, plan, real, due in (
+        ("a", "100.00", "120.00", None),                  # +20
+        ("b", "100.00", "50.00", date(2026, 10, 5)),      # -50, terminada
+        ("c", "100.00", "105.00", None),                  # +5
+    ):
+        categoria = CategoryFactory(household=hogar, slug=slug, name=slug.upper(), kind="expense")
+        linea = _linea(hogar, mes, categoria, plan, due_date=due)
+        _gasto(hogar, mes, otto, linea, real)
+
+    ds = _desvios(hogar, mes, otto, date(2026, 10, 10))
+
+    assert [d.diferencia for d in ds] == [Decimal("-50.00"), Decimal("20.00"), Decimal("5.00")]
