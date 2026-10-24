@@ -186,7 +186,7 @@ def test_cerrar_sesion_deja_la_cache_vacia(page, live_server, settings):
 
     # Antes de salir, la cache de PAGINAS tiene la pantalla del hogar.
     paginas_antes = page.evaluate(
-        "caches.open('paginas-wealthome-v23')"
+        "caches.open('paginas-wealthome-v24')"
         ".then(c => c.keys()).then(k => k.map(r => new URL(r.url).pathname))"
     )
     assert any(pantalla in ruta for ruta in paginas_antes), (
@@ -259,7 +259,7 @@ def test_sin_senal_se_ve_lo_ya_visitado_y_lo_demas_cae_en_la_pagina_de_offline(
     page.goto(live_server.url + "/budget/household/month/")
     page.wait_for_function("navigator.serviceWorker.controller !== null")
     page.wait_for_function(
-        "caches.open('paginas-wealthome-v23').then(c => c.keys())"
+        "caches.open('paginas-wealthome-v24').then(c => c.keys())"
         ".then(k => k.some(r => r.url.includes('/month/')))"
     )
 
@@ -335,7 +335,7 @@ def test_una_pagina_con_sesion_no_vacia_lo_guardado(client, settings):
     user = UserFactory()
     MembershipFactory(user=user, household=HouseholdFactory(), role="admin")
     client.force_login(user)
-    html = client.get(reverse("accounts:inicio")).content.decode()
+    html = client.get(reverse("accounts:preferencias")).content.decode()
     assert 'postMessage("purgar")' not in html.split("document.addEventListener")[0]
 
 

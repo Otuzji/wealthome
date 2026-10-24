@@ -33,7 +33,7 @@ def test_registrarse_crea_usuario_perfil_hogar_y_membresia_admin(client):
 @pytest.mark.django_db
 def test_registrarse_deja_la_sesion_iniciada(client):
     client.post(reverse("accounts:registro"), DATOS)
-    respuesta = client.get(reverse("accounts:inicio"))
+    respuesta = client.get(reverse("accounts:inicio"), follow=True)
     assert respuesta.status_code == 200
 
 

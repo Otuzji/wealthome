@@ -237,7 +237,7 @@ def test_la_aplicacion_responde_en_modo_produccion():
     c.force_login(user)
     for nombre in ("accounts:inicio", "households:ajustes",
                    "subscriptions:estado", "accounts:preferencias"):
-        r = c.get(reverse(nombre), HTTP_X_FORWARDED_PROTO="https")
+        r = c.get(reverse(nombre), HTTP_X_FORWARDED_PROTO="https", follow=True)
         assert r.status_code == 200, f"{nombre} -> {r.status_code}"
 
 

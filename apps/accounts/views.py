@@ -120,9 +120,11 @@ class Logout(LogoutView):
 
 @login_required
 def inicio(request):
-    """El menú no ofrece lo que el miembro no puede hacer.
+    """Entrada de la app: quien ve el presupuesto aterriza en el Overview.
 
-    Un 403 al hacer clic es correcto pero grosero.
+    El menú no ofrece lo que el miembro no puede hacer (un 403 al hacer clic es
+    correcto pero grosero), así que quien no tiene can_view_budget —el
+    adolescente del §6.2— se queda en la bienvenida.
     """
     from apps.households.permissions import membresia_actual
 
@@ -130,6 +132,8 @@ def inicio(request):
         membresia = membresia_actual(request)
     except PermissionDenied:
         membresia = None
+    if membresia and membresia.can_view_budget:
+        return redirect("budget:overview", "household")
     return render(request, "accounts/inicio.html", {
         "perms_presupuesto": bool(membresia and membresia.can_edit_budget),
     })

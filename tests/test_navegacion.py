@@ -41,9 +41,9 @@ ROL = {ADMIN: "admin", SOLO_VER: "member", ADOLESCENTE: "member"}
 ESPERADO_PANTALLAS = {
     # SOLO_VER no tiene can_view_reports, asi que NO ve Summary ni Balance. Es
     # la prueba de que las pestanas estan bajo el permiso correcto y no bajo
-    # can_view_budget. Overview ya no existe: This month va primero.
-    ADMIN: ["mes", "metas", "summary", "balance"],
-    SOLO_VER: ["mes", "metas"],
+    # can_view_budget. Overview va primero: es la pantalla de entrada.
+    ADMIN: ["overview", "mes", "metas", "summary", "balance"],
+    SOLO_VER: ["overview", "mes", "metas"],
     ADOLESCENTE: [],
 }
 
@@ -135,6 +135,46 @@ def test_la_raiz_del_ambito_no_enciende_nada_por_ser_prefijo_de_todo(client):
     respuesta = client.get(reverse("budget:mes", args=["household"]))
     activas = [p["nombre"] for p in respuesta.context["nav_pantallas"] if p["activa"]]
     assert activas == ["mes"]
+
+
+@pytest.mark.django_db
+def test_el_overview_solo_se_enciende_en_su_url(client):
+    """/budget/household/ es prefijo de todas las pantallas: la pestana Overview
+    es `exacta` y solo se enciende cuando la ruta ES la suya."""
+    from apps.core.context_processors import _encender, _pantallas
+
+    hogar, user = _sesion(client, ADMIN)
+    activas = lambda r: [p["nombre"] for p in r.context["nav_pantallas"] if p["activa"]]
+
+    assert activas(client.get(reverse("budget:overview", args=["household"]))) == ["overview"]
+    assert activas(client.get(reverse("budget:planificar", args=["household"]))) == ["mes"]
+
+    membresia = user.memberships.get()
+    pantallas = _pantallas(membresia, "household")
+    _encender(pantallas, "/budget/household/sin-pestana/")
+    assert not any(p["activa"] for p in pantallas if p["nombre"] == "overview")
+
+
+@pytest.mark.django_db
+def test_el_conmutador_conserva_el_overview(client):
+    _sesion(client, ADMIN)
+    respuesta = client.get(reverse("budget:overview", args=["household"]))
+    ambitos = {a["nombre"]: a for a in respuesta.context["nav_ambitos"]}
+    assert ambitos["personal"]["url"] == reverse("budget:overview", args=["personal"])
+
+
+@pytest.mark.django_db
+def test_el_login_aterriza_en_el_overview(client):
+    _sesion(client, ADMIN)
+    respuesta = client.get(reverse("accounts:inicio"))
+    assert respuesta.status_code == 302
+    assert respuesta.url == reverse("budget:overview", args=["household"])
+
+
+@pytest.mark.django_db
+def test_quien_no_ve_el_presupuesto_se_queda_en_la_bienvenida(client):
+    _sesion(client, ADOLESCENTE)
+    assert client.get(reverse("accounts:inicio")).status_code == 200
 
 
 @pytest.mark.django_db
@@ -279,7 +319,7 @@ def test_cada_pestana_trae_su_icono(client):
     respuesta = client.get(reverse("budget:mes", args=["personal"]))
     cuerpo = respuesta.content.decode()
 
-    conocidos = {"mes", "meta", "summary", "balance", "mesada"}
+    conocidos = {"resumen", "mes", "meta", "summary", "balance", "mesada"}
     for pantalla in respuesta.context["nav_pantallas"]:
         assert pantalla["icono"] in conocidos, (
             f"la pestana {pantalla['nombre']!r} usa el icono {pantalla['icono']!r}, "

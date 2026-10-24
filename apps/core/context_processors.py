@@ -73,12 +73,14 @@ def _pantallas(membresia, ambito):
 
     `rutas` son los prefijos de URL que encienden la pestaña. This month lleva
     también Plan y Close: estar planificando el mes ES estar en el mes.
+    Overview es `exacta`: su URL (/budget/<ambito>/) es prefijo de todas las
+    demás, así que solo se enciende cuando la ruta ES la suya.
     """
     if not _permiso(membresia, "can_view_budget"):
         return []
-    # This month es la pantalla principal: el Overview que iba primero se
-    # quito, y su ruta redirige aqui.
     pantallas = [
+        {"nombre": "overview", "vista": "budget:overview", "etiqueta": _("Overview"),
+         "icono": "resumen", "exacta": True},
         {"nombre": "mes", "vista": "budget:mes", "etiqueta": _("This month"),
          "icono": "mes",
          "rutas": [reverse("budget:planificar", args=[ambito]),
@@ -112,12 +114,14 @@ def _encender(pantallas, ruta):
     """Marca `activa` en la pestaña cuyo prefijo coincide, y solo en esa.
 
     Gana la coincidencia MAS LARGA: /budget/household/ es prefijo de todas las
-    demas, y sin esto Overview estaria siempre encendida.
+    demas, y sin esto Overview estaria siempre encendida. Una pestana `exacta`
+    (el Overview) ademas solo coincide con su URL entera, no como prefijo.
     """
     mejor, largo = None, -1
     for p in pantallas:
         for prefijo in p["rutas"]:
-            if ruta.startswith(prefijo) and len(prefijo) > largo:
+            coincide = ruta == prefijo if p.get("exacta") else ruta.startswith(prefijo)
+            if coincide and len(prefijo) > largo:
                 mejor, largo = p, len(prefijo)
     for p in pantallas:
         p["activa"] = p is mejor

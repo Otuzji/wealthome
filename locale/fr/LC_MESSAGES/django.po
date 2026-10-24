@@ -2572,3 +2572,99 @@ msgstr "Rien ne correspond à ces filtres."
 #: apps/budget/views_reportes.py
 msgid "Records"
 msgstr "Mouvements"
+
+#: templates/budget/overview.html
+msgid "Let's set up your budget"
+msgstr "Configurons votre budget"
+
+#: templates/budget/overview.html
+msgid "Ask the household owner to set up the budget."
+msgstr "Demandez au responsable du foyer de configurer le budget."
+
+#: templates/budget/overview.html
+msgid "%(month)s is closed."
+msgstr "%(month)s est clôturé."
+
+#: templates/budget/overview.html
+msgid "Plan next month"
+msgstr "Planifier le mois prochain"
+
+#: templates/budget/overview.html
+msgid "Forecast"
+msgstr "Prévisions"
+
+#: templates/budget/overview.html
+msgid "Carried over"
+msgstr "Report"
+
+#: templates/budget/overview.html
+msgid "Nothing left to split"
+msgstr "Plus rien à répartir"
+
+#: templates/budget/overview.html
+msgid "+%(amount)s over plan"
+msgstr "+%(amount)s au-dessus du plan"
+
+#: templates/budget/overview.html
+msgid "−%(amount)s under plan"
+msgstr "−%(amount)s en dessous du plan"
+
+#: templates/budget/overview.html
+msgid "Everything is on plan so far."
+msgstr "Tout est conforme au plan jusqu'ici."
+
+#: templates/budget/overview.html
+msgid "Off plan"
+msgstr "Hors plan"
+
+#: templates/budget/overview.html
+msgid "Is the cash enough?"
+msgstr "L'argent suffit-il ?"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "No upcoming income planned"
+msgstr "Aucun revenu à venir n'est prévu"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Covered: %(amount)s to spare until %(date)s"
+msgstr "Couvert : %(amount)s de marge jusqu'au %(date)s"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Short %(amount)s for what's due before %(date)s"
+msgstr "Il manque %(amount)s pour ce qui est dû avant le %(date)s"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Set up an income"
+msgstr "Configurer un revenu"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "In hand: %(total)s (opening %(opening)s + this month %(month)s)"
+msgstr "En main : %(total)s (solde initial %(opening)s + ce mois-ci %(month)s)"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Add this month's opening balance for an accurate check"
+msgstr "Ajoutez le solde initial de ce mois-ci pour un contrôle précis"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "last month closed at %(amount)s"
+msgstr "le mois dernier s'est clôturé à %(amount)s"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Suggested from last month's close."
+msgstr "Suggéré d'après la clôture du mois dernier."
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "See the Cash Float"
+msgstr "Voir la trésorerie disponible"
+
+#: apps/budget/forms.py
+msgid "Opening balance"
+msgstr "Solde initial"
+
+#: apps/budget/models/months.py
+msgid "opening balance"
+msgstr "solde initial"
+
+#: templates/budget/overview.html
+msgid "Add your income and your regular expenses, and this page will show where the month stands."
+msgstr "Ajoutez vos revenus et vos dépenses régulières, et cette page montrera où en est le mois."

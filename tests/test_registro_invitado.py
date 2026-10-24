@@ -74,7 +74,7 @@ def test_registrarse_desde_la_invitacion_crea_la_cuenta_como_miembro(client, inv
 
 def test_registrarse_desde_la_invitacion_deja_la_sesion_iniciada(client, invitacion):
     client.post(_url(invitacion), DATOS)
-    assert client.get(reverse("accounts:inicio")).status_code == 200
+    assert client.get(reverse("accounts:inicio"), follow=True).status_code == 200
 
 
 def test_el_perfil_nace_en_el_idioma_de_la_invitacion(client, invitacion):
