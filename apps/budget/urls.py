@@ -60,6 +60,8 @@ urlpatterns = [
     # Sin ambito en la ruta: el ambito es uno de sus filtros (hogar, mio o
     # los dos), y va en la query string con el resto.
     path("reports/", views_reportes.reportes, name="reportes"),
+    # El saldo inicial del mes en curso: se escribe desde la alerta del Overview.
+    path("opening-balance/", views_overview.saldo_inicial, name="saldo_inicial"),
     # Las lineas del balance del hogar. Sin ambito: el balance es del hogar.
     path("balance/items/new/", views_balance.item_nuevo, name="balance_item_nuevo"),
     path("balance/items/<int:pk>/", views_balance.item_editar, name="balance_item_editar"),

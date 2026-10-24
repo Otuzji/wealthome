@@ -17,7 +17,8 @@ from apps.budget.models import BudgetMonth
 from tests.budget.test_cash_float import mes_con_dinero  # noqa: F401
 from tests.budget.test_views import _miembro, admin_con_hogar  # noqa: F401
 from tests.factories_budget import (
-    BudgetLineFactory, CategoryFactory, IncomeSourceFactory, TransactionFactory,
+    BudgetLineFactory, BudgetMonthFactory, CategoryFactory, IncomeSourceFactory,
+    MonthlyCloseFactory, TransactionFactory,
 )
 
 pytestmark = pytest.mark.django_db
@@ -132,3 +133,143 @@ def test_un_ambito_inventado_es_404(client, admin_con_hogar):
     client.force_login(user)
 
     assert client.get("/budget/inventado/").status_code == 404
+
+
+# --- el saldo inicial se escribe en la propia alerta ---------------------------
+
+
+def _guardar_saldo(client, importe, htmx=True):
+    cabeceras = {"HTTP_HX_REQUEST": "true"} if htmx else {}
+    return client.post(reverse("budget:saldo_inicial"), {"opening_balance": importe}, **cabeceras)
+
+
+def test_guardar_el_saldo_inicial_recalcula_la_alerta(client, mes_con_dinero):
+    _user, _hogar, mes, _otto, _diana = mes_con_dinero
+    real_del_mes = client.get(reverse("budget:mes", args=["household"])).context["totales"]["sobrante_real"]
+
+    r = _guardar_saldo(client, "1500.00")
+
+    mes.refresh_from_db()
+    assert mes.opening_balance == Decimal("1500.00")
+    assert r.status_code == 200
+    assert r.context["alerta"]["en_mano"] == Decimal("1500.00") + real_del_mes
+    assert r.context["alerta"]["falta_saldo"] is False
+    html = r.content.decode()
+    assert 'id="overview-alerta"' in html and "<html" not in html
+
+
+def test_cero_es_un_saldo_y_deja_de_pedirlo(client, mes_con_dinero):
+    _user, _hogar, mes, _otto, _diana = mes_con_dinero
+
+    r = _guardar_saldo(client, "0.00")
+
+    mes.refresh_from_db()
+    assert mes.opening_balance == Decimal("0.00")
+    assert r.context["alerta"]["falta_saldo"] is False
+    assert "Add this month's opening balance" not in r.content.decode()
+
+
+def test_un_saldo_negativo_se_admite(client, mes_con_dinero):
+    _user, _hogar, mes, _otto, _diana = mes_con_dinero
+
+    _guardar_saldo(client, "-250.00")
+
+    mes.refresh_from_db()
+    assert mes.opening_balance == Decimal("-250.00")
+
+
+def test_un_saldo_ilegible_no_se_guarda_y_se_dice(client, mes_con_dinero):
+    _user, _hogar, mes, _otto, _diana = mes_con_dinero
+
+    for malo in ("", "abc"):
+        r = _guardar_saldo(client, malo)
+        assert r.status_code == 200 and r.context["form"].errors
+        assert 'id="overview-alerta"' in r.content.decode()
+
+    mes.refresh_from_db()
+    assert mes.opening_balance is None
+
+
+def test_sin_htmx_vuelve_al_overview(client, mes_con_dinero):
+    _user, _hogar, mes, _otto, _diana = mes_con_dinero
+
+    r = _guardar_saldo(client, "10.00", htmx=False)
+
+    assert r.status_code == 302 and r.url == reverse("budget:overview", args=["household"])
+    mes.refresh_from_db()
+    assert mes.opening_balance == Decimal("10.00")
+
+
+def test_con_saldo_guardado_se_ofrece_editarlo(client, mes_con_dinero):
+    _user, _hogar, mes, _otto, _diana = mes_con_dinero
+    mes.opening_balance = Decimal("1500.00")
+    mes.save(update_fields=["opening_balance"])
+
+    html = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert 'name="opening_balance"' in html and 'value="1500.00"' in html
+    assert "Edit" in html
+
+
+def test_la_sugerencia_no_se_guarda_sola(client, mes_con_dinero):
+    _user, hogar, mes, _otto, _diana = mes_con_dinero
+    anio, numero = (mes.year - 1, 12) if mes.month == 1 else (mes.year, mes.month - 1)
+    anterior = BudgetMonthFactory(household=hogar, year=anio, month=numero)
+    MonthlyCloseFactory(household=hogar, budget_month=anterior, arrastre=Decimal("640.00"))
+    # Cerrado de verdad: un mes pasado abierto lo cierra la propia peticion.
+    BudgetMonth.objects.for_household(hogar).filter(pk=anterior.pk).update(status="closed")
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+
+    assert r.context["sugerencia_saldo"] == Decimal("640.00")
+    html = r.content.decode()
+    assert 'value="640.00"' in html and "Suggested from last month's close." in html
+    mes.refresh_from_db()
+    assert mes.opening_balance is None
+
+
+def test_sin_can_edit_budget_no_hay_campo_y_el_post_es_403(client, mes_con_dinero):
+    _user, hogar, mes, _otto, _diana = mes_con_dinero
+    client.force_login(_miembro(hogar, can_view_budget=True).user)
+
+    html = client.get(reverse("budget:overview", args=["household"])).content.decode()
+
+    assert 'name="opening_balance"' not in html
+    assert _guardar_saldo(client, "1.00").status_code == 403
+    mes.refresh_from_db()
+    assert mes.opening_balance is None
+
+
+def test_un_hogar_sin_escritura_no_ofrece_el_campo_ni_lo_acepta(client, mes_con_dinero):
+    _user, hogar, mes, _otto, _diana = mes_con_dinero
+    hogar.subscription.trial_ends_at = timezone.now() - timedelta(days=1)
+    hogar.subscription.save()
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+
+    # La fila del mes ya existia: la alerta se ensena, pero sin formulario.
+    assert r.context["alerta"] is not None
+    assert 'name="opening_balance"' not in r.content.decode()
+    assert _guardar_saldo(client, "1.00").status_code == 403
+    mes.refresh_from_db()
+    assert mes.opening_balance is None
+
+
+def test_en_un_mes_cerrado_no_se_guarda(client, mes_con_dinero):
+    _user, hogar, mes, _otto, _diana = mes_con_dinero
+    BudgetMonth.objects.for_household(hogar).filter(pk=mes.pk).update(status="closed")
+
+    r = _guardar_saldo(client, "1.00")
+
+    mes.refresh_from_db()
+    assert mes.opening_balance is None
+    assert r.status_code == 200 and r["HX-Redirect"] == reverse("budget:overview", args=["household"])
+
+
+def test_el_saldo_inicial_no_toca_la_tarjeta_cash_float(client, mes_con_dinero):
+    antes = client.get(reverse("budget:mes", args=["household"])).context["cash_float"]
+
+    _guardar_saldo(client, "5000.00")
+
+    despues = client.get(reverse("budget:mes", args=["household"])).context["cash_float"]
+    assert despues == antes

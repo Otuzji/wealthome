@@ -12,12 +12,18 @@ se crea aqui.
 
 from decimal import Decimal
 
-from django.shortcuts import render
+from django.contrib import messages
+from django.http import Http404, HttpResponse
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services, services_overview
+from .forms import SaldoInicialForm
 from .models.catalog import EXPENSE, HOUSEHOLD, INCOME
 from .scopes import validar
 
@@ -31,9 +37,12 @@ FORECAST_PERSONAL_VACIO = {
 }
 
 
-@requiere_permiso("can_view_budget")
-def overview(request, hogar, ambito):
-    ambito = validar(ambito)
+def _contexto(request, hogar, ambito, form=None):
+    """Todo lo que el Overview pinta, o solo lo que cabe del mes si no hay
+    mas. Lo comparten la pantalla y el guardado del saldo inicial: al guardar,
+    la alerta se recalcula con las mismas cuentas que la pantalla entera.
+
+    `form` es el del saldo inicial con sus errores, si venia de un POST fallido."""
     membresia = membresia_actual(request)
     hoy = timezone.localdate()
     mes = services.obtener_mes(hogar, hoy.year, hoy.month)
@@ -42,13 +51,16 @@ def overview(request, hogar, ambito):
         "ambito": ambito,
         "primer_dia": hoy.replace(day=1),
         "puede_editar": membresia.can_edit_budget,
+        # El saldo inicial es una escritura: ademas del permiso, el hogar tiene
+        # que poder escribir (§5.2). Sin ello el campo ni se ofrece.
+        "puede_fijar_saldo": membresia.can_edit_budget and hogar.puede_escribir,
         "es_proyeccion": es_proyeccion,
         "cerrado": False,
         "sin_presupuesto": not services_overview.hay_presupuesto(hogar, mes, hoy),
         "alerta": None,
     }
     if contexto["sin_presupuesto"]:
-        return render(request, "budget/overview.html", contexto)
+        return contexto
 
     if es_proyeccion:
         # El hogar no puede escribir, o el mes aun no existe: lo planeado sale
@@ -65,7 +77,7 @@ def overview(request, hogar, ambito):
         contexto.update(
             real=planeado, expenses=services_overview.expenses([]), desvios=[],
         )
-        return render(request, "budget/overview.html", contexto)
+        return contexto
 
     # Las mismas lineas, transacciones y totales que This month.
     lineas = services_overview.lineas_del_ambito(mes, ambito, membresia)
@@ -97,4 +109,65 @@ def overview(request, hogar, ambito):
         contexto["alerta"] = alerta
         if alerta["falta_saldo"]:
             contexto["sugerencia_saldo"] = services_overview.sugerencia_saldo_inicial(mes)
-    return render(request, "budget/overview.html", contexto)
+        if contexto["puede_fijar_saldo"]:
+            contexto["form"] = form if form is not None else _formulario_del_saldo(mes, contexto)
+    return contexto
+
+
+def _formulario_del_saldo(mes, contexto):
+    """El formulario ya relleno: con lo guardado, o, si falta, con la sugerencia
+    del ultimo cierre (que solo se propone: no se guarda hasta que se acepta)."""
+    inicial = mes.opening_balance
+    if inicial is None:
+        inicial = contexto.get("sugerencia_saldo")
+    return SaldoInicialForm(initial={"opening_balance": inicial})
+
+
+@requiere_permiso("can_view_budget")
+def overview(request, hogar, ambito):
+    ambito = validar(ambito)
+    return render(request, "budget/overview.html", _contexto(request, hogar, ambito))
+
+
+@require_POST
+@requiere_permiso("can_edit_budget")
+def saldo_inicial(request, hogar):
+    """Guarda el saldo con el que abre el mes en curso. Por htmx devuelve la
+    alerta recalculada para que sustituya a la anterior; sin htmx, vuelve al
+    Overview. Solo el mes corriente y solo el hogar: es lo que la alerta mira."""
+    es_htmx = request.headers.get("HX-Request") == "true"
+    hoy = timezone.localdate()
+    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    if isinstance(mes, services.ProyeccionDeMes):
+        raise Http404
+    vuelta = reverse("budget:overview", args=[HOUSEHOLD])
+    if mes.esta_cerrado:
+        # BudgetMonth no hereda la guarda de los meses cerrados. Y un mes
+        # cerrado ya no tiene alerta que repintar: se recarga la pantalla,
+        # que lo dice.
+        messages.error(request, _("This month is already closed."))
+        return _recargar(es_htmx, vuelta)
+
+    form = SaldoInicialForm(request.POST)
+    if form.is_valid():
+        mes.opening_balance = form.cleaned_data["opening_balance"]
+        mes.save(update_fields=["opening_balance"])
+        form = None
+    if not es_htmx:
+        if form is not None:
+            messages.error(request, form.errors["opening_balance"][0])
+        return redirect(vuelta)
+    contexto = _contexto(request, hogar, HOUSEHOLD, form=form)
+    if contexto["alerta"] is None:
+        # Sin alerta que repintar (no hay presupuesto): que la pantalla lo diga.
+        return _recargar(es_htmx, vuelta)
+    return render(request, "budget/_fragmentos/overview_alerta.html", contexto)
+
+
+def _recargar(es_htmx, destino):
+    """Volver a la pantalla: por htmx, pidiendole que la recargue entera."""
+    if es_htmx:
+        respuesta = HttpResponse()
+        respuesta["HX-Redirect"] = destino
+        return respuesta
+    return redirect(destino)

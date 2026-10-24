@@ -2,8 +2,12 @@
 {% comment %} La alerta del Overview: si lo que hay en mano alcanza hasta el
    proximo ingreso. Solo en el hogar y con el mes abierto. En mano = saldo
    inicial del mes + lo que el mes ha dejado hasta hoy. Sin saldo inicial la
-   cifra es aproximada, y se dice. {% endcomment %}
-<section class="card card--ancho" id="overview-alerta">
+   cifra es aproximada, y se dice. El saldo inicial se escribe aqui mismo (htmx
+   sustituye toda la seccion al guardar) y solo lo ofrece `puede_fijar_saldo`:
+   permiso de edicion Y hogar que puede escribir. Sin saldo, el formulario ya
+   esta abierto; con saldo, "Edit" lo abre. {% endcomment %}
+<section class="card card--ancho" id="overview-alerta"
+         x-data="{ editando: {% if form.errors %}true{% else %}false{% endif %} }">
   <h2>{% translate "Is the cash enough?" %}</h2>
   <p class="{% if alerta.cubierto %}importe--ingreso{% else %}importe--mal{% endif %}"><strong>
     {% if alerta.sin_ingreso %}
@@ -25,6 +29,26 @@
       {% if sugerencia_saldo is not None %}
         ({% blocktranslate with amount=sugerencia_saldo|money:hogar.currency %}last month closed at {{ amount }}{% endblocktranslate %})
       {% endif %}</p>
+  {% endif %}
+  {% if form %}
+    {% if not alerta.falta_saldo %}
+      <p x-show="!editando"><button class="btn btn--sutil" type="button" @click="editando = true">{% translate "Edit" %}</button></p>
+    {% endif %}
+    <form class="formulario" hx-post="{% url 'budget:saldo_inicial' %}"
+          hx-target="#overview-alerta" hx-swap="outerHTML"
+          {% if not alerta.falta_saldo %}x-show="editando" x-cloak{% endif %}>
+      {% csrf_token %}
+      {{ form.as_div }}
+      {% if alerta.falta_saldo and sugerencia_saldo is not None %}
+        <p class="campo__ayuda">{% translate "Suggested from last month's close." %}</p>
+      {% endif %}
+      <div class="formulario__acciones">
+        <button class="btn btn--primary" type="submit">{% translate "Save" %}</button>
+        {% if not alerta.falta_saldo %}
+          <button class="btn btn--sutil" type="button" @click="editando = false">{% translate "Cancel" %}</button>
+        {% endif %}
+      </div>
+    </form>
   {% endif %}
   <p><a href="{% url 'budget:mes' 'household' %}">{% translate "See the Cash Float" %}</a></p>
 </section>

@@ -511,6 +511,18 @@ class TransferenciaForm(RetiroForm):
         )
 
 
+class SaldoInicialForm(forms.Form):
+    """El saldo con el que abre el mes, para la alerta del Overview (§3.6).
+
+    No es un ModelForm: la vista decide a que mes va. Requerido, porque dejarlo
+    en blanco es "no lo se" y eso ya es el estado de un mes sin saldo; 0 y los
+    negativos valen (una cuenta en rojo tambien es un saldo)."""
+
+    opening_balance = forms.DecimalField(
+        label=_("Opening balance"), max_digits=12, decimal_places=2,
+    )
+
+
 class BalanceItemForm(HouseholdScopedModelForm):
     """Una linea del balance del hogar. El grupo va agrupado en activos y
     pasivos en el desplegable: es lo unico que decide de que lado suma."""
