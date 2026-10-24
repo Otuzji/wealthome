@@ -11,11 +11,11 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 
 from . import services
 from .engine import cascade as motor_cascade
-from .models import AllowanceLedger
+from .models import AllowanceLedger, BudgetMonth, ExpenseRule, IncomeSource, MonthlyClose
 from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, Category
 from .scopes import acotar, acotar_por_dueno
 
@@ -191,3 +191,94 @@ def desvios(lineas, transacciones, hoy: date):
             resultado.append(desvio)
     resultado.sort(key=lambda d: (-abs(d.diferencia), d.categoria.etiqueta().casefold()))
     return resultado
+
+
+def _proximos_del_mes_siguiente(hogar, mes):
+    """Lo que el mes siguiente tiene del hogar, como `(kind, fecha, importe)`,
+    SIN escribir nada: un GET no crea el mes.
+
+    Si el mes ya existe y tiene lineas, valen esas (solo las del hogar). Si no
+    existe o esta vacio, se proyecta desde las reglas del hogar: `proyectar`
+    lee todas las reglas, asi que aqui se descartan las personales."""
+    anio, num = services.mes_siguiente(mes.year, mes.month)
+    siguiente = BudgetMonth.objects.for_household(hogar).filter(year=anio, month=num).first()
+    if siguiente is not None:
+        existentes = list(siguiente.lineas.values_list("kind", "due_date", "planned_amount", "scope"))
+        if existentes:
+            return [(kind, fecha, importe) for kind, fecha, importe, ambito in existentes
+                    if ambito == HOUSEHOLD]
+
+    proyeccion = services.proyectar(hogar, anio, num)
+    del_hogar = {
+        "income": set(IncomeSource.objects.for_household(hogar).filter(
+            scope=HOUSEHOLD, pk__in={l.origen_id for l in proyeccion.lineas if l.origen == "income"},
+        ).values_list("pk", flat=True)),
+        "expense": set(ExpenseRule.objects.for_household(hogar).filter(
+            scope=HOUSEHOLD, pk__in={l.origen_id for l in proyeccion.lineas if l.origen == "expense"},
+        ).values_list("pk", flat=True)),
+    }
+    return [(l.kind, l.fecha, l.importe) for l in proyeccion.lineas
+            if l.origen_id in del_hogar[l.origen]]
+
+
+def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
+    """Si lo que hay en mano alcanza hasta el proximo ingreso.
+
+    `lineas` son las del hogar (con `pagado_total`). En mano = saldo inicial
+    del mes (lo que ya habia al empezar, 0 si no se anoto) + lo que el mes ha
+    dejado hasta hoy. Pendiente = lo que aun hay que pagar ANTES del proximo
+    ingreso: el del mismo dia lo cubre el propio ingreso. Si el mes ya no tiene
+    ingresos por cobrar se mira el mes siguiente; si nada planea un ingreso,
+    todo lo pendiente cuenta y `sin_ingreso` lo dice."""
+    lineas = list(lineas)
+    por_cobrar = [
+        l.due_date for l in lineas
+        if l.kind == INCOME and l.due_date is not None and l.due_date >= hoy
+        and l.pagado < l.planned_amount
+    ]
+    proximo = min(por_cobrar) if por_cobrar else None
+
+    del_siguiente = []
+    if proximo is None:
+        del_siguiente = _proximos_del_mes_siguiente(hogar, mes)
+        fechas = [fecha for kind, fecha, _ in del_siguiente if kind == INCOME and fecha is not None]
+        proximo = min(fechas) if fechas else None
+
+    pendiente = sum(
+        (l.restante for l in lineas
+         if l.kind == EXPENSE
+         and (proximo is None or l.due_date is None or l.due_date < proximo)),
+        CERO,
+    )
+    if proximo is not None:
+        pendiente += sum(
+            (importe for kind, fecha, importe in del_siguiente
+             if kind == EXPENSE and fecha is not None and fecha < proximo),
+            CERO,
+        )
+
+    saldo = mes.opening_balance
+    en_mano = (saldo or CERO) + real_del_mes
+    margen = en_mano - pendiente
+    return {
+        "saldo_inicial": saldo,
+        "real_del_mes": services.centavos(real_del_mes),
+        "en_mano": services.centavos(en_mano),
+        "proximo_ingreso": proximo,
+        "pendiente": services.centavos(pendiente),
+        "margen": services.centavos(margen),
+        "cubierto": margen >= 0,
+        "sin_ingreso": proximo is None,
+        "falta_saldo": saldo is None,
+    }
+
+
+def sugerencia_saldo_inicial(mes):
+    """El saldo con el que el mes anterior cerro, para sugerirlo como saldo
+    inicial. `_arrastre_previo` da 0 cuando no hay cierre, y 0 no es una
+    sugerencia: sin cierre previo no hay nada que sugerir."""
+    hay_cierre = MonthlyClose.objects.for_household(mes.household).filter(
+        Q(budget_month__year__lt=mes.year)
+        | Q(budget_month__year=mes.year, budget_month__month__lt=mes.month)
+    ).exists()
+    return services.centavos(services._arrastre_previo(mes)) if hay_cierre else None

@@ -11,13 +11,14 @@ import pytest
 
 from apps.budget import services_overview
 from apps.budget.engine import cascade as motor_cascade
-from apps.budget.models import AllowanceLedger
+from apps.budget.models import AllowanceLedger, BudgetLine, BudgetMonth
 from apps.households.models import Membership
 from apps.households.services import crear_hogar
 from tests.factories import MembershipFactory, UserFactory
 from tests.factories_budget import (
     AllocationRuleFactory, AllowanceLedgerFactory, BudgetLineFactory,
-    BudgetMonthFactory, CategoryFactory, GoalFactory, TransactionFactory,
+    BudgetMonthFactory, CategoryFactory, ExpenseRuleFactory, GoalFactory,
+    IncomeSourceFactory, MonthlyCloseFactory, TransactionFactory,
 )
 
 pytestmark = pytest.mark.django_db
@@ -268,3 +269,155 @@ def test_los_desvios_van_por_tamano(hogar_y_mes):
     ds = _desvios(hogar, mes, otto, date(2026, 10, 10))
 
     assert [d.diferencia for d in ds] == [Decimal("-50.00"), Decimal("20.00"), Decimal("5.00")]
+
+
+# --- alerta de cash float -----------------------------------------------------
+
+HOY = date(2026, 10, 10)
+
+
+def _alerta(hogar, mes, miembro, real="0.00", hoy=HOY):
+    lineas = services_overview.lineas_del_ambito(mes, "household", miembro)
+    return services_overview.alerta_cash_float(hogar, mes, lineas, Decimal(real), hoy)
+
+
+def _con_saldo(mes, saldo):
+    mes.opening_balance = Decimal(saldo)
+    mes.save()
+
+
+def test_cubierto_hasta_el_proximo_ingreso(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "1000.00")
+    _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
+    _linea(hogar, mes, sale, "300.00", due_date=date(2026, 10, 12))
+    _linea(hogar, mes, sale, "900.00", due_date=date(2026, 10, 20))
+
+    a = _alerta(hogar, mes, otto, "200.00")
+
+    assert a["proximo_ingreso"] == date(2026, 10, 15)
+    assert (a["en_mano"], a["pendiente"], a["margen"], a["cubierto"]) == (
+        Decimal("1200.00"), Decimal("300.00"), Decimal("900.00"), True)
+
+
+def test_no_cubierto(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "100.00")
+    _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
+    _linea(hogar, mes, sale, "300.00", due_date=date(2026, 10, 12))
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["cubierto"] is False and a["margen"] == Decimal("-200.00")
+
+
+def test_un_gasto_del_mismo_dia_que_el_ingreso_lo_cubre_el_ingreso(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "0.00")
+    _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
+    _linea(hogar, mes, sale, "500.00", due_date=date(2026, 10, 15))
+
+    assert _alerta(hogar, mes, otto)["pendiente"] == Decimal("0.00")
+
+
+def test_los_gastos_sin_vencimiento_siempre_cuentan(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "0.00")
+    _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
+    _linea(hogar, mes, sale, "150.00")
+
+    assert _alerta(hogar, mes, otto)["pendiente"] == Decimal("150.00")
+
+
+def test_un_ingreso_ya_cobrado_o_pasado_no_es_el_proximo(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "0.00")
+    cobrado = _linea(hogar, mes, entra, "1000.00", due_date=date(2026, 10, 12))
+    TransactionFactory(household=hogar, budget_month=mes, category=entra, member=otto,
+                       amount=Decimal("1000.00"), budget_line=cobrado)
+    _linea(hogar, mes, entra, "500.00", due_date=date(2026, 10, 5))
+    _linea(hogar, mes, entra, "2000.00", due_date=date(2026, 10, 25))
+
+    assert _alerta(hogar, mes, otto)["proximo_ingreso"] == date(2026, 10, 25)
+
+
+def test_proximo_ingreso_en_el_mes_siguiente_suma_lo_que_vence_antes(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "5000.00")
+    IncomeSourceFactory(household=hogar, owner=otto, effective_from=date(2026, 1, 15))
+    ExpenseRuleFactory(household=hogar, effective_from=date(2026, 1, 1), amount=Decimal("1800.00"))
+    ExpenseRuleFactory(household=hogar, effective_from=date(2026, 1, 2), amount=Decimal("777.00"),
+                       scope="personal", owner=otto)
+    parcial = _linea(hogar, mes, sale, "400.00", due_date=date(2026, 10, 20))
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("100.00"), budget_line=parcial)
+    restante_octubre = Decimal("300.00")
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["proximo_ingreso"] == date(2026, 11, 15)
+    assert a["pendiente"] == restante_octubre + Decimal("1800.00")
+    assert not BudgetMonth.objects.for_household(hogar).filter(year=2026, month=11).exists()
+
+
+def test_mes_siguiente_vacio_se_proyecta_sin_escribir(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    noviembre = BudgetMonthFactory(household=hogar, year=2026, month=11)
+    IncomeSourceFactory(household=hogar, owner=otto, effective_from=date(2026, 1, 15))
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["proximo_ingreso"] == date(2026, 11, 15)
+    assert not BudgetLine.objects.for_household(hogar).filter(budget_month=noviembre).exists()
+
+
+def test_mes_siguiente_con_lineas_usa_las_lineas_del_hogar(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "0.00")
+    noviembre = BudgetMonthFactory(household=hogar, year=2026, month=11)
+    _linea(hogar, noviembre, entra, "3000.00", due_date=date(2026, 11, 14))
+    _linea(hogar, noviembre, entra, "999.00", due_date=date(2026, 11, 3), scope="personal", owner=otto)
+    _linea(hogar, noviembre, sale, "250.00", due_date=date(2026, 11, 2))
+    _linea(hogar, noviembre, sale, "888.00", due_date=date(2026, 11, 2), scope="personal", owner=otto)
+    _linea(hogar, noviembre, sale, "600.00", due_date=date(2026, 11, 20))
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["proximo_ingreso"] == date(2026, 11, 14)
+    assert a["pendiente"] == Decimal("250.00")
+
+
+def test_sin_ingresos_planificados(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "100.00")
+    _linea(hogar, mes, sale, "300.00", due_date=date(2026, 10, 12))
+    _linea(hogar, mes, sale, "50.00", due_date=date(2026, 10, 28))
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["sin_ingreso"] is True and a["proximo_ingreso"] is None
+    assert a["pendiente"] == Decimal("350.00")
+
+
+def test_sin_saldo_inicial_lo_pide(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
+
+    a = _alerta(hogar, mes, otto, "200.00")
+
+    assert a["falta_saldo"] is True and a["saldo_inicial"] is None
+    assert a["en_mano"] == Decimal("200.00")
+
+
+def test_la_sugerencia_es_el_arrastre_del_ultimo_cierre(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    septiembre = BudgetMonthFactory(household=hogar, year=2026, month=9)
+    MonthlyCloseFactory(household=hogar, budget_month=septiembre, arrastre=Decimal("640.00"))
+
+    assert services_overview.sugerencia_saldo_inicial(mes) == Decimal("640.00")
+
+
+def test_sin_cierre_previo_no_hay_sugerencia(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+
+    assert services_overview.sugerencia_saldo_inicial(mes) is None
