@@ -30,7 +30,8 @@ def test_el_overview_del_hogar_cuadra_con_this_month(client, mes_con_dinero):
 
     assert r.status_code == 200
     assert r.context["real"] == m.context["totales"]
-    assert r.context["forecast"]["ingresos"] == m.context["totales"]["ingresos"]
+    assert r.context["forecast"]["ingresos"] == m.context["totales"]["ingresos_esperado"]
+    assert r.context["forecast"]["egresos"] == m.context["totales"]["egresos_esperado"]
     assert r.context["alerta"] is not None
     html = r.content.decode()
     assert 'id="overview-alerta"' in html and "No upcoming income planned" in html

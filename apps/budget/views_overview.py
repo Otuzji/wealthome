@@ -24,7 +24,7 @@ from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services, services_overview
 from .forms import SaldoInicialForm
-from .models.catalog import EXPENSE, HOUSEHOLD, INCOME
+from .models.catalog import HOUSEHOLD
 from .scopes import validar
 
 CERO = Decimal("0.00")
@@ -80,18 +80,8 @@ def _contexto(request, hogar, ambito, form=None):
         return contexto
 
     # Las mismas lineas, transacciones y totales que This month.
-    lineas = services_overview.lineas_del_ambito(mes, ambito, membresia)
-    transacciones = services_overview.transacciones_del_ambito(mes, ambito, membresia)
-    donas = services_overview.real_contra_planeado(lineas, transacciones)
+    lineas, transacciones, totales = services_overview.totales_del_ambito(mes, ambito, membresia)
     cerrado = mes.esta_cerrado
-    # Un mes cerrado ya no espera nada: esperado = real, y el desvio puede ser
-    # negativo (de menos).
-    totales = services_overview.totales(
-        donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
-        donas[INCOME]["real"], donas[EXPENSE]["real"],
-        CERO if cerrado else donas[INCOME]["pendiente"],
-        CERO if cerrado else donas[EXPENSE]["pendiente"],
-    )
     if ambito == HOUSEHOLD:
         forecast = services_overview.forecast_hogar(hogar, totales)
     else:

@@ -107,22 +107,44 @@ def transacciones_del_ambito(mes, ambito, membresia):
     )
 
 
+def totales_del_ambito(mes, ambito, membresia):
+    """Lineas, movimientos y `totales` de un mes y un ambito, como los pinta el
+    Overview. Un mes cerrado ya no espera nada: sin pendiente, esperado = real
+    y el desvio puede salir negativo (de menos)."""
+    lineas = lineas_del_ambito(mes, ambito, membresia)
+    transacciones = transacciones_del_ambito(mes, ambito, membresia)
+    donas = real_contra_planeado(lineas, transacciones)
+    cerrado = mes.esta_cerrado
+    return lineas, transacciones, totales(
+        donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
+        donas[INCOME]["real"], donas[EXPENSE]["real"],
+        CERO if cerrado else donas[INCOME]["pendiente"],
+        CERO if cerrado else donas[EXPENSE]["pendiente"],
+    )
+
+
 def forecast_hogar(hogar, totales_dict):
-    """Lo planeado del hogar y como lo reparte la cascada: lo mismo que
-    "Plan the month", sobre el sobrante planeado. Sin sobrante no se reparte.
+    """Como acabara el mes del hogar y como lo reparte la cascada.
+
+    Sobre lo ESPERADO (lo real + lo que falta de cada linea planificada), no
+    sobre lo planeado al empezar el mes: un gasto no planeado o una linea
+    pagada de mas ya se comieron parte del sobrante, y el forecast tiene que
+    decirlo. Sin sobrante no se reparte.
 
     `ahorro` es lo que cae en reglas sin miembro (metas, categorias); `mesada`,
     la suma de las partes de cada miembro; `sin_asignar`, lo que ninguna regla
     agota."""
-    sobrante = totales_dict["sobrante"]
+    ingresos = totales_dict["ingresos_esperado"]
+    egresos = totales_dict["egresos_esperado"]
+    sobrante = ingresos - egresos
     asignaciones = []
     if sobrante > 0:
         asignaciones = motor_cascade.repartir(sobrante, services._reglas_del_motor(hogar))
     ahorro = sum((a.importe for a in asignaciones if a.miembro_id is None), CERO)
     mesada = sum((a.importe for a in asignaciones if a.miembro_id is not None), CERO)
     return {
-        "ingresos": services.centavos(totales_dict["ingresos"]),
-        "egresos": services.centavos(totales_dict["egresos"]),
+        "ingresos": services.centavos(ingresos),
+        "egresos": services.centavos(egresos),
         "sobrante": services.centavos(sobrante),
         "ahorro": services.centavos(ahorro),
         "mesada": services.centavos(mesada),
@@ -131,21 +153,19 @@ def forecast_hogar(hogar, totales_dict):
 
 
 def forecast_personal(hogar, mes, membresia, totales_dict):
-    """Lo planeado de este miembro. `totales_dict` es el del ambito personal.
+    """Como acabara el mes de este miembro. `totales_dict` es el del ambito
+    personal; sus ingresos y gastos son los ESPERADOS, como en el hogar.
 
-    Su mesada es SU parte del reparto del sobrante del HOGAR: se calcula aqui
-    con las lineas del ambito household, que son las mismas que reparte
-    `forecast_hogar`. El libro de la mesada solo se lee: si aun no hay fila,
-    arrastre y ajuste son 0 y NO se crea (un GET no escribe)."""
-    lineas_hogar = lineas_del_ambito(mes, HOUSEHOLD, membresia)
-    donas = real_contra_planeado(lineas_hogar, [])
-    del_hogar = totales(
-        donas[INCOME]["planeado"], donas[EXPENSE]["planeado"], CERO, CERO,
-    )
+    Su mesada es SU parte del reparto del sobrante esperado del HOGAR: el mismo
+    que reparte `forecast_hogar`, para que las dos pantallas cuadren. El libro
+    de la mesada solo se lee: si aun no hay fila, arrastre y ajuste son 0 y NO
+    se crea (un GET no escribe)."""
+    _, _, del_hogar = totales_del_ambito(mes, HOUSEHOLD, membresia)
+    sobrante_hogar = del_hogar["ingresos_esperado"] - del_hogar["egresos_esperado"]
     asignaciones = []
-    if del_hogar["sobrante"] > 0:
+    if sobrante_hogar > 0:
         asignaciones = motor_cascade.repartir(
-            del_hogar["sobrante"], services._reglas_del_motor(hogar),
+            sobrante_hogar, services._reglas_del_motor(hogar),
         )
     mesada = sum((a.importe for a in asignaciones if a.miembro_id == membresia.pk), CERO)
 
@@ -157,8 +177,8 @@ def forecast_personal(hogar, mes, membresia, totales_dict):
     ajuste = libro.adjustment if libro else CERO
     disponible = mesada + arrastre + ajuste
     return {
-        "ingresos": services.centavos(totales_dict["ingresos"]),
-        "egresos": services.centavos(totales_dict["egresos"]),
+        "ingresos": services.centavos(totales_dict["ingresos_esperado"]),
+        "egresos": services.centavos(totales_dict["egresos_esperado"]),
         "mesada": services.centavos(mesada),
         "arrastre": services.centavos(arrastre),
         "ajuste": services.centavos(ajuste),

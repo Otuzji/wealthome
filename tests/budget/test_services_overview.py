@@ -44,13 +44,7 @@ def _linea(hogar, mes, categoria, importe, **extra):
 
 
 def _totales_del_hogar(hogar, mes, miembro):
-    lineas = services_overview.lineas_del_ambito(mes, "household", miembro)
-    txs = services_overview.transacciones_del_ambito(mes, "household", miembro)
-    donas = services_overview.real_contra_planeado(lineas, txs)
-    return services_overview.totales(
-        donas["income"]["planeado"], donas["expense"]["planeado"],
-        donas["income"]["real"], donas["expense"]["real"],
-    )
+    return services_overview.totales_del_ambito(mes, "household", miembro)[2]
 
 
 # --- forecast del hogar -------------------------------------------------------
@@ -104,6 +98,41 @@ def test_forecast_hogar_deja_sin_asignar_lo_que_ninguna_regla_agota(hogar_y_mes)
     assert f["sin_asignar"] == Decimal("1000.00")
 
 
+def test_forecast_hogar_parte_de_lo_esperado_y_no_de_lo_planeado(hogar_y_mes):
+    """El forecast es realista: un gasto no planeado y una linea pagada de mas
+    ya se comieron parte del sobrante, aunque lo planeado no lo diga."""
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _linea(hogar, mes, entra, "3000.00")
+    luz = _linea(hogar, mes, sale, "1000.00")
+    _linea(hogar, mes, sale, "500.00")   # sin pagar: sigue pendiente
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("1200.00"), budget_line=luz)
+    suelta = _linea(hogar, mes, sale, "300.00", is_exceptional=True, no_planeada=True)
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("300.00"), budget_line=suelta)
+    AllocationRuleFactory(household=hogar, order=1, target_type=motor_cascade.ALLOWANCE,
+                          method=motor_cascade.REMAINDER, amount=None)
+
+    f = services_overview.forecast_hogar(hogar, _totales_del_hogar(hogar, mes, otto))
+
+    # Planeado: 3000 - 1500 = 1500. Esperado: 3000 - (1200 + 300 + 500) = 1000.
+    assert (f["ingresos"], f["egresos"]) == (Decimal("3000.00"), Decimal("2000.00"))
+    assert f["sobrante"] == Decimal("1000.00")
+    assert f["mesada"] == Decimal("1000.00")
+
+
+def test_forecast_personal_reparte_el_sobrante_esperado_del_hogar(hogar_y_mes):
+    hogar, mes, sale, otto, diana = _hogar_de_dos(hogar_y_mes)
+    # 400 de gasto no planeado del hogar: el sobrante esperado baja a 600.
+    suelta = _linea(hogar, mes, sale, "400.00", is_exceptional=True, no_planeada=True)
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("400.00"), budget_line=suelta)
+
+    f = services_overview.forecast_personal(hogar, mes, diana, _totales_personales(mes, diana))
+
+    assert f["mesada"] == Decimal("300.00")
+
+
 # --- expenses -----------------------------------------------------------------
 
 
@@ -142,13 +171,7 @@ def _hogar_de_dos(hogar_y_mes):
 
 
 def _totales_personales(mes, miembro):
-    lineas = services_overview.lineas_del_ambito(mes, "personal", miembro)
-    txs = services_overview.transacciones_del_ambito(mes, "personal", miembro)
-    donas = services_overview.real_contra_planeado(lineas, txs)
-    return services_overview.totales(
-        donas["income"]["planeado"], donas["expense"]["planeado"],
-        donas["income"]["real"], donas["expense"]["real"],
-    )
+    return services_overview.totales_del_ambito(mes, "personal", miembro)[2]
 
 
 def test_forecast_personal_mesada_arrastre_y_lo_que_queda(hogar_y_mes):

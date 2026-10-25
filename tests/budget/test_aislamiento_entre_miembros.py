@@ -106,12 +106,20 @@ def test_planificar_no_ensena_a_b_las_partidas_personales_de_a(client, pareja, a
 
 
 def test_planificar_personal_ensena_a_a_sus_partidas(client, pareja):
+    """Sus partidas planificadas, si; la que nacio de un registro suelto (la de
+    la fixture) no, porque lo no planeado no se planifica."""
     client.force_login(pareja["a"].user)
     mes = pareja["mes"]
+    BudgetLine(
+        household=pareja["hogar"], budget_month=mes, category=pareja["linea"].category,
+        kind="expense", planned_amount=Decimal("50.00"), is_exceptional=True,
+        scope="personal", owner=pareja["a"], note="VIAJE-PLANIFICADO-DE-A",
+    ).save()
     html = client.get(
         reverse("budget:planificar_mes", args=["personal", mes.year, mes.month, 2])
     ).content.decode()
-    assert "REGALO-SECRETO-DE-A" in html
+    assert "VIAJE-PLANIFICADO-DE-A" in html
+    assert "REGALO-SECRETO-DE-A" not in html
 
 
 def test_planificar_hogar_no_mezcla_las_partidas_personales(client, pareja):
