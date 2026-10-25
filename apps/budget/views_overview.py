@@ -83,17 +83,20 @@ def _contexto(request, hogar, ambito, form=None):
     lineas = services_overview.lineas_del_ambito(mes, ambito, membresia)
     transacciones = services_overview.transacciones_del_ambito(mes, ambito, membresia)
     donas = services_overview.real_contra_planeado(lineas, transacciones)
+    cerrado = mes.esta_cerrado
+    # Un mes cerrado ya no espera nada: esperado = real, y el desvio puede ser
+    # negativo (de menos).
     totales = services_overview.totales(
         donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
         donas[INCOME]["real"], donas[EXPENSE]["real"],
-        donas[INCOME]["pendiente"], donas[EXPENSE]["pendiente"],
+        CERO if cerrado else donas[INCOME]["pendiente"],
+        CERO if cerrado else donas[EXPENSE]["pendiente"],
     )
     if ambito == HOUSEHOLD:
         forecast = services_overview.forecast_hogar(hogar, totales)
     else:
         forecast = services_overview.forecast_personal(hogar, mes, membresia, totales)
 
-    cerrado = mes.esta_cerrado
     contexto.update(
         cerrado=cerrado, forecast=forecast, real=totales,
         expenses=services_overview.expenses(transacciones),

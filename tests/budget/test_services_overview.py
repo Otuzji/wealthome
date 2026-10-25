@@ -458,6 +458,8 @@ def test_mes_siguiente_con_lineas_usa_las_lineas_del_hogar(hogar_y_mes):
 
     assert a["proximo_ingreso"] == date(2026, 11, 14)
     assert a["pendiente"] == Decimal("250.00")
+    # Y lo dice: de lo pendiente, 250 es del mes siguiente.
+    assert a["del_siguiente"] == Decimal("250.00")
 
 
 def test_sin_ingresos_planificados(hogar_y_mes):
@@ -623,6 +625,7 @@ def test_la_alerta_cuenta_todo_lo_pendiente_aunque_venza_despues_del_ingreso(hog
 
     assert a["proximo_ingreso"] == date(2026, 10, 15)
     assert a["pendiente"] == Decimal("300.00") + Decimal("900.00") + Decimal("150.00")
+    assert a["del_siguiente"] == Decimal("0.00")   # el ingreso es de este mes
 
 
 def test_la_alerta_no_cuenta_lo_no_planeado_del_mes_siguiente(hogar_y_mes):

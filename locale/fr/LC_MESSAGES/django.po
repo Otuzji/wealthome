@@ -2643,6 +2643,10 @@ msgstr "Il manque %(amount)s pour couvrir ce qui est encore en attente"
 msgid "Next income: %(date)s"
 msgstr "Prochain revenu : %(date)s"
 
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Includes %(amount)s due before %(date)s"
+msgstr "Comprend %(amount)s à payer avant le %(date)s"
+
 #: templates/budget/_fragmentos/esperado.html
 msgid "Pending %(amount)s"
 msgstr "En attente : %(amount)s"

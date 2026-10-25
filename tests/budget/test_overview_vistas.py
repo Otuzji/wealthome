@@ -6,7 +6,7 @@ y que los casos de borde (sin presupuesto, mes cerrado, hogar sin escritura)
 se ensenan sin escribir nada.
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -419,6 +419,12 @@ def test_quien_puede_fijar_el_saldo_ve_la_invitacion_a_anotarlo(client, mes_con_
     assert "Ask the household owner to add" not in html
 
 
+def _sin_espacios(html):
+    """El html con el espacio en blanco colapsado: para asertar sobre un
+    parrafo concreto (clase + texto) y no sobre algo suelto de la pagina."""
+    return " ".join(html.split()).replace("> ", ">").replace(" <", "<")
+
+
 def _mes_con_gasto_pasado_de_largo(hogar):
     """Una partida pagada de mas y otra a medias: lo pendiente es 60, aunque
     entre las dos lo planificado menos lo pagado de 10."""
@@ -450,8 +456,8 @@ def test_las_tarjetas_ensenan_pendiente_esperado_y_desvio(client, admin_con_hoga
         html = respuesta.content.decode()
         assert "Pending" in html and "60.00" in html
         assert "Expected" in html and "250.00" in html
-        assert "+" in html and "50.00 over plan" in html
-        assert "importe--mal" in html
+        # El parrafo concreto del desvio: gasto de mas, en rojo.
+        assert 'campo__ayuda importe--mal">+$50.00 over plan' in _sin_espacios(html)
 
 
 def test_un_desvio_de_cero_no_dice_nada(client, admin_con_hogar):
@@ -485,3 +491,94 @@ def test_los_ingresos_por_encima_del_plan_van_en_verde(client, admin_con_hogar):
 
     assert "30.00 over plan" in html
     assert 'class="campo__ayuda importe--ingreso"' in html
+
+
+def _mes_cerrado_con_la_mitad_pagada(hogar):
+    """Un gasto planeado de 100 con 60 pagados y un ingreso planeado de 100 con
+    60 cobrados; el mes se cierra con eso. Lo que faltaba ya no se espera."""
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    sale = CategoryFactory(household=hogar, slug="cierre-sale", kind="expense")
+    entra = CategoryFactory(household=hogar, slug="cierre-entra", kind="income")
+    miembro = hogar.active_memberships().first()
+    for categoria, kind in ((sale, "expense"), (entra, "income")):
+        linea = BudgetLineFactory(household=hogar, budget_month=mes, category=categoria,
+                                  kind=kind, planned_amount=Decimal("100.00"))
+        TransactionFactory(household=hogar, budget_month=mes, category=categoria, member=miembro,
+                           budget_line=linea, amount=Decimal("60.00"), date=hoy)
+    BudgetMonth.objects.for_household(hogar).filter(pk=mes.pk).update(status="closed")
+    return hoy
+
+
+def test_un_mes_cerrado_no_espera_nada_y_ensena_lo_de_menos(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = _mes_cerrado_con_la_mitad_pagada(hogar)
+
+    mes = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month]))
+    overview = client.get(reverse("budget:overview", args=["household"]))
+
+    for respuesta in (mes, overview):
+        totales = respuesta.context["totales" if respuesta is mes else "real"]
+        assert totales["egresos_pendiente"] == Decimal("0.00")
+        assert totales["ingresos_pendiente"] == Decimal("0.00")
+        assert totales["egresos_esperado"] == Decimal("60.00")
+        assert totales["egresos_desvio"] == Decimal("-40.00")
+        assert totales["ingresos_desvio"] == Decimal("-40.00")
+        html = _sin_espacios(respuesta.content.decode())
+        # Gastar de menos es bueno (verde); cobrar de menos es malo (rojo).
+        assert html.count('campo__ayuda importe--ingreso">−$40.00 under plan') == 1
+        assert html.count('campo__ayuda importe--mal">−$40.00 under plan') == 1
+        # El mes ya no debe nada: no hay fila de pendiente.
+        assert ">Pending $" not in html
+
+
+def test_un_mes_abierto_con_un_pago_parcial_no_dice_que_gasta_de_menos(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    sale = CategoryFactory(household=hogar, slug="parcial-sale", kind="expense")
+    linea = BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
+                              kind="expense", planned_amount=Decimal("100.00"))
+    TransactionFactory(household=hogar, budget_month=mes, category=sale,
+                       member=hogar.active_memberships().first(), budget_line=linea,
+                       amount=Decimal("60.00"), date=hoy)
+
+    for nombre, args in (("budget:mes", ["household", hoy.year, hoy.month]),
+                         ("budget:overview", ["household"])):
+        html = _sin_espacios(client.get(reverse(nombre, args=args)).content.decode())
+        assert ">Pending $40.00<" in html
+        assert "under plan" not in html
+
+
+def test_la_alerta_dice_cuanto_de_lo_pendiente_es_del_mes_siguiente(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    anio, numero = (hoy.year + 1, 1) if hoy.month == 12 else (hoy.year, hoy.month + 1)
+    siguiente = BudgetMonthFactory(household=hogar, year=anio, month=numero)
+    entra = CategoryFactory(household=hogar, slug="sig-entra", kind="income")
+    sale = CategoryFactory(household=hogar, slug="sig-sale", kind="expense")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale, kind="expense",
+                      planned_amount=Decimal("100.00"))
+    BudgetLineFactory(household=hogar, budget_month=siguiente, category=entra, kind="income",
+                      planned_amount=Decimal("3000.00"), due_date=date(anio, numero, 14))
+    BudgetLineFactory(household=hogar, budget_month=siguiente, category=sale, kind="expense",
+                      planned_amount=Decimal("250.00"), due_date=date(anio, numero, 2))
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+    html = _sin_espacios(r.content.decode())
+
+    assert r.context["alerta"]["del_siguiente"] == Decimal("250.00")
+    assert r.context["alerta"]["pendiente"] == Decimal("350.00")
+    fecha = f"{date(anio, numero, 14):%b} 14"
+    assert f"Includes $250.00 due before {fecha}" in html
+
+
+def test_la_alerta_no_menciona_el_mes_siguiente_si_no_aporta_nada(client, mes_con_dinero):
+    r = client.get(reverse("budget:overview", args=["household"]))
+
+    assert r.context["alerta"]["del_siguiente"] == Decimal("0.00")
+    assert "due before" not in r.content.decode()

@@ -69,6 +69,7 @@ def _lineas_para_pagar(hogar, mes, membresia):
         return []
     return list(
         mes.lineas.filter(Q(scope=HOUSEHOLD) | Q(owner=membresia))
+        .filter(no_planeada=False)
         .select_related("category", "source_income", "source_expense_rule", "household")
         .annotate(pagado_total=Sum("transacciones__amount"))
         .order_by("due_date", "pk")
@@ -338,10 +339,15 @@ def mes(request, hogar, ambito, anio=None, numero=None):
         # tanto respetan el ambito, igual que en el Overview.
         donas = services_overview.real_contra_planeado(lineas, contexto["transacciones"])
         contexto["donas"] = donas
+        # Un mes cerrado ya no espera nada: lo que faltaba no se va a pagar, asi
+        # que esperado = real y el desvio puede salir negativo (de menos).
+        cerrado = resultado.esta_cerrado
+        contexto["cerrado"] = cerrado
         contexto["totales"] = services_overview.totales(
             donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
             donas[INCOME]["real"], donas[EXPENSE]["real"],
-            donas[INCOME]["pendiente"], donas[EXPENSE]["pendiente"],
+            Decimal("0.00") if cerrado else donas[INCOME]["pendiente"],
+            Decimal("0.00") if cerrado else donas[EXPENSE]["pendiente"],
         )
         # Cash Float es del hogar: reparte dinero comun entre sus miembros,
         # asi que en el ambito personal no tiene sentido.

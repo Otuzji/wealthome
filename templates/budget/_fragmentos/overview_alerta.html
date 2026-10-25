@@ -22,6 +22,9 @@
   </strong></p>
   {% if not alerta.sin_ingreso %}
     <p class="campo__ayuda">{% blocktranslate with date=alerta.proximo_ingreso|date:"M j" %}Next income: {{ date }}{% endblocktranslate %}</p>
+    {% if alerta.del_siguiente %}
+      <p class="campo__ayuda">{% blocktranslate with amount=alerta.del_siguiente|money:hogar.currency date=alerta.proximo_ingreso|date:"M j" %}Includes {{ amount }} due before {{ date }}{% endblocktranslate %}</p>
+    {% endif %}
   {% endif %}
   {% if alerta.sin_ingreso and puede_editar %}
     <p><a href="{% url 'budget:configurar' %}">{% translate "Set up an income" %}</a></p>

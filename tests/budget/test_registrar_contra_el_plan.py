@@ -17,7 +17,9 @@ from apps.budget import services
 from apps.budget.models import BudgetLine, Category, Transaction
 from apps.households.services import crear_hogar
 from tests.factories import UserFactory
-from tests.factories_budget import CategoryFactory, ExpenseRuleFactory, IncomeSourceFactory
+from tests.factories_budget import (
+    BudgetLineFactory, CategoryFactory, ExpenseRuleFactory, IncomeSourceFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -149,6 +151,27 @@ def test_las_lineas_pagadas_van_al_final_del_desplegable(client, hogar_con_plan)
 
     assert html.index("Internet") < html.index("Alquiler")
     assert "paid" in html.lower()
+
+
+def test_las_opciones_de_pago_no_ofrecen_lo_no_planeado(client, hogar_con_plan):
+    """Una partida nacida de un registro no planeado no es del plan: no se
+    ofrece para pagarle encima."""
+    admin, hogar, mes = hogar_con_plan
+    client.force_login(admin)
+    categoria = CategoryFactory(household=hogar, slug="np-oculta", kind="expense")
+    BudgetLineFactory(
+        household=hogar, budget_month=mes, category=categoria, kind="expense",
+        planned_amount=Decimal("38.20"), is_exceptional=True, no_planeada=True,
+        note="Partida-no-planeada",
+    )
+
+    respuesta = client.get(reverse("budget:registrar"))
+
+    html = respuesta.content.decode()
+    assert "Partida-no-planeada" not in html
+    pks = [int(pk) for pk, _ in respuesta.context["form"].fields["budget_line"].choices if pk]
+    assert pks == [l.pk for l in mes.lineas.filter(kind="expense", no_planeada=False)]
+    assert "Alquiler" in html
 
 
 def test_un_registro_no_planeado_crea_una_partida_no_planeada(client, hogar_con_plan):

@@ -507,7 +507,11 @@ def cash_float(mes, lineas, total):
     las reglas no agoten queda `sin_asignar`; sin margen, todo va a cero y
     `falta` avisa de que lo pendiente supera lo que hay.
     """
-    pendiente = sum((l.restante for l in lineas if l.kind == EXPENSE), Decimal("0.00"))
+    # Solo lo planificado: igual que el "Pending" de las tarjetas de cifras.
+    pendiente = sum(
+        (l.restante for l in lineas if l.kind == EXPENSE and not l.no_planeada),
+        Decimal("0.00"),
+    )
     margen = centavos(total - pendiente)
     hogar = mes.household
     miembros = {

@@ -84,6 +84,20 @@ def test_la_tarjeta_desglosa_el_cash_float(client, mes_con_dinero):
     assert "Left over" not in html
 
 
+def test_el_pendiente_de_la_tarjeta_no_cuenta_lo_no_planeado(client, mes_con_dinero):
+    """Lo no planeado no es del plan: aunque una partida suya tuviera algo por
+    pagar, no entra en el pendiente (igual que en las tarjetas de cifras)."""
+    user, hogar, mes, otto, diana = mes_con_dinero
+    sale = mes.lineas.filter(kind="expense").first().category
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale, kind="expense",
+                      planned_amount=Decimal("70.00"), is_exceptional=True, no_planeada=True)
+
+    respuesta = _this_month(client)
+
+    assert respuesta.context["cash_float"]["pendiente"] == Decimal("3000.00")
+    assert respuesta.context["totales"]["egresos_pendiente"] == Decimal("3000.00")
+
+
 def test_sin_margen_no_hay_ahorro_ni_mesada(client, mes_con_dinero):
     user, hogar, mes, otto, diana = mes_con_dinero
     sale = mes.lineas.filter(kind="expense").first().category

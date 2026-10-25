@@ -327,12 +327,16 @@ def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
         (l.restante for l in lineas if l.kind == EXPENSE and not l.no_planeada),
         CERO,
     )
+    # Lo del mes siguiente que vence antes del proximo ingreso: va dentro de
+    # `pendiente`, y se expone aparte para que la alerta lo diga.
+    aporte_siguiente = CERO
     if proximo is not None:
-        pendiente += sum(
+        aporte_siguiente = sum(
             (importe for kind, fecha, importe in del_siguiente
              if kind == EXPENSE and fecha is not None and fecha < proximo),
             CERO,
         )
+    pendiente += aporte_siguiente
 
     saldo = mes.opening_balance
     en_mano = (saldo or CERO) + real_del_mes
@@ -343,6 +347,7 @@ def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
         "en_mano": services.centavos(en_mano),
         "proximo_ingreso": proximo,
         "pendiente": services.centavos(pendiente),
+        "del_siguiente": services.centavos(aporte_siguiente),
         "margen": services.centavos(margen),
         # Lo que falta, sin signo: la plantilla no sabe restar ni negar.
         "faltante": services.centavos(max(-margen, CERO)),

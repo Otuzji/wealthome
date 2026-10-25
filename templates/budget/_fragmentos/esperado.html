@@ -3,8 +3,12 @@
    donde acabara el mes y cuanto se aparta del plan. Recibe `pendiente`,
    `esperado`, `desvio` y `ingreso` (True en ingresos). El desvio es esperado
    menos planeado y no se muestra si es 0. En gastos pasarse es malo (rojo);
-   en ingresos, pasarse es bueno (verde) y quedarse corto es malo. {% endcomment %}
-<p class="campo__ayuda">{% blocktranslate with amount=pendiente|money:hogar.currency %}Pending {{ amount }}{% endblocktranslate %}</p>
+   en ingresos, pasarse es bueno (verde) y quedarse corto es malo. En un mes
+   cerrado (`cerrado`) ya no se espera nada: no hay fila de pendiente y lo
+   esperado es lo real. {% endcomment %}
+{% if not cerrado %}
+  <p class="campo__ayuda">{% blocktranslate with amount=pendiente|money:hogar.currency %}Pending {{ amount }}{% endblocktranslate %}</p>
+{% endif %}
 <p class="campo__ayuda">{% blocktranslate with amount=esperado|money:hogar.currency %}Expected {{ amount }}{% endblocktranslate %}</p>
 {% if desvio > 0 %}
   <p class="campo__ayuda {% if ingreso %}importe--ingreso{% else %}importe--mal{% endif %}">{% blocktranslate with amount=desvio|money:hogar.currency %}+{{ amount }} over plan{% endblocktranslate %}</p>
