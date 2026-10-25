@@ -302,3 +302,49 @@ herramientas).
 - Reparto exacto de las tarjetas en las 2 columnas de escritorio.
 - Si mover `totales` / `_real_contra_planeado` a un servicio o importarlas desde la vista.
 - Ruta y vista del guardado del saldo inicial.
+
+---
+
+## 9. Corrección del 2026-10-25: lo planificado, lo pendiente y el cierre
+
+Revisando octubre con datos reales (hogar del piloto) el usuario encontró que las
+cuentas no cuadraban. Causas confirmadas y decisiones del usuario:
+
+**9.1 Lo no planeado no es planificado.** "Planificado" = las líneas que vienen de las
+reglas del budget + las partidas que se añaden en Plan the month. Un registro "not
+planned" crea hoy una partida excepcional con `planned_amount = importe`, y esa
+partida sumaba a lo planificado (octubre: $932.14 de gastos y $64.20 de ingreso
+contados como planificados). Se añade `BudgetLine.no_planeada` (bool). La pone
+`_ligar_al_plan` al crear la partida de un registro suelto. Las existentes se marcan en
+la migración: excepcional, un solo pago, mismo importe y misma fecha que la partida
+(en octubre, 11 de 12; el usuario confirmó que Cotsco es no planeado; Halloween es la
+única planificada). Lo planificado excluye `no_planeada` en todas partes: cifras y
+donas de This month, tabla Planned (las no planeadas ya se ven en "What actually
+happened"), Overview, paso 3 y pasos 1-2 de Plan the month, cierre y Summary. Los
+`MonthlyClose` ya guardados no se recalculan.
+
+**9.2 Lo pendiente nunca se compensa.** Pendiente = Σ `restante` por línea planificada
+(un pago parcial sigue pendiente hasta el cierre; pagar de más una línea no reduce lo
+que se debe de otra). En octubre: $226.51, no los $139.03 de planificado − gastado.
+Las tarjetas Total Expenses y Total Incomes (This month y Overview) muestran: pagado,
+pendiente, esperado (= pagado + pendiente) y la diferencia con lo planificado
+("+$X over plan" / "−$X under plan"). Es lo que el usuario quiere ver: si gasta o
+ingresa más o menos de lo planeado.
+
+**9.3 La alerta cuenta todo lo pendiente** del mes (decisión del usuario), sin corte por
+vencimiento. Si el próximo ingreso cae el mes siguiente, se suman además los gastos del
+mes siguiente que vencen antes de él (como hasta ahora). Sustituye a la regla de §3.5.
+
+**9.4 Desvíos.** Lo gastado no planeado cuenta como exceso en su categoría; las
+partidas planificadas en Plan the month cuentan como planificado de su categoría. Con
+el mes abierto: desvío de una categoría = Σ por línea planificada de lo pagado de más
+(`max(0, pagado − planificado)`) + lo gastado no planeado; solo se muestra si > 0. Lo
+gastado de menos solo aparece con el mes cerrado (real − planificado, cualquier
+signo). Sustituye a la regla de "terminada" de §3.4.
+
+**9.5 El cierre contaba lo real varias veces.** `cerrar_mes` creaba un renglón por línea
+con el real de toda la categoría: con N líneas en una categoría, lo real salía N veces.
+El cierre de septiembre del piloto guardó egresos reales $933.26 en vez de $733.26
+(Fuel con 2 líneas) y un balance/arrastre de −$50.46 en vez de +$149.54. Corrección:
+un renglón por (categoría, tipo), con lo planificado sumado y lo real una sola vez.
+Corregir el registro ya guardado de septiembre es decisión del usuario, aparte.
