@@ -684,6 +684,10 @@ msgstr "prévu"
 msgid "one-off"
 msgstr "ponctuel"
 
+#: apps/budget/models/months.py
+msgid "not planned"
+msgstr "non planifiée"
+
 #: apps/budget/models/months.py apps/budget/models/ledger.py
 msgid "note"
 msgstr "note"

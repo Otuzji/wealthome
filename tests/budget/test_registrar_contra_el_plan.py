@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.budget import services
-from apps.budget.models import BudgetLine, Transaction
+from apps.budget.models import BudgetLine, Category, Transaction
 from apps.households.services import crear_hogar
 from tests.factories import UserFactory
 from tests.factories_budget import CategoryFactory, ExpenseRuleFactory, IncomeSourceFactory
@@ -149,3 +149,33 @@ def test_las_lineas_pagadas_van_al_final_del_desplegable(client, hogar_con_plan)
 
     assert html.index("Internet") < html.index("Alquiler")
     assert "paid" in html.lower()
+
+
+def test_un_registro_no_planeado_crea_una_partida_no_planeada(client, hogar_con_plan):
+    admin, hogar, mes = hogar_con_plan
+    client.force_login(admin)
+    categoria = CategoryFactory(household=hogar, slug="farmacia-np", kind="expense")
+
+    client.post(reverse("budget:registrar"), _pago(
+        budget_line="", category=categoria.pk, name="Antibiotico", amount="38.20",
+    ))
+
+    tx = Transaction.objects.for_household(hogar).get()
+    assert tx.budget_line.is_exceptional and tx.budget_line.no_planeada
+
+
+def test_una_partida_de_plan_the_month_es_planificada(client, hogar_con_plan):
+    admin, hogar, mes = hogar_con_plan
+    client.force_login(admin)
+    hoy = timezone.localdate()
+    ruta = reverse("budget:linea_nueva_del_mes_de", args=["household", hoy.year, hoy.month, "income"])
+    categoria = Category.objects.for_household(hogar).get(slug="salary")
+
+    respuesta = client.post(ruta, {
+        "category": categoria.pk, "planned_amount": "1200.00",
+        "scope": "household", "note": "Aguinaldo",
+    })
+
+    assert respuesta.status_code == 302
+    linea = BudgetLine.objects.for_household(hogar).get(note="Aguinaldo")
+    assert linea.is_exceptional and not linea.no_planeada

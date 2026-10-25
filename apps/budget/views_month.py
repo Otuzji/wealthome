@@ -158,6 +158,7 @@ def _ligar_al_plan(tx, form, mes, puntual=None):
     linea = puntual if puntual is not None else BudgetLine(
         household=tx.household, budget_month=mes, is_exceptional=True,
     )
+    linea.no_planeada = True   # nace de un registro, no de un plan (spec §9.1)
     linea.category = tx.category
     linea.kind = tx.category.kind
     linea.planned_amount = tx.amount

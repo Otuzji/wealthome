@@ -659,3 +659,46 @@ def test_el_mes_guarda_un_saldo_inicial_opcional(db):
     mes.save(update_fields=["opening_balance"])
     mes.refresh_from_db()
     assert mes.opening_balance == Decimal("1250.50")
+
+
+def test_la_migracion_marca_las_puntuales_nacidas_de_un_registro():
+    """`marcar_no_planeadas`: excepcional con exactamente un pago de mismo
+    importe y fecha. Una planificada pagada de mas, una sin pagos, una con dos
+    pagos y una de regla no se tocan."""
+    import importlib
+
+    from django.apps import apps as django_apps
+
+    from apps.budget.models import BudgetLine
+
+    modulo = importlib.import_module("apps.budget.migrations.0013_budgetline_no_planeada")
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar)
+    dia = date(2026, 1, 15)
+    categoria = CategoryFactory(household=hogar, slug="np-mig")
+
+    def linea(planned, excepcional=True, **extra):
+        return BudgetLineFactory(household=hogar, budget_month=mes, category=categoria,
+                                 planned_amount=Decimal(planned), is_exceptional=excepcional,
+                                 due_date=dia, **extra)
+
+    def pago(l, importe, dia_pago=dia):
+        return TransactionFactory(household=hogar, budget_month=mes, category=categoria,
+                                  budget_line=l, amount=Decimal(importe), date=dia_pago)
+
+    nacida = linea("38.20")
+    pago(nacida, "38.20")
+    pagada_de_mas = linea("60.00")
+    pago(pagada_de_mas, "67.00")
+    sin_pagos = linea("20.00")
+    dos_pagos = linea("30.00")
+    pago(dos_pagos, "30.00")
+    pago(dos_pagos, "30.00")
+    de_regla = linea("1750.00", excepcional=False)
+    pago(de_regla, "1750.00")
+
+    modulo.marcar_no_planeadas(django_apps, None)
+
+    marcas = {l.pk: l.no_planeada for l in BudgetLine.unscoped.filter(household=hogar)}
+    assert marcas == {nacida.pk: True, pagada_de_mas.pk: False, sin_pagos.pk: False,
+                      dos_pagos.pk: False, de_regla.pk: False}

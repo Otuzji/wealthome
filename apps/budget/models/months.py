@@ -102,6 +102,11 @@ class BudgetLine(EscrituraAcotadaAlMes, HouseholdScoped):
     kind = models.CharField(_("kind"), max_length=10, choices=KIND_CHOICES, default=EXPENSE)
     planned_amount = MoneyField(_("planned"))
     is_exceptional = models.BooleanField(_("one-off"), default=False)
+    # Una partida que nace de registrar algo que no estaba en el plan lleva
+    # planned_amount = lo gastado solo para que el plan "cuadre"; no es plan.
+    # "Planificado" es todo lo que NO lleva esta marca (reglas y partidas de
+    # Plan the month). Sigue a su movimiento si se pospone (spec §9.1).
+    no_planeada = models.BooleanField(_("not planned"), default=False)
     # Desviación 2: dos FK anulables en vez de un source_rule genérico. Una
     # regla es o una IncomeSource o una ExpenseRule; una FK genérica
     # arrastraría contenttypes a cambio de nada.

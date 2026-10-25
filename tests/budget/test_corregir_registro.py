@@ -108,6 +108,16 @@ def test_corregir_el_importe_actualiza_la_partida_puntual(client, registro_no_pl
     assert BudgetLine.objects.for_household(hogar).filter(is_exceptional=True).count() == 1
 
 
+def test_corregir_un_registro_no_planeado_lo_deja_no_planeado(client, registro_no_planeado):
+    admin, hogar, mes, tx = registro_no_planeado
+
+    client.post(reverse("budget:registro_editar", args=[tx.pk]),
+                _edicion(tx, amount="32.80", name="Antibiotico Olivia"))
+
+    tx.refresh_from_db()
+    assert tx.budget_line.no_planeada and tx.budget_line.planned_amount == Decimal("32.80")
+
+
 def test_pasar_el_registro_a_una_linea_del_plan_borra_la_puntual_huerfana(client, registro_no_planeado):
     admin, hogar, mes, tx = registro_no_planeado
     alquiler = mes.lineas.get(kind="expense", is_exceptional=False)
