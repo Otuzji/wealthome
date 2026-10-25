@@ -200,29 +200,25 @@ def cerrar_mes(mes):
     # El cierre es del HOGAR: lo personal sale de la mesada de cada miembro, y
     # contarlo aqui tambien haria salir el mismo dinero dos veces. La mesada
     # sigue bajando con lo personal (ver aplicar_cascada_al_cierre).
-    renglones = []
-    vistos = set()
-    for linea in mes.lineas.filter(scope=HOUSEHOLD):
+    # Un renglon por (categoria, tipo): lo real de la clave entra UNA vez, por
+    # muchas lineas que tenga. Lo presupuestado es solo lo planificado: las
+    # partidas no planeadas (nacidas de un registro) no se presupuestaron.
+    presupuestados = {}
+    for linea in mes.lineas.filter(scope=HOUSEHOLD, no_planeada=False):
         clave = (linea.category_id, linea.kind)
-        vistos.add(clave)
-        renglones.append(
-            motor_closing.Renglon(
-                categoria_id=linea.category_id, kind=linea.kind,
-                presupuestado=linea.planned_amount,
-                real=reales.get(clave, Decimal("0.00")),
-            )
+        presupuestados[clave] = (
+            presupuestados.get(clave, Decimal("0.00")) + linea.planned_amount
         )
-    # Lo real sin línea planeada (un gasto en una categoría que nadie
-    # presupuestó) cuenta igual: si no, el balance no cuadraría.
-    for clave, real in reales.items():
-        if clave in vistos:
-            continue
-        renglones.append(
-            motor_closing.Renglon(
-                categoria_id=clave[0], kind=clave[1],
-                presupuestado=Decimal("0.00"), real=real,
-            )
+    # Lo real sin plan (un gasto en una categoria que nadie presupuesto, o
+    # una partida no planeada) cuenta igual: si no, el balance no cuadraria.
+    renglones = [
+        motor_closing.Renglon(
+            categoria_id=clave[0], kind=clave[1],
+            presupuestado=presupuestados.get(clave, Decimal("0.00")),
+            real=reales.get(clave, Decimal("0.00")),
         )
+        for clave in sorted(presupuestados.keys() | reales.keys())
+    ]
 
     cierre_calculado = motor_closing.cerrar(renglones, _arrastre_previo(mes))
 
@@ -453,7 +449,8 @@ def totales_del_mes(mes):
     # Solo las del hogar: lo personal no entra en el sobrante que reparte la
     # cascada, igual que no entra en el cierre.
     por_kind = dict(
-        mes.lineas.filter(scope=HOUSEHOLD).values_list("kind").annotate(total=Sum("planned_amount"))
+        mes.lineas.filter(scope=HOUSEHOLD, no_planeada=False)
+        .values_list("kind").annotate(total=Sum("planned_amount"))
     )
     ingresos = centavos(por_kind.get(INCOME) or 0)
     egresos = centavos(por_kind.get(EXPENSE) or 0)

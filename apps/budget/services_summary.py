@@ -64,7 +64,8 @@ def _por_categoria(hogar, ids, membresia=None):
         de_las_lineas = {"scope": PERSONAL, "owner": membresia}
         de_los_registros = {"scope": PERSONAL, "member": membresia}
     lineas = (
-        BudgetLine.objects.for_household(hogar).filter(budget_month_id__in=ids, **de_las_lineas)
+        BudgetLine.objects.for_household(hogar)
+        .filter(budget_month_id__in=ids, no_planeada=False, **de_las_lineas)
         .values("budget_month_id", "category_id").annotate(total=Sum("planned_amount"))
     )
     for fila in lineas:

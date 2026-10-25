@@ -21,6 +21,7 @@ from apps.budget.seeds import sembrar
 from apps.households.services import crear_hogar
 from tests.factories import HouseholdFactory, UserFactory
 from tests.factories_budget import (
+    BudgetLineFactory,
     BudgetMonthFactory,
     CategoryFactory,
     ExpenseRuleFactory,
@@ -383,3 +384,65 @@ def test_un_hogar_expirado_puede_mirar_su_mes(client):
 
     assert client.get(reverse("budget:mes", args=["household"])).status_code == 200
     assert not BudgetMonth.objects.for_household(hogar).exists()
+
+
+# --- el cierre cuenta lo real una vez, y no presupuesta lo no planeado ---------
+
+
+def _linea_de_cierre(hogar, mes, categoria, importe, **extra):
+    return BudgetLineFactory(
+        household=hogar, budget_month=mes, category=categoria, kind=categoria.kind,
+        planned_amount=Decimal(importe), **extra,
+    )
+
+
+def _gasto_de_cierre(hogar, mes, categoria, importe, **extra):
+    return TransactionFactory(
+        household=hogar, budget_month=mes, category=categoria,
+        amount=Decimal(importe), date=date(2026, 1, 20), **extra,
+    )
+
+
+def test_el_cierre_cuenta_lo_real_una_sola_vez_con_varias_lineas_por_categoria():
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=1)
+    fuel = CategoryFactory(household=hogar, slug="fuel-cierre", kind="expense")
+    otra = CategoryFactory(household=hogar, slug="otra-cierre", kind="expense")
+    _linea_de_cierre(hogar, mes, fuel, "100.00")
+    _linea_de_cierre(hogar, mes, fuel, "100.00", is_exceptional=True)
+    _gasto_de_cierre(hogar, mes, fuel, "100.00")
+    _gasto_de_cierre(hogar, mes, fuel, "100.00")
+    _gasto_de_cierre(hogar, mes, otra, "50.00")
+
+    cierre = services.cerrar_mes(mes)
+
+    assert cierre.egresos_reales == Decimal("250.00")
+    assert cierre.egresos_presupuestados == Decimal("200.00")
+    assert Decimal(cierre.varianza_por_categoria[str(fuel.pk)]) == Decimal("0.00")
+    assert Decimal(cierre.varianza_por_categoria[str(otra.pk)]) == Decimal("50.00")
+
+
+def test_el_cierre_no_presupuesta_lo_no_planeado():
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=1)
+    comida = CategoryFactory(household=hogar, slug="comida-cierre", kind="expense")
+    _linea_de_cierre(hogar, mes, comida, "100.00")
+    partida = _linea_de_cierre(hogar, mes, comida, "40.00", is_exceptional=True, no_planeada=True)
+    _gasto_de_cierre(hogar, mes, comida, "100.00")
+    _gasto_de_cierre(hogar, mes, comida, "40.00", budget_line=partida)
+
+    cierre = services.cerrar_mes(mes)
+
+    assert cierre.egresos_presupuestados == Decimal("100.00")
+    assert cierre.egresos_reales == Decimal("140.00")
+    assert Decimal(cierre.varianza_por_categoria[str(comida.pk)]) == Decimal("40.00")
+
+
+def test_totales_del_mes_excluye_lo_no_planeado():
+    hogar = HouseholdFactory()
+    mes = BudgetMonthFactory(household=hogar, year=2026, month=1)
+    comida = CategoryFactory(household=hogar, slug="comida-totales", kind="expense")
+    _linea_de_cierre(hogar, mes, comida, "100.00")
+    _linea_de_cierre(hogar, mes, comida, "40.00", is_exceptional=True, no_planeada=True)
+
+    assert services.totales_del_mes(mes).total_egresos == Decimal("100.00")

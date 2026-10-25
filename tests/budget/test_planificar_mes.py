@@ -516,3 +516,44 @@ def test_un_mes_futuro_no_se_cierra(client, hogar_listo):
     assert not BudgetMonth.objects.for_household(hogar).get(year=anio, month=numero).esta_cerrado
     html = client.get(reverse("budget:mes", args=["household", anio, numero])).content.decode()
     assert reverse("budget:cerrar_mes", args=["household", anio, numero]) not in html
+
+
+# --- lo no planeado no es del plan ---------------------------------------------
+
+
+def _partida_no_planeada(hogar, mes):
+    partida = BudgetLine(
+        household=hogar, budget_month=mes, kind="expense", is_exceptional=True,
+        no_planeada=True, planned_amount=Decimal("40.00"), note="GASTO-NO-PLANEADO-X",
+        category=CategoryFactory(household=hogar, slug="imprevisto-x", kind="expense"),
+    )
+    partida.save()
+    return partida
+
+
+def test_la_tarjeta_planned_no_lista_lo_no_planeado(client, hogar_listo):
+    admin, hogar = hogar_listo
+    client.force_login(admin)
+    hoy = timezone.localdate()
+    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    _partida_no_planeada(hogar, mes)
+
+    respuesta = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month]))
+
+    bloques = respuesta.context["bloques"]
+    assert all(not l.no_planeada for b in bloques for l in b["lineas"])
+    assert [b["titulo"] for b in bloques if b["kind"] == "expense"] == ["Expenses"]
+    assert [b["total"] for b in bloques if b["kind"] == "expense"] == [Decimal("1800.00")]
+
+
+def test_plan_the_month_no_ofrece_lo_no_planeado(client, hogar_listo):
+    admin, hogar = hogar_listo
+    client.force_login(admin)
+    hoy = timezone.localdate()
+    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    partida = _partida_no_planeada(hogar, mes)
+
+    html = client.get(_paso(hoy.year, hoy.month, 2)).content.decode()
+
+    assert f'name="linea-{partida.pk}"' not in html
+    assert "GASTO-NO-PLANEADO-X" not in html

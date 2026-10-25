@@ -353,14 +353,18 @@ def mes(request, hogar, ambito, anio=None, numero=None):
 
 def _bloques_del_plan(lineas):
     """La tarjeta Planned: ingresos, ingresos puntuales, gastos, gastos
-    puntuales — cada bloque con su total."""
+    puntuales — cada bloque con su total. Las partidas no planeadas (nacidas
+    de un registro) no son del plan: no salen aqui ni suman."""
     orden = (
         (_("Income"), INCOME, False), (_("One-off income"), INCOME, True),
         (_("Expenses"), EXPENSE, False), (_("One-off expenses"), EXPENSE, True),
     )
     bloques = []
     for titulo, kind, puntual in orden:
-        filas = [l for l in lineas if l.kind == kind and l.is_exceptional == puntual]
+        filas = [
+            l for l in lineas
+            if l.kind == kind and l.is_exceptional == puntual and not l.no_planeada
+        ]
         if puntual and not filas:
             continue   # sin partidas puntuales, sin bloque vacio
         bloques.append({

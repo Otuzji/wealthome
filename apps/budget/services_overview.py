@@ -36,10 +36,15 @@ def totales(ingresos, egresos, ingresos_real, egresos_real):
 def real_contra_planeado(lineas, transacciones):
     """Por tipo: lo planeado, lo que de verdad paso y el porcentaje entero
     que la dona pinta. Lo real sale de las transacciones y no de los pagos de
-    las lineas: un gasto sin partida tambien salio del bolsillo."""
+    las lineas: un gasto sin partida tambien salio del bolsillo. Lo planeado
+    es solo lo planificado: las partidas no planeadas (nacidas de un registro)
+    no cuentan, porque nadie las planeo."""
     donas = {}
     for kind in (INCOME, EXPENSE):
-        planeado = sum((l.planned_amount for l in lineas if l.kind == kind), CERO)
+        planeado = sum(
+            (l.planned_amount for l in lineas if l.kind == kind and not l.no_planeada),
+            CERO,
+        )
         real = sum((t.amount for t in transacciones if t.category.kind == kind), CERO)
         porcentaje = int(real * 100 / planeado) if planeado else 0
         donas[kind] = {"planeado": planeado, "real": real, "porcentaje": porcentaje}

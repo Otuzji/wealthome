@@ -463,3 +463,20 @@ def test_el_mes_previo_de_enero_es_diciembre_del_anio_anterior(hogar_y_mes):
     MonthlyCloseFactory(household=hogar, budget_month=diciembre, arrastre=Decimal("75.00"))
 
     assert services_overview.sugerencia_saldo_inicial(enero) == Decimal("75.00")
+
+
+def test_real_contra_planeado_excluye_lo_no_planeado_del_plan(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _linea(hogar, mes, sale, "100.00")
+    partida = _linea(hogar, mes, sale, "40.00", is_exceptional=True, no_planeada=True)
+    TransactionFactory(household=hogar, budget_month=mes, category=sale,
+                       amount=Decimal("100.00"), date=date(2026, 10, 5))
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, budget_line=partida,
+                       amount=Decimal("40.00"), date=date(2026, 10, 6))
+    lineas = services_overview.lineas_del_ambito(mes, "household", otto)
+    txs = services_overview.transacciones_del_ambito(mes, "household", otto)
+
+    d = services_overview.real_contra_planeado(lineas, txs)
+
+    assert d["expense"]["planeado"] == Decimal("100.00")
+    assert d["expense"]["real"] == Decimal("140.00")

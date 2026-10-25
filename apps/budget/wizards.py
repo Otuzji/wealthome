@@ -74,7 +74,8 @@ def planificar(request, hogar, ambito, paso=1, anio=None, numero=None):
         contexto.update(_reparto(hogar, contexto["totales"].sobrante))
         return render(request, "wizards/planificar_3.html", contexto)
 
-    lineas = lineas.filter(kind=INCOME if paso == 1 else EXPENSE)
+    # Lo no planeado (nacido de un registro) no se planifica: no se ofrece.
+    lineas = lineas.filter(kind=INCOME if paso == 1 else EXPENSE, no_planeada=False)
     # Por METODO y no `request.POST or None`: un POST sin campos (un mes sin
     # lineas, o "Next" sin tocar nada) es un QueryDict vacio, que es falsy, y
     # dejaria el formulario sin enlazar — is_valid() False y la pagina de nuevo.

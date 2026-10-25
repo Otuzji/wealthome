@@ -134,3 +134,21 @@ def test_las_graficas_se_quedan_con_los_ultimos_doce_meses():
     assert len(resumen["filas"]) == 14
     assert resumen["series"]["meses"]["etiquetas"][0] == "2025-03"
     assert len(resumen["series"]["meses"]["etiquetas"]) == 12
+
+
+def test_summary_no_planifica_lo_no_planeado():
+    hogar = HouseholdFactory()
+    mes = _mes_cerrado(hogar, 2026, 1)
+    comida = CategoryFactory(household=hogar, slug="groceries", name="Groceries")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=comida,
+                      kind="expense", planned_amount=Decimal("400.00"))
+    BudgetLineFactory(household=hogar, budget_month=mes, category=comida, kind="expense",
+                      planned_amount=Decimal("60.00"), is_exceptional=True, no_planeada=True)
+    TransactionFactory(household=hogar, budget_month=mes, category=comida,
+                       amount=Decimal("460.00"), date=date(2026, 1, 4))
+    _cerrar(mes)
+
+    series = services_summary.resumen_de_cierres(hogar)["series"]
+
+    gastos = series["por_mes"]["2026-01"]["expense"]
+    assert gastos == {"etiquetas": ["Groceries"], "planeado": ["400.00"], "real": ["460.00"]}
