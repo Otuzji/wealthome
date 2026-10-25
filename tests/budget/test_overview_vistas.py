@@ -399,3 +399,71 @@ def test_quien_puede_fijar_el_saldo_ve_la_invitacion_a_anotarlo(client, mes_con_
 
     assert "Add this month's opening balance for an accurate check" in html
     assert "Ask the household owner to add" not in html
+
+
+def _mes_con_gasto_pasado_de_largo(hogar):
+    """Una partida pagada de mas y otra a medias: lo pendiente es 60, aunque
+    entre las dos lo planificado menos lo pagado de 10."""
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    sale = CategoryFactory(household=hogar, slug="tarjetas-sale", kind="expense")
+    miembro = hogar.active_memberships().first()
+    for importe in ("150.00", "40.00"):
+        linea = BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
+                                  kind="expense", planned_amount=Decimal("100.00"))
+        TransactionFactory(household=hogar, budget_month=mes, category=sale, member=miembro,
+                           budget_line=linea, amount=Decimal(importe), date=hoy)
+    return hoy
+
+
+def test_las_tarjetas_ensenan_pendiente_esperado_y_desvio(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = _mes_con_gasto_pasado_de_largo(hogar)
+
+    mes = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month]))
+    overview = client.get(reverse("budget:overview", args=["household"]))
+
+    for respuesta in (mes, overview):
+        totales = respuesta.context["totales" if respuesta is mes else "real"]
+        assert totales["egresos_pendiente"] == Decimal("60.00")
+        assert totales["egresos_esperado"] == Decimal("250.00")
+        assert totales["egresos_desvio"] == Decimal("50.00")
+        html = respuesta.content.decode()
+        assert "Pending" in html and "60.00" in html
+        assert "Expected" in html and "250.00" in html
+        assert "+" in html and "50.00 over plan" in html
+        assert "importe--mal" in html
+
+
+def test_un_desvio_de_cero_no_dice_nada(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    sale = CategoryFactory(household=hogar, slug="tarjetas-justo", kind="expense")
+    BudgetLineFactory(household=hogar, budget_month=mes, category=sale,
+                      kind="expense", planned_amount=Decimal("100.00"))
+
+    html = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month])).content.decode()
+
+    assert "Pending" in html and "Expected" in html
+    assert "over plan" not in html and "under plan" not in html
+
+
+def test_los_ingresos_por_encima_del_plan_van_en_verde(client, admin_con_hogar):
+    user, hogar = admin_con_hogar
+    client.force_login(user)
+    hoy = timezone.localdate()
+    mes = BudgetMonthFactory(household=hogar, year=hoy.year, month=hoy.month)
+    entra = CategoryFactory(household=hogar, slug="tarjetas-entra", kind="income")
+    linea = BudgetLineFactory(household=hogar, budget_month=mes, category=entra,
+                              kind="income", planned_amount=Decimal("100.00"))
+    TransactionFactory(household=hogar, budget_month=mes, category=entra,
+                       member=hogar.active_memberships().first(), budget_line=linea,
+                       amount=Decimal("130.00"), date=hoy)
+
+    html = client.get(reverse("budget:mes", args=["household", hoy.year, hoy.month])).content.decode()
+
+    assert "30.00 over plan" in html
+    assert 'class="campo__ayuda importe--ingreso"' in html

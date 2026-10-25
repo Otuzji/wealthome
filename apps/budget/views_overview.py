@@ -86,6 +86,7 @@ def _contexto(request, hogar, ambito, form=None):
     totales = services_overview.totales(
         donas[INCOME]["planeado"], donas[EXPENSE]["planeado"],
         donas[INCOME]["real"], donas[EXPENSE]["real"],
+        donas[INCOME]["pendiente"], donas[EXPENSE]["pendiente"],
     )
     if ambito == HOUSEHOLD:
         forecast = services_overview.forecast_hogar(hogar, totales)

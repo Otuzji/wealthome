@@ -46,3 +46,10 @@ def money(amount, currency=None):
     pantalla del dinero, un TemplateSyntaxError es peor que un CAD de más.
     """
     return format_money(amount, currency=currency or None)
+
+
+@register.filter(name="absoluto")
+def absoluto(amount):
+    """El importe sin signo: la plantilla pone el signo y el "under plan" por
+    su cuenta, y no sabe negar. `{{ desvio|absoluto|money }}`."""
+    return abs(amount) if amount is not None and amount != "" else amount

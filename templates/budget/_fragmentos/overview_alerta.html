@@ -1,6 +1,7 @@
 {% load i18n money %}
-{% comment %} La alerta del Overview: si lo que hay en mano alcanza hasta el
-   proximo ingreso. Solo en el hogar y con el mes abierto. En mano = saldo
+{% comment %} La alerta del Overview: si lo que hay en mano alcanza para pagar
+   todo lo que aun esta pendiente (la fecha del proximo ingreso solo se
+   ensena). Solo en el hogar y con el mes abierto. En mano = saldo
    inicial del mes + lo que el mes ha dejado hasta hoy. Sin saldo inicial la
    cifra es aproximada, y se dice. El saldo inicial se escribe aqui mismo (htmx
    sustituye toda la seccion al guardar) y solo lo ofrece `puede_editar`:
@@ -14,11 +15,14 @@
     {% if alerta.sin_ingreso %}
       {% translate "No upcoming income planned" %}
     {% elif alerta.cubierto %}
-      {% blocktranslate with amount=alerta.margen|money:hogar.currency date=alerta.proximo_ingreso|date:"M j" %}Covered: {{ amount }} to spare until {{ date }}{% endblocktranslate %}
+      {% blocktranslate with amount=alerta.margen|money:hogar.currency %}Covered: {{ amount }} to spare after paying what is pending{% endblocktranslate %}
     {% else %}
-      {% blocktranslate with amount=alerta.faltante|money:hogar.currency date=alerta.proximo_ingreso|date:"M j" %}Short {{ amount }} for what's due before {{ date }}{% endblocktranslate %}
+      {% blocktranslate with amount=alerta.faltante|money:hogar.currency %}Short {{ amount }} to cover what is still pending{% endblocktranslate %}
     {% endif %}
   </strong></p>
+  {% if not alerta.sin_ingreso %}
+    <p class="campo__ayuda">{% blocktranslate with date=alerta.proximo_ingreso|date:"M j" %}Next income: {{ date }}{% endblocktranslate %}</p>
+  {% endif %}
   {% if alerta.sin_ingreso and puede_editar %}
     <p><a href="{% url 'budget:configurar' %}">{% translate "Set up an income" %}</a></p>
   {% endif %}

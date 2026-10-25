@@ -2606,10 +2606,12 @@ msgid "Nothing left to split"
 msgstr "Plus rien à répartir"
 
 #: templates/budget/overview.html
+#: templates/budget/_fragmentos/esperado.html
 msgid "+%(amount)s over plan"
 msgstr "+%(amount)s au-dessus du plan"
 
 #: templates/budget/overview.html
+#: templates/budget/_fragmentos/esperado.html
 msgid "−%(amount)s under plan"
 msgstr "−%(amount)s en dessous du plan"
 
@@ -2630,12 +2632,24 @@ msgid "No upcoming income planned"
 msgstr "Aucun revenu à venir n'est prévu"
 
 #: templates/budget/_fragmentos/overview_alerta.html
-msgid "Covered: %(amount)s to spare until %(date)s"
-msgstr "Couvert : %(amount)s de marge jusqu'au %(date)s"
+msgid "Covered: %(amount)s to spare after paying what is pending"
+msgstr "Couvert : %(amount)s de marge après avoir payé ce qui est en attente"
 
 #: templates/budget/_fragmentos/overview_alerta.html
-msgid "Short %(amount)s for what's due before %(date)s"
-msgstr "Il manque %(amount)s pour ce qui est dû avant le %(date)s"
+msgid "Short %(amount)s to cover what is still pending"
+msgstr "Il manque %(amount)s pour couvrir ce qui est encore en attente"
+
+#: templates/budget/_fragmentos/overview_alerta.html
+msgid "Next income: %(date)s"
+msgstr "Prochain revenu : %(date)s"
+
+#: templates/budget/_fragmentos/esperado.html
+msgid "Pending %(amount)s"
+msgstr "En attente : %(amount)s"
+
+#: templates/budget/_fragmentos/esperado.html
+msgid "Expected %(amount)s"
+msgstr "Attendu : %(amount)s"
 
 #: templates/budget/_fragmentos/overview_alerta.html
 msgid "Set up an income"

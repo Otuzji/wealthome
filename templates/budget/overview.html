@@ -109,18 +109,22 @@
         <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
         <div class="cifra__valor {% if real.sobrante_real < 0 %}cifra__valor--mal{% endif %}">{{ real.sobrante_real|money:hogar.currency }}</div>
       </div>
-      <dl class="flotante__destinos">
-        <div class="flotante__fila">
-          <dt>{% translate "Income" %}</dt>
-          <dd class="numero importe--ingreso">
-            {% blocktranslate with real=real.ingresos_real|money:hogar.currency planned=real.ingresos|money:hogar.currency %}{{ real }} of {{ planned }}{% endblocktranslate %}</dd>
+      <div class="cifra">
+        <div class="cifra__etiqueta">{% translate "Income" %}</div>
+        <div class="cifra__linea">
+          <span class="cifra__valor cifra__valor--ingreso">{{ real.ingresos_real|money:hogar.currency }}</span>
+          <span class="cifra__plan">{{ real.ingresos|money:hogar.currency }} {% translate "planned" %}</span>
         </div>
-        <div class="flotante__fila">
-          <dt>{% translate "Expenses" %}</dt>
-          <dd class="numero importe--egreso">
-            {% blocktranslate with real=real.egresos_real|money:hogar.currency planned=real.egresos|money:hogar.currency %}{{ real }} of {{ planned }}{% endblocktranslate %}</dd>
+        {% include "budget/_fragmentos/esperado.html" with pendiente=real.ingresos_pendiente esperado=real.ingresos_esperado desvio=real.ingresos_desvio ingreso=True %}
+      </div>
+      <div class="cifra">
+        <div class="cifra__etiqueta">{% translate "Expenses" %}</div>
+        <div class="cifra__linea">
+          <span class="cifra__valor cifra__valor--egreso">{{ real.egresos_real|money:hogar.currency }}</span>
+          <span class="cifra__plan">{{ real.egresos|money:hogar.currency }} {% translate "planned" %}</span>
         </div>
-      </dl>
+        {% include "budget/_fragmentos/esperado.html" with pendiente=real.egresos_pendiente esperado=real.egresos_esperado desvio=real.egresos_desvio ingreso=False %}
+      </div>
     </section>
 
     <section class="card overview__desvios">

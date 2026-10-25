@@ -5,7 +5,8 @@
 
    Lo REAL en grande y lo planeado en pequeno a su lado: lo que de verdad entro
    y salio es la cifra que se viene a mirar; el plan es la referencia. El
-   sobrante real se pone en rojo cuando salio mas de lo que entro. {% endcomment %}
+   sobrante real se pone en rojo cuando salio mas de lo que entro. Bajo ingresos y
+   gastos, lo pendiente, lo esperado y el desvio contra el plan. {% endcomment %}
 <div class="cifras">
   <div class="cifra">
     <div class="cifra__etiqueta">{% translate "Total Incomes" %}</div>
@@ -13,6 +14,7 @@
       <span class="cifra__valor cifra__valor--ingreso">{{ totales.ingresos_real|money:hogar.currency }}</span>
       <span class="cifra__plan">{{ totales.ingresos|money:hogar.currency }} {% translate "planned" %}</span>
     </div>
+    {% include "budget/_fragmentos/esperado.html" with pendiente=totales.ingresos_pendiente esperado=totales.ingresos_esperado desvio=totales.ingresos_desvio ingreso=True %}
   </div>
   <div class="cifra">
     <div class="cifra__etiqueta">{% translate "Total Expenses" %}</div>
@@ -20,6 +22,7 @@
       <span class="cifra__valor cifra__valor--egreso">{{ totales.egresos_real|money:hogar.currency }}</span>
       <span class="cifra__plan">{{ totales.egresos|money:hogar.currency }} {% translate "planned" %}</span>
     </div>
+    {% include "budget/_fragmentos/esperado.html" with pendiente=totales.egresos_pendiente esperado=totales.egresos_esperado desvio=totales.egresos_desvio ingreso=False %}
   </div>
   <div class="cifra">
     <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>

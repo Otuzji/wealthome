@@ -306,9 +306,10 @@ def test_cubierto_hasta_el_proximo_ingreso(hogar_y_mes):
 
     a = _alerta(hogar, mes, otto, "200.00")
 
+    # Todo lo pendiente cuenta, tambien lo que vence despues del ingreso.
     assert a["proximo_ingreso"] == date(2026, 10, 15)
     assert (a["en_mano"], a["pendiente"], a["margen"], a["cubierto"]) == (
-        Decimal("1200.00"), Decimal("300.00"), Decimal("900.00"), True)
+        Decimal("1200.00"), Decimal("1200.00"), Decimal("0.00"), True)
 
 
 def test_no_cubierto(hogar_y_mes):
@@ -323,13 +324,13 @@ def test_no_cubierto(hogar_y_mes):
     assert a["faltante"] == Decimal("200.00")      # lo que falta, sin signo
 
 
-def test_un_gasto_del_mismo_dia_que_el_ingreso_lo_cubre_el_ingreso(hogar_y_mes):
+def test_un_gasto_del_dia_del_ingreso_tambien_es_pendiente(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
     _con_saldo(mes, "0.00")
     _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
     _linea(hogar, mes, sale, "500.00", due_date=date(2026, 10, 15))
 
-    assert _alerta(hogar, mes, otto)["pendiente"] == Decimal("0.00")
+    assert _alerta(hogar, mes, otto)["pendiente"] == Decimal("500.00")
 
 
 def test_los_gastos_sin_vencimiento_siempre_cuentan(hogar_y_mes):
@@ -480,3 +481,99 @@ def test_real_contra_planeado_excluye_lo_no_planeado_del_plan(hogar_y_mes):
 
     assert d["expense"]["planeado"] == Decimal("100.00")
     assert d["expense"]["real"] == Decimal("140.00")
+
+
+# --- pendiente, esperado y desvio ----------------------------------------------
+
+
+def _totales_con_pendiente(hogar, mes, miembro):
+    lineas = services_overview.lineas_del_ambito(mes, "household", miembro)
+    txs = services_overview.transacciones_del_ambito(mes, "household", miembro)
+    d = services_overview.real_contra_planeado(lineas, txs)
+    return services_overview.totales(
+        d["income"]["planeado"], d["expense"]["planeado"], d["income"]["real"],
+        d["expense"]["real"], d["income"]["pendiente"], d["expense"]["pendiente"],
+    )
+
+
+def test_lo_pendiente_no_se_compensa_con_lo_pagado_de_mas(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    a = _linea(hogar, mes, sale, "100.00")
+    b = _linea(hogar, mes, sale, "100.00")
+    partida = _linea(hogar, mes, sale, "30.00", is_exceptional=True, no_planeada=True)
+    for linea, importe in ((a, "150.00"), (b, "40.00"), (partida, "30.00")):
+        TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                           budget_line=linea, amount=Decimal(importe), date=date(2026, 10, 5))
+
+    t = _totales_con_pendiente(hogar, mes, otto)
+
+    assert t["egresos"] == Decimal("200.00")
+    assert t["egresos_real"] == Decimal("220.00")
+    assert t["egresos_pendiente"] == Decimal("60.00")
+    assert t["egresos_esperado"] == Decimal("280.00")
+    assert t["egresos_desvio"] == Decimal("80.00")
+    assert t["ingresos_pendiente"] == Decimal("0.00")
+
+
+def test_el_pendiente_de_ingresos_sale_de_las_lineas_de_ingreso(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    sueldo = _linea(hogar, mes, entra, "1000.00")
+    TransactionFactory(household=hogar, budget_month=mes, category=entra, member=otto,
+                       budget_line=sueldo, amount=Decimal("700.00"), date=date(2026, 10, 5))
+
+    t = _totales_con_pendiente(hogar, mes, otto)
+
+    assert t["ingresos_pendiente"] == Decimal("300.00")
+    assert t["ingresos_esperado"] == Decimal("1000.00")
+    assert t["ingresos_desvio"] == Decimal("0.00")
+
+
+def test_un_mes_sin_nada_planificado(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("25.00"), date=date(2026, 10, 5))
+
+    t = _totales_con_pendiente(hogar, mes, otto)
+
+    assert t["egresos"] == Decimal("0.00")
+    assert t["egresos_pendiente"] == Decimal("0.00")
+    assert t["egresos_desvio"] == t["egresos_esperado"] == Decimal("25.00")
+
+
+def test_totales_sin_pendiente_lo_toma_como_cero():
+    t = services_overview.totales(Decimal("10.00"), Decimal("5.00"), Decimal("0.00"), Decimal("0.00"))
+
+    assert t["egresos_pendiente"] == Decimal("0.00")
+    assert t["egresos_desvio"] == Decimal("-5.00")
+
+
+def test_la_alerta_cuenta_todo_lo_pendiente_aunque_venza_despues_del_ingreso(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "0.00")
+    _linea(hogar, mes, entra, "3000.00", due_date=date(2026, 10, 15))
+    _linea(hogar, mes, sale, "300.00", due_date=date(2026, 10, 12))
+    _linea(hogar, mes, sale, "900.00", due_date=date(2026, 10, 20))
+    parcial = _linea(hogar, mes, sale, "200.00", due_date=date(2026, 10, 28))
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       budget_line=parcial, amount=Decimal("50.00"), date=date(2026, 10, 5))
+    _linea(hogar, mes, sale, "40.00", is_exceptional=True, no_planeada=True,
+           due_date=date(2026, 10, 6))
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["proximo_ingreso"] == date(2026, 10, 15)
+    assert a["pendiente"] == Decimal("300.00") + Decimal("900.00") + Decimal("150.00")
+
+
+def test_la_alerta_no_cuenta_lo_no_planeado_del_mes_siguiente(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    _con_saldo(mes, "0.00")
+    noviembre = BudgetMonthFactory(household=hogar, year=2026, month=11)
+    _linea(hogar, noviembre, entra, "3000.00", due_date=date(2026, 11, 14))
+    _linea(hogar, noviembre, sale, "250.00", due_date=date(2026, 11, 2))
+    _linea(hogar, noviembre, sale, "70.00", due_date=date(2026, 11, 3),
+           is_exceptional=True, no_planeada=True)
+
+    a = _alerta(hogar, mes, otto)
+
+    assert a["pendiente"] == Decimal("250.00")

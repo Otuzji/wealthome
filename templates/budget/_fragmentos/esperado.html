@@ -1,0 +1,13 @@
+{% load i18n money %}
+{% comment %} Bajo lo pagado de una tarjeta (ingresos o gastos): lo que aun falta,
+   donde acabara el mes y cuanto se aparta del plan. Recibe `pendiente`,
+   `esperado`, `desvio` y `ingreso` (True en ingresos). El desvio es esperado
+   menos planeado y no se muestra si es 0. En gastos pasarse es malo (rojo);
+   en ingresos, pasarse es bueno (verde) y quedarse corto es malo. {% endcomment %}
+<p class="campo__ayuda">{% blocktranslate with amount=pendiente|money:hogar.currency %}Pending {{ amount }}{% endblocktranslate %}</p>
+<p class="campo__ayuda">{% blocktranslate with amount=esperado|money:hogar.currency %}Expected {{ amount }}{% endblocktranslate %}</p>
+{% if desvio > 0 %}
+  <p class="campo__ayuda {% if ingreso %}importe--ingreso{% else %}importe--mal{% endif %}">{% blocktranslate with amount=desvio|money:hogar.currency %}+{{ amount }} over plan{% endblocktranslate %}</p>
+{% elif desvio < 0 %}
+  <p class="campo__ayuda {% if ingreso %}importe--mal{% else %}importe--ingreso{% endif %}">{% blocktranslate with amount=desvio|absoluto|money:hogar.currency %}−{{ amount }} under plan{% endblocktranslate %}</p>
+{% endif %}

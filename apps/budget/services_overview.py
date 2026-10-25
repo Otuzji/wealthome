@@ -22,32 +22,48 @@ from .scopes import acotar, acotar_por_dueno
 CERO = Decimal("0.00")
 
 
-def totales(ingresos, egresos, ingresos_real, egresos_real):
+def totales(ingresos, egresos, ingresos_real, egresos_real,
+            ingresos_pendiente=CERO, egresos_pendiente=CERO):
     """Las tres cifras de cabecera, planeado y real, las mismas en Overview y
     en This month: una sola funcion para que no diverjan. Lo real sale de los
-    registros del mes; el sobrante real es lo que entro menos lo que salio."""
+    registros del mes; el sobrante real es lo que entro menos lo que salio.
+
+    Lo pendiente llega ya calculado (la suma de lo que le falta a cada linea
+    planificada, sin compensar). Esperado = lo real + lo pendiente: donde
+    acabara el mes si se paga todo lo que falta. Desvio = esperado - planeado:
+    positivo, mas que lo planeado."""
     return {
         "ingresos": ingresos, "egresos": egresos, "sobrante": ingresos - egresos,
         "ingresos_real": ingresos_real, "egresos_real": egresos_real,
         "sobrante_real": ingresos_real - egresos_real,
+        "ingresos_pendiente": ingresos_pendiente, "egresos_pendiente": egresos_pendiente,
+        "ingresos_esperado": ingresos_real + ingresos_pendiente,
+        "egresos_esperado": egresos_real + egresos_pendiente,
+        "ingresos_desvio": ingresos_real + ingresos_pendiente - ingresos,
+        "egresos_desvio": egresos_real + egresos_pendiente - egresos,
     }
 
 
 def real_contra_planeado(lineas, transacciones):
-    """Por tipo: lo planeado, lo que de verdad paso y el porcentaje entero
-    que la dona pinta. Lo real sale de las transacciones y no de los pagos de
-    las lineas: un gasto sin partida tambien salio del bolsillo. Lo planeado
-    es solo lo planificado: las partidas no planeadas (nacidas de un registro)
-    no cuentan, porque nadie las planeo."""
+    """Por tipo: lo planeado, lo que de verdad paso, lo que aun falta y el
+    porcentaje entero que la dona pinta. Lo real sale de las transacciones y no
+    de los pagos de las lineas: un gasto sin partida tambien salio del bolsillo.
+    Lo planeado es solo lo planificado: las partidas no planeadas (nacidas de un
+    registro) no cuentan, porque nadie las planeo.
+
+    Lo pendiente es la suma de lo que le falta a CADA linea planificada, sin
+    compensar: pagar de mas una linea no reduce lo que otra aun debe."""
     donas = {}
     for kind in (INCOME, EXPENSE):
-        planeado = sum(
-            (l.planned_amount for l in lineas if l.kind == kind and not l.no_planeada),
-            CERO,
-        )
+        planificadas = [l for l in lineas if l.kind == kind and not l.no_planeada]
+        planeado = sum((l.planned_amount for l in planificadas), CERO)
+        pendiente = sum((l.restante for l in planificadas), CERO)
         real = sum((t.amount for t in transacciones if t.category.kind == kind), CERO)
         porcentaje = int(real * 100 / planeado) if planeado else 0
-        donas[kind] = {"planeado": planeado, "real": real, "porcentaje": porcentaje}
+        donas[kind] = {
+            "planeado": planeado, "real": real, "pendiente": pendiente,
+            "porcentaje": porcentaje,
+        }
     return donas
 
 
@@ -232,10 +248,13 @@ def _proximos_del_mes_siguiente(hogar, mes):
     anio, num = services.mes_siguiente(mes.year, mes.month)
     siguiente = BudgetMonth.objects.for_household(hogar).filter(year=anio, month=num).first()
     if siguiente is not None:
-        existentes = list(siguiente.lineas.values_list("kind", "due_date", "planned_amount", "scope"))
+        existentes = list(siguiente.lineas.values_list(
+            "kind", "due_date", "planned_amount", "scope", "no_planeada",
+        ))
         if existentes:
-            return [(kind, fecha, importe) for kind, fecha, importe, ambito in existentes
-                    if ambito == HOUSEHOLD]
+            # Una partida no planeada que se pospuso ya esta pagada: no se debe.
+            return [(kind, fecha, importe) for kind, fecha, importe, ambito, no_planeada in existentes
+                    if ambito == HOUSEHOLD and not no_planeada]
 
     proyeccion = services.proyectar(hogar, anio, num)
     return [(l.kind, l.fecha, l.importe) for l in lineas_proyectadas_del_hogar(hogar, proyeccion)]
@@ -259,22 +278,24 @@ def lineas_proyectadas_del_hogar(hogar, proyeccion):
 def totales_proyectados_del_hogar(hogar, proyeccion):
     """`totales` de una proyeccion, solo con lo del hogar y sin nada real."""
     lineas = lineas_proyectadas_del_hogar(hogar, proyeccion)
-    return totales(
-        sum((l.importe for l in lineas if l.kind == INCOME), CERO),
-        sum((l.importe for l in lineas if l.kind == EXPENSE), CERO),
-        CERO, CERO,
-    )
+    ingresos = sum((l.importe for l in lineas if l.kind == INCOME), CERO)
+    egresos = sum((l.importe for l in lineas if l.kind == EXPENSE), CERO)
+    # Nada pagado todavia: todo lo planeado esta pendiente, y el esperado es
+    # el plan (sin desvio que ensenar).
+    return totales(ingresos, egresos, CERO, CERO, ingresos, egresos)
 
 
 def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
-    """Si lo que hay en mano alcanza hasta el proximo ingreso.
+    """Si lo que hay en mano alcanza para pagar lo que falta.
 
     `lineas` son las del hogar (con `pagado_total`). En mano = saldo inicial
     del mes (lo que ya habia al empezar, 0 si no se anoto) + lo que el mes ha
-    dejado hasta hoy. Pendiente = lo que aun hay que pagar ANTES del proximo
-    ingreso: el del mismo dia lo cubre el propio ingreso. Si el mes ya no tiene
-    ingresos por cobrar se mira el mes siguiente; si nada planea un ingreso,
-    todo lo pendiente cuenta y `sin_ingreso` lo dice."""
+    dejado hasta hoy. Pendiente = lo que le falta a TODA linea de gasto
+    planificada del mes, venza cuando venza (sin corte por fecha: lo que no se
+    ha pagado se debe, y las partidas no planeadas ya estan pagadas). Si el
+    proximo ingreso cae el mes siguiente, ese mes aporta ademas sus gastos que
+    vencen antes de que entre. `proximo` solo se ensena: si nada planea un
+    ingreso, `sin_ingreso` lo dice."""
     lineas = list(lineas)
     por_cobrar = [
         l.due_date for l in lineas
@@ -290,9 +311,7 @@ def alerta_cash_float(hogar, mes, lineas, real_del_mes: Decimal, hoy: date):
         proximo = min(fechas) if fechas else None
 
     pendiente = sum(
-        (l.restante for l in lineas
-         if l.kind == EXPENSE
-         and (proximo is None or l.due_date is None or l.due_date < proximo)),
+        (l.restante for l in lineas if l.kind == EXPENSE and not l.no_planeada),
         CERO,
     )
     if proximo is not None:
