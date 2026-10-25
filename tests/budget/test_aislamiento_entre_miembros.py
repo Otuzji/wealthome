@@ -34,8 +34,8 @@ def pareja():
     categoria = CategoryFactory(household=hogar, slug="personal-a", kind="expense")
     linea = BudgetLine(
         household=hogar, budget_month=mes, category=categoria, kind="expense",
-        planned_amount=Decimal("77.00"), is_exceptional=True, scope="personal",
-        owner=mem_a, note="REGALO-SECRETO-DE-A",
+        planned_amount=Decimal("77.00"), is_exceptional=True, no_planeada=True,
+        scope="personal", owner=mem_a, note="REGALO-SECRETO-DE-A",
     )
     linea.save()
     tx = Transaction(

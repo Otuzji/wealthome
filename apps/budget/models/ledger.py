@@ -65,15 +65,16 @@ class Transaction(EscrituraAcotadaAlMes, HouseholdScoped):
 
     @property
     def partida_propia(self):
-        """La partida puntual que nacio de este registro, si sigue siendo solo
-        suya: alguien pudo haber pagado despues contra ella desde "What is it".
+        """La partida que nacio de este registro (`no_planeada`), si sigue
+        siendo solo suya: alguien pudo haber pagado despues contra ella desde
+        "What is it". Una puntual de Plan the month es plan, no es de nadie.
         La partida sigue al registro: se corrige, se borra y se muda con el.
 
         Con `pagos_en_su_linea` anotado no consulta: quien pinte muchas filas
         debe anotarlo (ver la vista del mes) o son dos consultas por fila.
         """
         linea = self.budget_line
-        if linea is None or not linea.is_exceptional:
+        if linea is None or not linea.no_planeada:
             return None
         if hasattr(self, "pagos_en_su_linea"):
             return linea if (self.pagos_en_su_linea or 0) <= 1 else None

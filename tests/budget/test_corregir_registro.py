@@ -19,7 +19,7 @@ from apps.budget.models import BudgetLine, Transaction
 from apps.households.models import Membership
 from tests.budget.test_registrar_contra_el_plan import _pago, hogar_con_plan  # noqa: F401
 from tests.factories import MembershipFactory
-from tests.factories_budget import CategoryFactory
+from tests.factories_budget import BudgetLineFactory, CategoryFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -201,3 +201,41 @@ def test_sin_can_add_transactions_no_se_corrige(client, registro_no_planeado):
 
     assert client.get(reverse("budget:registro_editar", args=[tx.pk])).status_code == 403
     assert client.post(reverse("budget:registro_borrar", args=[tx.pk])).status_code == 403
+
+
+@pytest.fixture
+def pago_de_una_puntual_planificada(client, hogar_con_plan):
+    """Una puntual de Plan the month (Halloween, planned 60) con un solo pago
+    de 67: no es "su" partida, es plan."""
+    admin, hogar, mes = hogar_con_plan
+    client.force_login(admin)
+    categoria = CategoryFactory(household=hogar, slug="halloween", kind="expense")
+    linea = BudgetLineFactory(household=hogar, budget_month=mes, category=categoria,
+                              kind="expense", is_exceptional=True, planned_amount=Decimal("60.00"),
+                              due_date=timezone.localdate(), note="Halloween")
+    client.post(reverse("budget:registrar"), _pago(budget_line=linea.pk, amount="67.00"))
+    tx = Transaction.objects.for_household(hogar).get(budget_line=linea)
+    return admin, hogar, mes, tx, linea
+
+
+def test_corregir_el_pago_de_una_puntual_planificada_no_la_toca(client, pago_de_una_puntual_planificada):
+    admin, hogar, mes, tx, linea = pago_de_una_puntual_planificada
+
+    respuesta = client.post(reverse("budget:registro_editar", args=[tx.pk]),
+                            _edicion(tx, amount="70.00", budget_line=linea.pk))
+
+    assert respuesta.status_code == 302
+    tx.refresh_from_db()
+    assert tx.amount == Decimal("70.00") and tx.budget_line_id == linea.pk
+    linea.refresh_from_db()
+    assert linea.planned_amount == Decimal("60.00") and not linea.no_planeada
+    assert BudgetLine.objects.for_household(hogar).filter(is_exceptional=True).count() == 1
+
+
+def test_quitar_el_pago_de_una_puntual_planificada_deja_la_partida(client, pago_de_una_puntual_planificada):
+    admin, hogar, mes, tx, linea = pago_de_una_puntual_planificada
+
+    client.post(reverse("budget:registro_borrar", args=[tx.pk]))
+
+    assert not Transaction.objects.for_household(hogar).exists()
+    assert BudgetLine.objects.for_household(hogar).get(pk=linea.pk).planned_amount == Decimal("60.00")

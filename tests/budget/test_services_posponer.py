@@ -42,7 +42,7 @@ def _gasto_suelto(hogar, mes, amount=Decimal("38.20"), kind="expense", slug="far
     ya pagada, que es solo suya."""
     categoria = CategoryFactory(household=hogar, slug=slug, kind=kind)
     puntual = BudgetLineFactory(household=hogar, budget_month=mes, is_exceptional=True,
-                                category=categoria, kind=kind, note="Antibiotico",
+                                no_planeada=True, category=categoria, kind=kind, note="Antibiotico",
                                 planned_amount=amount)
     return _registro(hogar, mes, budget_line=puntual, category=categoria, amount=amount)
 

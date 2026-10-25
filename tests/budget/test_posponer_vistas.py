@@ -21,7 +21,7 @@ from apps.budget.models import BudgetMonth, Transaction
 from apps.households.models import Membership
 from tests.budget.test_registrar_contra_el_plan import _pago, hogar_con_plan  # noqa: F401
 from tests.factories import MembershipFactory
-from tests.factories_budget import CategoryFactory
+from tests.factories_budget import BudgetLineFactory, CategoryFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -156,3 +156,23 @@ def test_sin_can_add_transactions_no_se_mueve(client, con_registros):
     client.force_login(mirón.user)
 
     assert client.post(reverse("budget:registro_posponer", args=[suelto.pk])).status_code == 403
+
+
+def test_el_pago_de_una_puntual_planificada_no_se_mueve(client, hogar_con_plan):
+    admin, hogar, mes = hogar_con_plan
+    client.force_login(admin)
+    linea = BudgetLineFactory(household=hogar, budget_month=mes, kind="expense",
+                              category=CategoryFactory(household=hogar, slug="halloween", kind="expense"),
+                              is_exceptional=True, planned_amount=Decimal("60.00"),
+                              due_date=timezone.localdate(), note="Halloween")
+    client.post(reverse("budget:registrar"), _pago(budget_line=linea.pk, amount="67.00"))
+    tx = Transaction.objects.for_household(hogar).get(budget_line=linea)
+
+    html = client.get(reverse("budget:registro_editar", args=[tx.pk])).content.decode()
+    respuesta = client.post(reverse("budget:registro_posponer", args=[tx.pk]))
+
+    assert reverse("budget:registro_posponer", args=[tx.pk]) not in html
+    assert respuesta.status_code == 302
+    assert _mes_siguiente_de(mes) is None
+    tx.refresh_from_db()
+    assert tx.budget_month_id == mes.pk
