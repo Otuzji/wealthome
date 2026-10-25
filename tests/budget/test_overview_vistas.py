@@ -93,9 +93,27 @@ def test_un_exceso_se_ensena_con_su_enlace_al_mes(client, mes_con_dinero):
     r = client.get(reverse("budget:overview", args=["household"]))
     html = r.content.decode()
 
-    assert [d.diferencia for d in r.context["desvios"]] == [Decimal("20.00")]
+    # El gasto suelto del fixture (500 sin partida) tambien es exceso: lo no
+    # planeado cuenta; aqui solo se mira la categoria de la linea.
+    assert [d.diferencia for d in r.context["desvios"] if d.categoria == cafe] == [Decimal("20.00")]
     assert "over plan" in html and "$20.00" in html
     assert reverse("budget:mes", args=["household"]) + "?orden=categoria" in html
+
+
+def test_lo_gastado_de_menos_solo_se_ensena_con_el_mes_cerrado(client, mes_con_dinero):
+    _user, hogar, mes, otto, _diana = mes_con_dinero
+    cafe = CategoryFactory(household=hogar, slug="cafe-de-menos", kind="expense")
+    linea = BudgetLineFactory(household=hogar, budget_month=mes, category=cafe,
+                              kind="expense", planned_amount=Decimal("100.00"))
+    TransactionFactory(household=hogar, budget_month=mes, category=cafe, member=otto,
+                       amount=Decimal("60.00"), date=timezone.localdate(), budget_line=linea)
+
+    abierto = client.get(reverse("budget:overview", args=["household"]))
+    BudgetMonth.objects.for_household(hogar).filter(pk=mes.pk).update(status="closed")
+    cerrado = client.get(reverse("budget:overview", args=["household"]))
+
+    assert cafe not in [d.categoria for d in abierto.context["desvios"]]
+    assert [d.diferencia for d in cerrado.context["desvios"] if d.categoria == cafe] == [Decimal("-40.00")]
 
 
 def test_un_mes_cerrado_se_ensena_sin_alerta(client, mes_con_dinero):

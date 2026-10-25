@@ -97,7 +97,7 @@ def _contexto(request, hogar, ambito, form=None):
     contexto.update(
         cerrado=cerrado, forecast=forecast, real=totales,
         expenses=services_overview.expenses(transacciones),
-        desvios=services_overview.desvios(lineas, transacciones, hoy),
+        desvios=services_overview.desvios(lineas, transacciones, cerrado),
     )
     if cerrado:
         contexto["siguiente"] = services.mes_siguiente(mes.year, mes.month)

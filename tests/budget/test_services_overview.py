@@ -193,83 +193,143 @@ def test_forecast_personal_sin_libro_no_lo_crea(hogar_y_mes):
 # --- desvios por categoria ----------------------------------------------------
 
 
-def _desvios(hogar, mes, miembro, hoy):
+def _desvios(hogar, mes, miembro, cerrado=False):
     lineas = services_overview.lineas_del_ambito(mes, "household", miembro)
     txs = services_overview.transacciones_del_ambito(mes, "household", miembro)
-    return services_overview.desvios(lineas, txs, hoy=hoy)
+    return services_overview.desvios(lineas, txs, cerrado=cerrado)
 
 
 def _gasto(hogar, mes, miembro, linea, importe):
     return TransactionFactory(household=hogar, budget_month=mes, category=linea.category,
-                              member=miembro, amount=Decimal(importe), budget_line=linea)
+                              member=miembro, amount=Decimal(importe), budget_line=linea,
+                              date=date(2026, 10, 5))
 
 
-def test_un_exceso_aparece_a_mitad_de_mes(hogar_y_mes):
+def test_un_exceso_aparece_con_el_mes_abierto(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
     fuel = CategoryFactory(household=hogar, slug="gasolina-prueba", name="Fuel", kind="expense")
     linea = _linea(hogar, mes, fuel, "100.00", due_date=date(2026, 10, 28))
     _gasto(hogar, mes, otto, linea, "120.00")
 
-    [d] = _desvios(hogar, mes, otto, date(2026, 10, 10))
+    [d] = _desvios(hogar, mes, otto)
 
     assert (d.diferencia, d.exceso) == (Decimal("20.00"), True)
     assert d.categoria == fuel
     assert (d.planeado, d.real) == (Decimal("100.00"), Decimal("120.00"))
 
 
-def test_un_ahorro_no_aparece_si_la_categoria_sigue_abierta(hogar_y_mes):
+def test_con_el_mes_abierto_un_pago_parcial_no_es_ahorro(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    linea = _linea(hogar, mes, sale, "100.00", due_date=date(2026, 10, 5))     # vencida
+    _gasto(hogar, mes, otto, linea, "40.00")
+
+    assert _desvios(hogar, mes, otto, cerrado=False) == []
+
+
+def test_con_el_mes_abierto_lo_pagado_de_mas_no_se_compensa(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    a = _linea(hogar, mes, sale, "100.00")
+    b = _linea(hogar, mes, sale, "110.00")
+    _gasto(hogar, mes, otto, a, "108.00")
+    _gasto(hogar, mes, otto, b, "50.00")
+
+    [d] = _desvios(hogar, mes, otto, cerrado=False)
+
+    assert d.diferencia == Decimal("8.00")
+    assert (d.planeado, d.real) == (Decimal("210.00"), Decimal("218.00"))
+
+
+def test_lo_no_planeado_es_exceso_de_su_categoria(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    sorpresa = CategoryFactory(household=hogar, slug="sorpresa-prueba", name="Sorpresa", kind="expense")
+    partida = _linea(hogar, mes, sorpresa, "30.00", is_exceptional=True, no_planeada=True)
+    _gasto(hogar, mes, otto, partida, "30.00")
+    TransactionFactory(household=hogar, budget_month=mes, category=sorpresa, member=otto,
+                       amount=Decimal("15.51"), date=date(2026, 10, 6))
+
+    [d] = _desvios(hogar, mes, otto, cerrado=False)
+
+    assert d.categoria == sorpresa
+    assert (d.planeado, d.diferencia) == (Decimal("0.00"), Decimal("45.51"))
+
+
+def test_lo_no_planeado_se_suma_al_exceso_de_las_lineas(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    linea = _linea(hogar, mes, sale, "100.00")
+    _gasto(hogar, mes, otto, linea, "90.00")
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("25.00"), date=date(2026, 10, 6))
+
+    [d] = _desvios(hogar, mes, otto, cerrado=False)
+
+    assert (d.planeado, d.real, d.diferencia) == (
+        Decimal("100.00"), Decimal("125.00"), Decimal("25.00"))
+
+
+def test_una_partida_de_plan_the_month_cuenta_como_planificada(hogar_y_mes):
+    hogar, mes, entra, sale, otto = hogar_y_mes
+    halloween = CategoryFactory(household=hogar, slug="halloween-prueba", name="Halloween", kind="expense")
+    partida = _linea(hogar, mes, halloween, "60.00", is_exceptional=True)
+    _gasto(hogar, mes, otto, partida, "67.00")
+
+    [d] = _desvios(hogar, mes, otto, cerrado=False)
+
+    assert (d.planeado, d.diferencia) == (Decimal("60.00"), Decimal("7.00"))
+
+
+def test_con_el_mes_cerrado_aparece_lo_gastado_de_menos(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
     linea = _linea(hogar, mes, sale, "100.00", due_date=date(2026, 10, 28))
-    _gasto(hogar, mes, otto, linea, "30.00")
-
-    assert _desvios(hogar, mes, otto, date(2026, 10, 10)) == []
-
-
-def test_un_ahorro_aparece_cuando_la_linea_vencio(hogar_y_mes):
-    hogar, mes, entra, sale, otto = hogar_y_mes
-    linea = _linea(hogar, mes, sale, "100.00", due_date=date(2026, 10, 5))
     _gasto(hogar, mes, otto, linea, "80.00")
 
-    [d] = _desvios(hogar, mes, otto, date(2026, 10, 10))
+    [d] = _desvios(hogar, mes, otto, cerrado=True)
 
     assert d.diferencia == Decimal("-20.00")
     assert d.exceso is False
 
 
-def test_una_linea_sin_vencimiento_solo_termina_pagada(hogar_y_mes):
+def test_con_el_mes_cerrado_se_cuenta_todo_lo_gastado_de_la_categoria(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
     linea = _linea(hogar, mes, sale, "100.00")
-    _gasto(hogar, mes, otto, linea, "80.00")
+    _gasto(hogar, mes, otto, linea, "70.00")
+    TransactionFactory(household=hogar, budget_month=mes, category=sale, member=otto,
+                       amount=Decimal("45.00"), date=date(2026, 10, 6))
 
-    assert _desvios(hogar, mes, otto, date(2026, 10, 31)) == []
+    [d] = _desvios(hogar, mes, otto, cerrado=True)
+
+    assert (d.planeado, d.real, d.diferencia) == (
+        Decimal("100.00"), Decimal("115.00"), Decimal("15.00"))
 
 
-def test_las_one_off_y_lo_cuadrado_no_desvian(hogar_y_mes):
+def test_lo_cuadrado_y_los_ingresos_no_desvian(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
-    puntual = _linea(hogar, mes, sale, "50.00", is_exceptional=True)
-    _gasto(hogar, mes, otto, puntual, "90.00")
     cuadrada = CategoryFactory(household=hogar, slug="cuadrada", name="Cuadrada", kind="expense")
     linea = _linea(hogar, mes, cuadrada, "100.00", due_date=date(2026, 10, 5))
     _gasto(hogar, mes, otto, linea, "100.00")
+    sueldo = _linea(hogar, mes, entra, "500.00")
+    _gasto(hogar, mes, otto, sueldo, "700.00")
 
-    assert _desvios(hogar, mes, otto, date(2026, 10, 31)) == []
+    assert _desvios(hogar, mes, otto, cerrado=False) == []
+    assert _desvios(hogar, mes, otto, cerrado=True) == []
 
 
 def test_los_desvios_van_por_tamano(hogar_y_mes):
     hogar, mes, entra, sale, otto = hogar_y_mes
-    for slug, plan, real, due in (
-        ("a", "100.00", "120.00", None),                  # +20
-        ("b", "100.00", "50.00", date(2026, 10, 5)),      # -50, terminada
-        ("c", "100.00", "105.00", None),                  # +5
+    for slug, plan, real in (
+        ("a", "100.00", "120.00"),     # +20
+        ("b", "100.00", "50.00"),      # -50 (solo al cerrar)
+        ("c", "100.00", "105.00"),     # +5
     ):
         categoria = CategoryFactory(household=hogar, slug=slug, name=slug.upper(), kind="expense")
-        linea = _linea(hogar, mes, categoria, plan, due_date=due)
+        linea = _linea(hogar, mes, categoria, plan)
         _gasto(hogar, mes, otto, linea, real)
 
-    ds = _desvios(hogar, mes, otto, date(2026, 10, 10))
+    abierto = _desvios(hogar, mes, otto, cerrado=False)
+    cerrado = _desvios(hogar, mes, otto, cerrado=True)
 
-    assert [d.diferencia for d in ds] == [Decimal("-50.00"), Decimal("20.00"), Decimal("5.00")]
-    assert [d.magnitud for d in ds] == [Decimal("50.00"), Decimal("20.00"), Decimal("5.00")]
+    assert [d.diferencia for d in abierto] == [Decimal("20.00"), Decimal("5.00")]
+    assert [d.diferencia for d in cerrado] == [Decimal("-50.00"), Decimal("20.00"), Decimal("5.00")]
+    assert [d.magnitud for d in cerrado] == [Decimal("50.00"), Decimal("20.00"), Decimal("5.00")]
 
 
 def test_hay_presupuesto_con_las_lineas_del_mes(hogar_y_mes):

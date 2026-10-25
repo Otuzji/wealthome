@@ -204,35 +204,48 @@ class Desvio:
         return abs(self.diferencia)
 
 
-def desvios(lineas, transacciones, hoy: date):
-    """Las categorias de gasto que se desvian de lo planeado. Solo lineas no
-    excepcionales: lo puntual no estaba en el presupuesto.
+def desvios(lineas, transacciones, cerrado: bool):
+    """Las categorias de gasto que se desvian de lo planeado.
 
-    Un exceso se muestra siempre, aunque la categoria siga abierta; un ahorro
-    solo cuando esta terminada (todas sus lineas pagadas o vencidas), porque a
-    mitad de mes "gastar menos" aun no es un ahorro. Primero lo mas grande."""
-    por_categoria = {}
-    categoria_de_linea = {}
+    Planificado: las lineas de gasto planificadas (reglas y partidas de Plan
+    the month). Lo no planeado (registros sueltos o contra una partida no
+    planeada) es siempre exceso de su categoria.
+
+    Con el mes abierto, lo que una linea no ha pagado aun se debe, no se
+    ahorro: solo cuentan los excesos, linea a linea y sin compensar, y lo no
+    planeado. Con el mes cerrado ya no se debe nada: `real` es todo lo gastado
+    en la categoria y tambien se ensena lo gastado de menos. Primero lo mas
+    grande."""
+    planeado_de, categorias = {}, {}
+    exceso_de_lineas = {}
     for l in lineas:
-        if l.kind == EXPENSE and not l.is_exceptional:
-            por_categoria.setdefault(l.category_id, []).append(l)
-            categoria_de_linea[l.pk] = l.category_id
-    real_de = {}
+        if l.kind != EXPENSE or l.no_planeada:
+            continue
+        categorias[l.category_id] = l.category
+        planeado_de[l.category_id] = planeado_de.get(l.category_id, CERO) + l.planned_amount
+        exceso_de_lineas[l.category_id] = (
+            exceso_de_lineas.get(l.category_id, CERO) + max(l.pagado - l.planned_amount, CERO)
+        )
+    no_planeado_de, gastado_de = {}, {}
     for t in transacciones:
-        categoria_id = categoria_de_linea.get(t.budget_line_id)
-        if categoria_id is not None and t.category.kind == EXPENSE:
-            real_de[categoria_id] = real_de.get(categoria_id, CERO) + t.amount
+        if t.category.kind != EXPENSE:
+            continue
+        categorias.setdefault(t.category_id, t.category)
+        gastado_de[t.category_id] = gastado_de.get(t.category_id, CERO) + t.amount
+        if t.budget_line_id is None or t.budget_line.no_planeada:
+            no_planeado_de[t.category_id] = no_planeado_de.get(t.category_id, CERO) + t.amount
 
     resultado = []
-    for categoria_id, de_la_categoria in por_categoria.items():
-        planeado = sum((l.planned_amount for l in de_la_categoria), CERO)
-        real = real_de.get(categoria_id, CERO)
-        desvio = Desvio(de_la_categoria[0].category, planeado, real)
-        terminada = all(
-            l.pagado >= l.planned_amount or (l.due_date is not None and l.due_date < hoy)
-            for l in de_la_categoria
-        )
-        if desvio.diferencia > 0 or (desvio.diferencia < 0 and terminada):
+    for categoria_id, categoria in categorias.items():
+        planeado = planeado_de.get(categoria_id, CERO)
+        if cerrado:
+            real = gastado_de.get(categoria_id, CERO)
+        else:
+            real = (planeado + exceso_de_lineas.get(categoria_id, CERO)
+                    + no_planeado_de.get(categoria_id, CERO))
+        desvio = Desvio(categoria, planeado, real)
+        se_ensena = desvio.diferencia != 0 if cerrado else desvio.diferencia > 0
+        if se_ensena:
             resultado.append(desvio)
     resultado.sort(key=lambda d: (-abs(d.diferencia), d.categoria.etiqueta().casefold()))
     return resultado
