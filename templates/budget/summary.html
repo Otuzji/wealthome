@@ -51,7 +51,7 @@
           <th class="numero">{% translate "Spent" %}</th>
           <th class="numero">{% translate "Saved" %}</th>
           <th class="numero">{% translate "Allowance" %}</th>
-          <th class="numero">{% translate "Balance" %}</th>
+          <th class="numero">{% translate "Carried over" %}</th>
         </tr>
         {% for fila in cierres %}
           <tr>
@@ -60,7 +60,7 @@
             <td class="numero movimiento--salida">{{ fila.gastos|money:hogar.currency }}</td>
             <td class="numero">{{ fila.ahorro|money:hogar.currency }}</td>
             <td class="numero">{{ fila.mesada|money:hogar.currency }}</td>
-            <td class="numero{% if fila.balance < 0 %} cifra__valor--mal{% endif %}">{{ fila.balance|money:hogar.currency }}</td>
+            <td class="numero{% if fila.arrastre < 0 %} cifra__valor--mal{% endif %}">{{ fila.arrastre|money:hogar.currency }}</td>
           </tr>
         {% endfor %}
         {% endif %}

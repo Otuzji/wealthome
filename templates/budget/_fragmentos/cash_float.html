@@ -9,7 +9,11 @@
     <div class="flotante__total">
       <div class="cifra__etiqueta">{% translate "Total Cash Float" %}</div>
       <div class="cifra__valor {% if flotante.total < 0 %}cifra__valor--mal{% endif %}">{{ flotante.total|money:hogar.currency }}</div>
-      <p class="campo__ayuda">{% translate "What came in minus what went out, so far." %}</p>
+      {% if flotante.inicial %}
+        <p class="campo__ayuda">{% blocktranslate with importe=flotante.inicial|money:hogar.currency %}The opening balance of {{ importe }} plus what came in minus what went out, so far.{% endblocktranslate %}</p>
+      {% else %}
+        <p class="campo__ayuda">{% translate "What came in minus what went out, so far." %}</p>
+      {% endif %}
     </div>
     <dl class="flotante__destinos">
       <div class="flotante__fila">

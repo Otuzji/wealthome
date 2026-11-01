@@ -2694,3 +2694,42 @@ msgstr "solde initial"
 #: templates/budget/overview.html
 msgid "Add your income and your regular expenses, and this page will show where the month stands."
 msgstr "Ajoutez vos revenus et vos dépenses régulières, et cette page montrera où en est le mois."
+
+#: apps/budget/forms.py apps/budget/views_month.py
+msgid "You cannot split more than there is."
+msgstr "Vous ne pouvez pas répartir plus que ce qu'il y a."
+
+#: apps/budget/views_month.py
+#, python-format
+msgid "Allowance · %(name)s"
+msgstr "Argent de poche · %(name)s"
+
+#: templates/budget/cerrar.html
+msgid "To split"
+msgstr "À répartir"
+
+#: templates/budget/cerrar.html
+#, python-format
+msgid "Includes %(importe)s that was planned but not paid."
+msgstr "Comprend %(importe)s prévus mais non payés."
+
+#: templates/budget/cerrar.html
+msgid "How it gets split"
+msgstr "Comment se répartit"
+
+#: templates/budget/cerrar.html
+msgid "Proposed by your split rules over what really happened. Change any amount."
+msgstr "Proposé par vos règles de répartition d'après le réel. Modifiez n'importe quel montant."
+
+#: templates/budget/cerrar.html
+msgid "Carried to next month"
+msgstr "Reporté au mois suivant"
+
+#: templates/budget/cerrar.html
+msgid "What you do not split stays as next month's opening balance."
+msgstr "Ce que vous ne répartissez pas devient le solde initial du mois suivant."
+
+#: templates/budget/_fragmentos/cash_float.html
+#, python-format
+msgid "The opening balance of %(importe)s plus what came in minus what went out, so far."
+msgstr "Le solde initial de %(importe)s plus ce qui est entré moins ce qui est sorti, jusqu'ici."

@@ -135,40 +135,32 @@ def test_la_base_impide_dos_repartos_de_la_misma_regla_sin_miembro():
         )
 
 
-def test_el_faltante_ajusta_la_mesada_del_mes_siguiente(hogar_con_cascada):
-    """§13.6, el ejemplo literal del §4.5.3: proyectado $800, real $720. El
-    ahorro conserva sus $600; las mesadas de octubre bajan $40 cada una."""
+def test_el_faltante_baja_la_mesada_del_cierre_sin_ajuste_al_mes_siguiente(hogar_con_cascada):
+    """Proyectado $800, real $720. El reparto del cierre es sobre lo real: el
+    ahorro conserva sus $600 y la mesada que se decide es $60 por cabeza, no
+    los $100 planeados. Octubre no hereda ningun ajuste: lo que no se reparte
+    viaja en el arrastre del cierre."""
     septiembre = BudgetMonthFactory(household=hogar_con_cascada, year=2026, month=9)
     octubre = BudgetMonthFactory(household=hogar_con_cascada, year=2026, month=10)
     services.planificar_mes(hogar_con_cascada, septiembre, Decimal("800.00"))
 
-    services.aplicar_cascada_al_cierre(septiembre, Decimal("720.00"))
+    services.aplicar_reparto_al_cierre(
+        septiembre, services.reparto_propuesto(hogar_con_cascada, Decimal("720.00")),
+    )
 
     ahorro = MonthlyAllocation.objects.for_household(hogar_con_cascada).get(
         budget_month=septiembre, member__isnull=True
     )
     assert ahorro.actual_amount == Decimal("600.00")
-
-    ajustes = AllowanceLedger.objects.for_household(hogar_con_cascada).filter(
-        budget_month=octubre
-    )
-    assert [a.adjustment for a in ajustes.order_by("member_id")] == [
-        Decimal("-40.00"), Decimal("-40.00")
-    ]
-
-
-def test_la_mesada_ya_asignada_no_se_reduce_dentro_del_mes(hogar_con_cascada):
-    """§9: de nada sirve enterarse el día 30 de que tenías $100 para gastar."""
-    septiembre = BudgetMonthFactory(household=hogar_con_cascada, year=2026, month=9)
-    BudgetMonthFactory(household=hogar_con_cascada, year=2026, month=10)
-    services.planificar_mes(hogar_con_cascada, septiembre, Decimal("800.00"))
-
-    services.aplicar_cascada_al_cierre(septiembre, Decimal("720.00"))
-
     mesadas = AllowanceLedger.objects.for_household(hogar_con_cascada).filter(
         budget_month=septiembre
     )
-    assert all(m.granted == Decimal("100.00") for m in mesadas)
+    assert [m.granted for m in mesadas.order_by("member_id")] == [
+        Decimal("60.00"), Decimal("60.00")
+    ]
+    assert not AllowanceLedger.objects.for_household(hogar_con_cascada).filter(
+        budget_month=octubre
+    ).exists()
 
 
 def test_lo_gastado_con_ambito_personal_baja_la_mesada(hogar_con_cascada):
@@ -202,7 +194,9 @@ def test_un_gasto_del_hogar_no_baja_la_mesada(hogar_con_cascada):
 def test_la_cascada_aporta_a_la_meta(hogar_con_cascada):
     mes = BudgetMonthFactory(household=hogar_con_cascada, year=2026, month=9)
     services.planificar_mes(hogar_con_cascada, mes, Decimal("800.00"))
-    services.aplicar_cascada_al_cierre(mes, Decimal("800.00"))
+    services.aplicar_reparto_al_cierre(
+        mes, services.reparto_propuesto(hogar_con_cascada, Decimal("800.00")),
+    )
 
     aporte = GoalContribution.objects.for_household(hogar_con_cascada).get()
     assert aporte.amount == Decimal("600.00")
@@ -224,7 +218,7 @@ def test_el_aporte_de_la_cascada_no_se_atribuye_a_nadie():
     )
     services.planificar_mes(hogar, mes, Decimal("500.00"))
 
-    services.aplicar_cascada_al_cierre(mes, Decimal("500.00"))
+    services.aplicar_reparto_al_cierre(mes, services.reparto_propuesto(hogar, Decimal("500.00")))
 
     aporte = GoalContribution.objects.for_household(hogar).get(origen="cascade")
     assert aporte.member is None
@@ -244,7 +238,7 @@ def test_la_cascada_da_por_alcanzada_la_meta_que_cubre():
     )
     services.planificar_mes(hogar, mes, Decimal("500.00"))
 
-    services.aplicar_cascada_al_cierre(mes, Decimal("500.00"))
+    services.aplicar_reparto_al_cierre(mes, services.reparto_propuesto(hogar, Decimal("500.00")))
 
     meta.refresh_from_db()
     assert meta.status == Goal.REACHED
@@ -264,6 +258,6 @@ def test_la_cascada_no_revienta_si_no_hay_membresias_activas():
     miembro.is_active = False
     miembro.save()
 
-    services.aplicar_cascada_al_cierre(mes, Decimal("500.00"))
+    services.aplicar_reparto_al_cierre(mes, services.reparto_propuesto(hogar, Decimal("500.00")))
 
     assert GoalContribution.objects.for_household(hogar).filter(origen="cascade").count() == 1

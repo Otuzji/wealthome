@@ -22,8 +22,9 @@ from django.views.decorators.http import require_POST
 from apps.households.permissions import membresia_actual, requiere_permiso
 
 from . import services, services_overview, services_posponer
-from .forms import BudgetLineForm, TransactionForm
-from .models import AllowanceLedger, BudgetLine, MesCerrado, Transaction
+from .engine import cascade as motor_cascade
+from .forms import BudgetLineForm, RepartoDelCierreForm, TransactionForm
+from .models import AllocationRule, AllowanceLedger, BudgetLine, MesCerrado, Transaction
 from .models.catalog import EXPENSE, HOUSEHOLD, INCOME, PERSONAL
 from .scopes import validar, visibles, visibles_por_dueno
 
@@ -401,14 +402,69 @@ def cerrar(request, hogar, ambito, anio=None, numero=None):
     mes = services.obtener_mes(hogar, anio, numero)
     if isinstance(mes, services.ProyeccionDeMes):
         raise Http404(_("That month cannot be closed."))
-    if request.method == "POST":
-        try:
-            services.cerrar_mes(mes)
-        except MesCerrado:
-            pass   # ya estaba cerrado: idempotente, no un error del usuario
+    if mes.esta_cerrado:
+        # Ya cerrado: idempotente, no un error del usuario. No hay reparto
+        # que decidir.
         return redirect("budget:mes", ambito, anio, numero)
-    return render(request, "budget/cerrar.html",
-                  {"mes": mes, "ambito": ambito, "anio": anio, "numero": numero})
+
+    cifras = services.disponible_al_cierre(mes)
+    casillas = _casillas_del_reparto(
+        hogar, services.reparto_propuesto(hogar, cifras["disponible"]),
+    )
+    # Sin reglas no hay casillas y el POST llega vacio: `request.POST or None`
+    # lo tomaria por un GET y el mes no se cerraria nunca.
+    form = RepartoDelCierreForm(
+        request.POST if request.method == "POST" else None,
+        casillas=casillas, disponible=cifras["disponible"],
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            services.cerrar_mes(mes, form.reparto())
+        except MesCerrado:
+            pass   # otra pestana lo cerro antes
+        except services.RepartoExcesivo:
+            # Entre que se abrio la pantalla y se envio, cambio lo real.
+            form.add_error(None, _("You cannot split more than there is."))
+        else:
+            return redirect("budget:mes", ambito, anio, numero)
+    propuesto = sum((c["propuesto"] for c in casillas), Decimal("0.00"))
+    return render(request, "budget/cerrar.html", {
+        "mes": mes, "ambito": ambito, "anio": anio, "numero": numero,
+        "cifras": cifras, "form": form,
+        "queda": cifras["disponible"] - propuesto,
+    })
+
+
+def _casillas_del_reparto(hogar, propuesta):
+    """Una casilla por regla activa, y una por miembro en las de mesada, con
+    lo que propone el reparto (0 si a esa casilla no le llego nada)."""
+    propuesto = {(a.orden, a.miembro_id): a.importe for a in propuesta}
+    miembros = {
+        m.pk: str(m.user)
+        for m in hogar.active_memberships().select_related("user").order_by("pk")
+    }
+    casillas = []
+    reglas = (
+        AllocationRule.objects.for_household(hogar).filter(is_active=True)
+        .select_related("target_goal", "target_category").order_by("order")
+    )
+    for regla in reglas:
+        if regla.target_type == motor_cascade.ALLOWANCE:
+            destinos = [
+                (pk, _("Allowance · %(name)s") % {"name": nombre})
+                for pk, nombre in miembros.items()
+            ]
+        elif regla.target_type == motor_cascade.GOAL:
+            destinos = [(None, regla.target_goal.name)]
+        else:
+            destinos = [(None, regla.target_category.etiqueta())]
+        for miembro_id, etiqueta in destinos:
+            casillas.append({
+                "campo": f"r{regla.order}_{miembro_id or 0}", "etiqueta": etiqueta,
+                "orden": regla.order, "miembro_id": miembro_id,
+                "propuesto": propuesto.get((regla.order, miembro_id), Decimal("0.00")),
+            })
+    return casillas
 
 
 @requiere_permiso("can_view_budget")

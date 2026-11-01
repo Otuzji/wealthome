@@ -311,13 +311,18 @@ def test_en_un_mes_cerrado_no_se_guarda(client, mes_con_dinero):
     assert r.status_code == 200 and r["HX-Redirect"] == reverse("budget:overview", args=["household"])
 
 
-def test_el_saldo_inicial_no_toca_la_tarjeta_cash_float(client, mes_con_dinero):
+def test_el_saldo_inicial_suma_a_la_tarjeta_cash_float(client, mes_con_dinero):
+    """Lo que el cierre anterior no repartio llega como saldo inicial, y es
+    dinero en mano: la tarjeta de This month lo cuenta."""
     antes = client.get(reverse("budget:mes", args=["household"])).context["cash_float"]
 
     _guardar_saldo(client, "5000.00")
 
-    despues = client.get(reverse("budget:mes", args=["household"])).context["cash_float"]
-    assert despues == antes
+    r = client.get(reverse("budget:mes", args=["household"]))
+    despues = r.context["cash_float"]
+    assert despues["total"] == antes["total"] + Decimal("5000.00")
+    assert despues["inicial"] == Decimal("5000.00")
+    assert "The opening balance of $5,000.00" in r.content.decode()
 
 
 # --- lo que un hogar sin escritura o un miembro de solo lectura no puede usar ---

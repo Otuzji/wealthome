@@ -153,16 +153,20 @@ def test_criterio_3_la_pareja_planifica_y_cada_uno_sabe_su_mesada(client, hogar_
 # --- 4 -----------------------------------------------------------------------
 
 
-def test_criterio_4_el_faltante_deja_el_ahorro_intacto_y_ajusta_el_mes_siguiente(
+def test_criterio_4_el_faltante_deja_el_ahorro_intacto_y_baja_la_mesada_del_cierre(
     hogar_configurado
 ):
-    """§13.6: nada de lo ya asignado se retira dentro del mes."""
+    """§13.6, revisado el 2026-11-01: el reparto se decide al cerrar, sobre lo
+    real. El ahorro, primero en la cascada, queda intacto; la mesada del mes
+    es la que alcanza, y el mes siguiente no hereda ajuste."""
     _, hogar = hogar_configurado
     septiembre = BudgetMonthFactory(household=hogar, year=2026, month=9)
     octubre = BudgetMonthFactory(household=hogar, year=2026, month=10)
     services.planificar_mes(hogar, septiembre, Decimal("800.00"))
 
-    services.aplicar_cascada_al_cierre(septiembre, Decimal("720.00"))
+    services.aplicar_reparto_al_cierre(
+        septiembre, services.reparto_propuesto(hogar, Decimal("720.00")),
+    )
 
     ahorro = MonthlyAllocation.objects.for_household(hogar).get(
         budget_month=septiembre, member__isnull=True
@@ -172,12 +176,11 @@ def test_criterio_4_el_faltante_deja_el_ahorro_intacto_y_ajusta_el_mes_siguiente
     de_septiembre = AllowanceLedger.objects.for_household(hogar).filter(
         budget_month=septiembre
     )
-    assert all(m.granted == Decimal("100.00") for m in de_septiembre)   # nada retirado
+    assert all(m.granted == Decimal("60.00") for m in de_septiembre)
 
-    de_octubre = AllowanceLedger.objects.for_household(hogar).filter(
+    assert not AllowanceLedger.objects.for_household(hogar).filter(
         budget_month=octubre
-    ).order_by("member_id")
-    assert [m.adjustment for m in de_octubre] == [Decimal("-40.00"), Decimal("-40.00")]
+    ).exists()
 
 
 # --- 5 -----------------------------------------------------------------------

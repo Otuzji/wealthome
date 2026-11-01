@@ -1,13 +1,57 @@
-{% extends "base.html" %}{% load i18n %}
+{% extends "base.html" %}{% load i18n money %}
 {% block title %}{% translate "Close the month" %} · Wealthome{% endblock %}
 {% block content %}
+{% comment %} Cerrar es decidir el reparto: lo que hay (saldo de partida +
+   ingresos - gastos del hogar), lo que propone la cascada sobre lo real, y lo
+   que pasa al mes siguiente, que se recalcula al teclear. {% endcomment %}
 <section class="card card--formulario">
   <h1>{% translate "Close the month" %} · {{ mes }}</h1>
-  <div class="card--hundida">
-    <p>{% translate "Once closed, the month becomes a frozen picture and admits no more changes." %}</p>
-  </div>
-  <form method="post">
+
+  <dl class="flotante__destinos">
+    <div class="flotante__fila">
+      <dt>{% translate "Opening balance" %}</dt>
+      <dd class="numero">{{ cifras.inicial|money:hogar.currency }}</dd>
+    </div>
+    <div class="flotante__fila">
+      <dt>{% translate "Income" %}</dt>
+      <dd class="numero importe--ingreso">{{ cifras.ingresos|money:hogar.currency }}</dd>
+    </div>
+    <div class="flotante__fila">
+      <dt>{% translate "Spent" %}</dt>
+      <dd class="numero movimiento--salida">{{ cifras.egresos|money:hogar.currency }}</dd>
+    </div>
+    <div class="flotante__fila">
+      <dt><strong>{% translate "To split" %}</strong></dt>
+      <dd class="numero {% if cifras.disponible < 0 %}importe--mal{% endif %}"><strong>{{ cifras.disponible|money:hogar.currency }}</strong></dd>
+    </div>
+  </dl>
+  {% if cifras.sin_pagar %}
+    <p class="campo__ayuda">{% blocktranslate with importe=cifras.sin_pagar|money:hogar.currency %}Includes {{ importe }} that was planned but not paid.{% endblocktranslate %}</p>
+  {% endif %}
+
+  <form method="post"
+        x-data="{ disponible: {{ cifras.disponible|stringformat:'s' }}, queda: {{ queda|stringformat:'s' }},
+                  recalcular() { let s = 0; this.$root.querySelectorAll('input[data-reparto]').forEach(i => s += parseFloat(i.value || 0) || 0); this.queda = Math.round((this.disponible - s) * 100) / 100; } }"
+        @input="recalcular()">
     {% csrf_token %}
+    {% if form.fields %}
+      <h2>{% translate "How it gets split" %}</h2>
+      <p class="campo__ayuda">{% translate "Proposed by your split rules over what really happened. Change any amount." %}</p>
+    {% endif %}
+    {% include "budget/_fragmentos/campos.html" %}
+
+    <dl class="flotante__destinos">
+      <div class="flotante__fila">
+        <dt>{% translate "Carried to next month" %}</dt>
+        <dd class="numero" :class="queda < 0 && 'importe--mal'"
+            x-text="new Intl.NumberFormat('{{ LANGUAGE_CODE }}', { style: 'currency', currency: '{{ hogar.currency }}' }).format(queda)">{{ queda|money:hogar.currency }}</dd>
+      </div>
+    </dl>
+    <p class="campo__ayuda">{% translate "What you do not split stays as next month's opening balance." %}</p>
+
+    <div class="card--hundida">
+      <p>{% translate "Once closed, the month becomes a frozen picture and admits no more changes." %}</p>
+    </div>
     <button class="btn btn--primary btn--bloque" type="submit">{% translate "Close the month" %}</button>
     <a class="btn btn--sutil" href="{% url 'budget:mes' ambito anio numero %}">{% translate "Cancel" %}</a>
   </form>

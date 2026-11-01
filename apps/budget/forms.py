@@ -596,3 +596,43 @@ class ReporteForm(forms.Form):
             desde, hasta = hasta, desde
         datos.update(desde=desde, hasta=hasta)
         return datos
+
+
+class RepartoDelCierreForm(forms.Form):
+    """El reparto que se decide al cerrar el mes: un importe por casilla (lo
+    que va a cada meta o fondo y la mesada de cada miembro), propuesto por las
+    reglas sobre lo real. Lo que no se reparte pasa al mes siguiente, asi que
+    lo unico que se exige es no repartir mas de lo que hay.
+
+    `casillas` las arma la vista: dicts con `campo`, `etiqueta`, `orden`,
+    `miembro_id` y `propuesto`."""
+
+    def __init__(self, *args, casillas, disponible, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.casillas = casillas
+        self.disponible = disponible
+        for casilla in casillas:
+            self.fields[casilla["campo"]] = forms.DecimalField(
+                label=casilla["etiqueta"], required=False, min_value=Decimal("0"),
+                max_digits=12, decimal_places=2, initial=casilla["propuesto"],
+                widget=forms.NumberInput(attrs={"step": "0.01", "data-reparto": ""}),
+            )
+
+    def _importe(self, casilla):
+        return self.cleaned_data.get(casilla["campo"]) or Decimal("0.00")
+
+    def clean(self):
+        datos = super().clean()
+        if not self.errors:
+            total = sum((self._importe(c) for c in self.casillas), Decimal("0"))
+            if total > max(self.disponible, Decimal("0")):
+                raise forms.ValidationError(_("You cannot split more than there is."))
+        return datos
+
+    def reparto(self):
+        from apps.budget.engine.cascade import Asignacion
+
+        return [
+            Asignacion(c["orden"], self._importe(c), c["miembro_id"])
+            for c in self.casillas if self._importe(c) > 0
+        ]

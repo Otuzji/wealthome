@@ -122,6 +122,8 @@ def resumen_de_cierres(hogar):
             "ahorro": ahorro[cierre.budget_month_id],
             "mesada": mesada[cierre.budget_month_id],
             "balance": cierre.balance,
+            # Lo que paso al mes siguiente: el balance menos lo repartido.
+            "arrastre": cierre.arrastre,
             "varianza": varianza,
         })
 

@@ -185,9 +185,53 @@ def _categoria_de_ingreso(hogar):
     return categoria
 
 
+def saldo_de_partida(mes):
+    """Con cuanto empezo el mes: el saldo inicial anotado o, si no se anoto,
+    el arrastre del ultimo cierre anterior."""
+    if mes.opening_balance is not None:
+        return centavos(mes.opening_balance)
+    return _arrastre_previo(mes)
+
+
+def disponible_al_cierre(mes):
+    """Lo que hay para repartir al cerrar, con su desglose: el saldo de
+    partida + lo que entro - lo que salio del HOGAR (lo personal sale de la
+    mesada). `sin_pagar` es lo planificado que no se pago: ya esta dentro de
+    `disponible` (no salio), y se ensena para que se vea de donde viene."""
+    reales = _reales_por_categoria(mes)
+    ingresos = centavos(sum((v for (_, k), v in reales.items() if k == INCOME), Decimal("0")))
+    egresos = centavos(sum((v for (_, k), v in reales.items() if k == EXPENSE), Decimal("0")))
+    inicial = saldo_de_partida(mes)
+    lineas = (
+        mes.lineas.filter(scope=HOUSEHOLD, kind=EXPENSE, no_planeada=False)
+        .annotate(pagado_total=Sum("transacciones__amount"))
+    )
+    sin_pagar = centavos(sum((l.restante for l in lineas), Decimal("0")))
+    return {
+        "inicial": inicial, "ingresos": ingresos, "egresos": egresos,
+        "sin_pagar": sin_pagar,
+        "disponible": centavos(inicial + ingresos - egresos),
+    }
+
+
+def reparto_propuesto(hogar, disponible):
+    """Las reglas de reparto sobre lo que de verdad hay, nunca por encima."""
+    return motor_cascade.repartir(max(disponible, Decimal("0")), _reglas_del_motor(hogar))
+
+
+class RepartoExcesivo(ValueError):
+    """Se quiso repartir al cerrar mas de lo que hay."""
+
+
 @transaction.atomic
-def cerrar_mes(mes):
-    """Escribe el MonthlyClose y congela el mes (§4.2)."""
+def cerrar_mes(mes, reparto=None):
+    """Escribe el MonthlyClose y congela el mes (§4.2).
+
+    `reparto` son las asignaciones (motor_cascade.Asignacion) que se deciden
+    al cerrar: lo que va a cada meta y la mesada de cada miembro. Sin el (el
+    cierre automatico), el que proponen las reglas sobre lo real. Lo que no se
+    reparte pasa al mes siguiente: es el `arrastre` del cierre.
+    """
     # El §6 del diseño del Plan 2 lo exige para materializar y para cerrar;
     # materializar ya lo hacia. Sin el, dos peticiones pueden cerrar el mismo
     # mes a la vez y escribir dos MonthlyClose, que son inmutables.
@@ -199,7 +243,7 @@ def cerrar_mes(mes):
 
     # El cierre es del HOGAR: lo personal sale de la mesada de cada miembro, y
     # contarlo aqui tambien haria salir el mismo dinero dos veces. La mesada
-    # sigue bajando con lo personal (ver aplicar_cascada_al_cierre).
+    # sigue bajando con lo personal (ver aplicar_reparto_al_cierre).
     # Un renglon por (categoria, tipo): lo real de la clave entra UNA vez, por
     # muchas lineas que tenga. Lo presupuestado es solo lo planificado: las
     # partidas no planeadas (nacidas de un registro) no se presupuestaron.
@@ -220,15 +264,20 @@ def cerrar_mes(mes):
         for clave in sorted(presupuestados.keys() | reales.keys())
     ]
 
-    cierre_calculado = motor_closing.cerrar(renglones, _arrastre_previo(mes))
+    # El balance es lo que habia al cerrar: el saldo de partida (lo que no se
+    # repartio antes) mas lo que el mes dejo. Eso es lo que se reparte.
+    cierre_calculado = motor_closing.cerrar(renglones, saldo_de_partida(mes))
+    balance = cierre_calculado.balance
 
-    # El sobrante real del mes es lo que de verdad quedo, SIN el arrastre: el
-    # saldo que venia de meses anteriores ya se repartio en su momento, y
-    # volver a repartirlo daria mesada dos veces por el mismo dinero.
-    sobrante_real = centavos(
-        cierre_calculado.ingresos_reales - cierre_calculado.egresos_reales
-    )
-    aplicar_cascada_al_cierre(mes, sobrante_real)
+    if reparto is None:
+        reparto = reparto_propuesto(mes.household, balance)
+    reparto = [a for a in reparto if a.importe > 0]
+    repartido = centavos(sum((a.importe for a in reparto), Decimal("0")))
+    if repartido > max(balance, Decimal("0")):
+        raise RepartoExcesivo(
+            f"Se quieren repartir {repartido} y al cerrar {mes} solo hay {balance}."
+        )
+    aplicar_reparto_al_cierre(mes, reparto)
 
     cierre = MonthlyClose(
         household=mes.household, budget_month=mes,
@@ -237,8 +286,11 @@ def cerrar_mes(mes):
         egresos_presupuestados=cierre_calculado.egresos_presupuestados,
         egresos_reales=cierre_calculado.egresos_reales,
         varianza_por_categoria={str(k): str(v) for k, v in cierre_calculado.varianza_por_categoria.items()},
-        balance=cierre_calculado.balance,
-        arrastre=cierre_calculado.arrastre,
+        balance=balance,
+        # Lo repartido ya salio (a la meta, a las mesadas): pasa al mes
+        # siguiente solo lo que queda. Contarlo en los dos sitios era contar
+        # el mismo dinero dos veces.
+        arrastre=centavos(balance - repartido),
     )
     cierre.save()
 
@@ -384,10 +436,11 @@ def obtener_mes(hogar, anio, mes, hoy=None):
 
     existente = BudgetMonth.objects.for_household(hogar).filter(year=anio, month=mes).first()
     if existente is not None:
-        # Una fila abierta puede estar vacía: `aplicar_cascada_al_cierre` crea
-        # la del mes siguiente solo para escribir en ella el ajuste de la
-        # mesada (§4.5.3). Sin esto se quedaría con presupuesto cero para
-        # siempre, porque materializar solo se llamaba cuando no había fila.
+        # Una fila abierta puede estar vacía: el cierre antiguo creaba la del
+        # mes siguiente solo para escribir en ella el ajuste de la mesada
+        # (§4.5.3), y esas filas siguen en la base. Sin esto se quedaría con
+        # presupuesto cero para siempre, porque materializar solo se llamaba
+        # cuando no había fila.
         if existente.status == BudgetMonth.OPEN and not existente.lineas.exists():
             return materializar(hogar, anio, mes)
         return existente
@@ -528,7 +581,9 @@ def cash_float(mes, lineas, total):
     """El dinero en mano y a que esta destinado, EN VIVO (la tarjeta Cash
     Float de This month).
 
-    `total` es lo que de verdad entro menos lo que de verdad salio; de ahi se
+    `total` es lo que de verdad entro menos lo que de verdad salio, mas el
+    saldo inicial del mes si se anoto (lo que el cierre anterior no repartio:
+    es dinero en mano). De ahi se
     aparta lo que falta pagar del plan (`pendiente`), y lo que queda cae por
     las mismas reglas de reparto que "Plan the month" — pero sobre lo real de
     hoy y no sobre la proyeccion, para que cambie con cada registro. Lo que
@@ -540,6 +595,8 @@ def cash_float(mes, lineas, total):
         (l.restante for l in lineas if l.kind == EXPENSE and not l.no_planeada),
         Decimal("0.00"),
     )
+    inicial = centavos(mes.opening_balance or Decimal("0.00"))
+    total = total + inicial
     margen = centavos(total - pendiente)
     hogar = mes.household
     miembros = {
@@ -558,6 +615,7 @@ def cash_float(mes, lineas, total):
     asignado = sum((a.importe for a in asignaciones), Decimal("0.00"))
     return {
         "total": centavos(total),
+        "inicial": inicial,
         "pendiente": centavos(pendiente),
         "ahorro": centavos(ahorro),
         "mesadas": mesadas,
@@ -688,31 +746,44 @@ def planificar_mes(hogar, mes, sobrante_proyectado):
 
 
 @transaction.atomic
-def aplicar_cascada_al_cierre(mes, sobrante_real):
-    """Ajusta el reparto a lo que de verdad sobró (§4.5.3).
+def aplicar_reparto_al_cierre(mes, reparto):
+    """Escribe el reparto decidido al cerrar: lo real de cada regla, los
+    aportes a las metas y la mesada de cada miembro.
 
-    El faltante lo absorbe la última regla hacia arriba, pero la mesada ya
-    asignada nunca se retira: su parte cae como ajuste del mes siguiente.
+    La mesada del mes pasa a ser la decidida al cerrar (sustituye a la que se
+    concedio al planificar) y no hay ajuste al mes siguiente: lo que no se
+    reparte ya viaja en el arrastre. Si un miembro gasto mas de lo decidido,
+    su saldo personal pasa en negativo segun `allowance_rollover`.
     """
     hogar = mes.household
-    planeadas = list(MonthlyAllocation.objects.for_household(hogar).filter(budget_month=mes))
-    planeado = [
-        motor_cascade.Asignacion(a.rule.order, a.planned_amount, a.member_id)
-        for a in planeadas
-    ]
+    reglas_orm = {r.order: r for r in AllocationRule.objects.for_household(hogar)}
+    decididas = {}
+    for a in reparto:
+        clave = (a.orden, a.miembro_id)
+        decididas[clave] = centavos(decididas.get(clave, Decimal("0")) + a.importe)
 
-    finales, ajustes = motor_cascade.absorber_faltante(
-        planeado, _reglas_del_motor(hogar), sobrante_real
+    filas = list(
+        MonthlyAllocation.objects.for_household(hogar)
+        .filter(budget_month=mes).select_related("rule")
     )
-
-    por_clave = {(f.orden, f.miembro_id): f.importe for f in finales}
-    for fila in planeadas:
-        fila.actual_amount = por_clave.get(
-            (fila.rule.order, fila.member_id), Decimal("0.00")
-        )
+    for fila in filas:
+        fila.actual_amount = decididas.pop((fila.rule.order, fila.member_id), Decimal("0.00"))
         fila.save(update_fields=["actual_amount"])
+    # Lo decidido sin fila: el mes no se planifico, o una regla nueva. Nada
+    # de eso estaba planeado.
+    for (orden, miembro_id), importe in decididas.items():
+        fila = MonthlyAllocation(
+            household=hogar, budget_month=mes, rule=reglas_orm[orden],
+            member_id=miembro_id, planned_amount=Decimal("0.00"), actual_amount=importe,
+        )
+        fila.save()
+        filas.append(fila)
 
-        if fila.member_id is None and fila.rule.target_type == motor_cascade.GOAL:
+    mesadas = {}
+    for fila in filas:
+        if fila.member_id is not None:
+            mesadas[fila.member_id] = mesadas.get(fila.member_id, Decimal("0")) + fila.actual_amount
+        elif fila.rule.target_type == motor_cascade.GOAL and fila.actual_amount > 0:
             # Importado aqui y no arriba: services_goals importa de este
             # modulo (mes_de_fecha), y un import circular en la cabecera
             # reventaria al arrancar.
@@ -728,20 +799,19 @@ def aplicar_cascada_al_cierre(mes, sobrante_real):
                 _ultimo_dia(mes.year, mes.month), member=None, origen="cascade",
             )
 
-    # El ajuste viaja al mes siguiente: la mesada de este mes ya se gastó.
-    if ajustes:
-        siguiente = _fila_del_mes_siguiente(mes)
-        for ajuste in ajustes:
-            libro = mesada_de_por_id(hogar, ajuste.miembro_id, siguiente)
-            libro.adjustment = centavos(libro.adjustment + ajuste.importe)
-            libro.save(update_fields=["adjustment"])
-
-    # Y se cierra el libro de este mes.
-    for libro in AllowanceLedger.objects.for_household(hogar).filter(budget_month=mes):
+    # Y se cierra el libro de cada miembro con su mesada decidida.
+    libros = {
+        l.member_id: l
+        for l in AllowanceLedger.objects.for_household(hogar)
+        .filter(budget_month=mes).select_related("member")
+    }
+    for miembro_id in mesadas.keys() - libros.keys():
+        libros[miembro_id] = mesada_de_por_id(hogar, miembro_id, mes)
+    for miembro_id, libro in libros.items():
+        libro.granted = centavos(mesadas.get(miembro_id, Decimal("0")))
+        libro.carried_in = _carried_in(hogar, miembro_id, mes)
         libro.spent = gasto_personal_del_mes(libro.member, mes)
         libro.carried_out = motor_allowance.carried_out(
             libro.saldo(), hogar.allowance_rollover
         )
-        libro.save(update_fields=["spent", "carried_out"])
-
-    return ajustes
+        libro.save(update_fields=["granted", "carried_in", "spent", "carried_out"])
