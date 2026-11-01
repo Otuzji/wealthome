@@ -333,11 +333,14 @@ def test_un_hogar_expirado_ve_su_historia_pero_no_cierra_nada():
 def test_al_pagar_la_cadena_de_cierres_se_pone_al_dia():
     """El caso del §4 del documento de estado: expira, pasan meses, paga.
 
-    El mes abierto se ancla al ANTERIOR, no a uno fijo de hace anios, y no es
-    cosmetico: `cerrar_vencidos` cierra en cadena mes a mes, asi que con 2020
-    esta prueba hacia ~80 cierres contra el pooler —241 s ella sola— y crecia
-    otra vuelta cada mes que pasaba en el mundo real. Lo que se comprueba es
-    que la cadena ARRANCA al pagar; su longitud no aporta nada.
+    El mes abierto se ancla a hace DOS meses, no a uno fijo de hace anios, y no
+    es cosmetico: `cerrar_vencidos` cierra en cadena mes a mes, asi que con
+    2020 esta prueba hacia ~80 cierres contra el pooler —241 s ella sola— y
+    crecia otra vuelta cada mes que pasaba en el mundo real. Lo que se
+    comprueba es que la cadena ARRANCA al pagar; su longitud no aporta nada.
+    Dos y no uno: el mes anterior no vence hasta pasados
+    DIAS_PARA_EL_CIERRE_AUTOMATICO, y los primeros dias de cada mes la prueba
+    fallaba.
     """
     from apps.subscriptions.models import Subscription
 
@@ -345,6 +348,7 @@ def test_al_pagar_la_cadena_de_cierres_se_pone_al_dia():
     sembrar(hogar)
     hoy = timezone.localdate()
     anterior = date(hoy.year, hoy.month, 1) - timedelta(days=1)
+    anterior = anterior.replace(day=1) - timedelta(days=1)
     BudgetMonthFactory(
         household=hogar, year=anterior.year, month=anterior.month, status="open"
     )

@@ -317,6 +317,34 @@ def cerrar_vencidos(hogar, hoy=None):
     return cerrados
 
 
+def mes_activo(hogar, hoy=None):
+    """El (año, mes) en el que se trabaja: el del calendario, salvo que siga
+    abierto uno anterior.
+
+    Hasta que octubre se cierra —a mano, o solo a los
+    DIAS_PARA_EL_CIERRE_AUTOMATICO—, noviembre aun no empieza: el Overview
+    sigue en octubre y lo que se registra el dia 1 cuenta para octubre, que es
+    donde esta lo que quedo pendiente. No crea la fila de noviembre.
+
+    Cierra antes los vencidos (como `obtener_mes`): un septiembre vencido se
+    cierra y deja a octubre como el abierto mas antiguo. Un hogar que no puede
+    escribir no cierra nada, y un mes ya vencido no lo retiene.
+    """
+    hoy = hoy or timezone.localdate()
+    if hogar.puede_escribir:
+        cerrar_vencidos(hogar, hoy)
+    abierto = (
+        BudgetMonth.objects.for_household(hogar)
+        .filter(status=BudgetMonth.OPEN)
+        .filter(Q(year__lt=hoy.year) | Q(year=hoy.year, month__lt=hoy.month))
+        .order_by("year", "month")
+        .first()
+    )
+    if abierto is not None and not _esta_vencido(abierto, hoy):
+        return abierto.year, abierto.month
+    return hoy.year, hoy.month
+
+
 def obtener_mes(hogar, anio, mes, hoy=None):
     """El único punto de entrada al ciclo del mes (§2.3).
 

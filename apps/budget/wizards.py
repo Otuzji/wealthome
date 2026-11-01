@@ -34,9 +34,9 @@ _LIMBO = 10000
 def planificar(request, hogar, ambito, paso=1, anio=None, numero=None):
     """Un paso del asistente, sobre las LINEAS del mes.
 
-    Sin fecha es el mes corriente. Con fecha, cualquier mes que no este
-    cerrado: el futuro se materializa al entrar y desde ahi se edita aqui, no en
-    el setup (§2.3). Los pasos 1 y 2 guardan los importes tecleados; el 3
+    Sin fecha es el mes abierto (`services.mes_activo`). Con fecha, cualquier
+    mes que no este cerrado: el futuro se materializa al entrar y desde ahi se
+    edita aqui, no en el setup (§2.3). Los pasos 1 y 2 guardan los importes tecleados; el 3
     escribe el reparto, y lo reescribe si ya lo habia.
     """
     ambito = validar(ambito)
@@ -45,7 +45,7 @@ def planificar(request, hogar, ambito, paso=1, anio=None, numero=None):
 
     hoy = timezone.localdate()
     if anio is None:
-        anio, numero = hoy.year, hoy.month
+        anio, numero = services.mes_activo(hogar, hoy)
     exigir_en_el_calendario(anio, numero)
 
     mes = services.abrir_para_planificar(hogar, anio, numero, hoy)

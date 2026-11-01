@@ -49,8 +49,7 @@ def _recientes(hogar, mes_actual=None):
     materializa, y contra la base remota cada pasada de mas se nota al pulsar
     "Record it"."""
     if mes_actual is None:
-        hoy = timezone.localdate()
-        mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
+        mes_actual = services.obtener_mes(hogar, *services.mes_activo(hogar))
     if isinstance(mes_actual, services.ProyeccionDeMes):
         return []
     return list(
@@ -96,7 +95,9 @@ def registrar(request, hogar, kind=EXPENSE):
     es_htmx = request.headers.get("HX-Request") == "true"
     hoy = timezone.localdate()
     membresia = membresia_actual(request)
-    mes_fila = services.obtener_mes(hogar, hoy.year, hoy.month)
+    # El mes abierto, no el del calendario: el 1 de noviembre, con octubre
+    # sin cerrar, se registra en octubre y se ofrece lo que quedo pendiente.
+    mes_fila = services.obtener_mes(hogar, *services.mes_activo(hogar, hoy), hoy)
     form = TransactionForm(request.POST or None, household=hogar, kind=kind,
                            lineas=_lineas_para_pagar(hogar, mes_fila, membresia),
                            initial={"date": hoy})
@@ -281,9 +282,10 @@ def mes(request, hogar, ambito, anio=None, numero=None):
     membresia = membresia_actual(request)
     hoy = timezone.localdate()
     # `is None`, no `or`: un mes 0 en la URL es falsy y se colaba como "no
-    # dado", devolviendo el mes corriente en vez del 404 que merece.
-    anio = hoy.year if anio is None else anio
-    numero = hoy.month if numero is None else numero
+    # dado", devolviendo el mes corriente en vez del 404 que merece. Sin
+    # fecha, el mes abierto: hasta cerrar octubre, This month es octubre.
+    if anio is None or numero is None:
+        anio, numero = services.mes_activo(hogar, hoy)
     exigir_en_el_calendario(anio, numero)
     resultado = services.obtener_mes(hogar, anio, numero)
     es_proyeccion = isinstance(resultado, services.ProyeccionDeMes)
@@ -392,7 +394,7 @@ def cerrar(request, hogar, ambito, anio=None, numero=None):
     ambito = validar(ambito)
     hoy = timezone.localdate()
     if anio is None:
-        anio, numero = hoy.year, hoy.month
+        anio, numero = services.mes_activo(hogar, hoy)
     exigir_en_el_calendario(anio, numero)
     if (anio, numero) > (hoy.year, hoy.month):
         raise Http404(_("That month has not started yet."))
@@ -423,8 +425,7 @@ def mesada(request, hogar):
     un miembro por definicion, y una "mesada del hogar" no significa nada.
     """
     membresia = membresia_actual(request)
-    hoy = timezone.localdate()
-    mes_actual = services.obtener_mes(hogar, hoy.year, hoy.month)
+    mes_actual = services.obtener_mes(hogar, *services.mes_activo(hogar))
 
     libro = None
     gastos = []
@@ -454,8 +455,7 @@ def mesada(request, hogar):
 @requiere_permiso("can_edit_budget")
 def linea_nueva(request, hogar):
     """Anade una partida excepcional al mes corriente (paso 2 del §4.5.6)."""
-    hoy = timezone.localdate()
-    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    mes = services.obtener_mes(hogar, *services.mes_activo(hogar))
     return _linea_nueva(request, hogar, mes, ("budget:mes", "household"))
 
 

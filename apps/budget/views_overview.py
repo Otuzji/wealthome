@@ -10,6 +10,7 @@ Un GET no escribe: salvo lo que ya hace `obtener_mes` del mes corriente, nada
 se crea aqui.
 """
 
+from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
@@ -45,11 +46,14 @@ def _contexto(request, hogar, ambito, form=None):
     `form` es el del saldo inicial con sus errores, si venia de un POST fallido."""
     membresia = membresia_actual(request)
     hoy = timezone.localdate()
-    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    # El mes abierto, no el del calendario: hasta cerrar octubre, el 1 de
+    # noviembre se sigue viendo octubre.
+    anio, numero = services.mes_activo(hogar, hoy)
+    mes = services.obtener_mes(hogar, anio, numero, hoy)
     es_proyeccion = isinstance(mes, services.ProyeccionDeMes)
     contexto = {
         "ambito": ambito,
-        "primer_dia": hoy.replace(day=1),
+        "primer_dia": date(anio, numero, 1),
         # Todo lo que el Overview ofrece (montar el presupuesto, planear el mes
         # siguiente, anotar el saldo) es una escritura: ademas del permiso, el
         # hogar tiene que poder escribir (§5.2), como en This month.
@@ -131,7 +135,7 @@ def saldo_inicial(request, hogar):
     Overview. Solo el mes corriente y solo el hogar: es lo que la alerta mira."""
     es_htmx = request.headers.get("HX-Request") == "true"
     hoy = timezone.localdate()
-    mes = services.obtener_mes(hogar, hoy.year, hoy.month)
+    mes = services.obtener_mes(hogar, *services.mes_activo(hogar, hoy), hoy)
     if isinstance(mes, services.ProyeccionDeMes):
         raise Http404
     vuelta = reverse("budget:overview", args=[HOUSEHOLD])

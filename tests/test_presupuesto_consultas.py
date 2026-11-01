@@ -63,8 +63,9 @@ CONSULTAS_SUMMARY = 10
 # de la alerta, que al no haber ingreso por cobrar mira el mes siguiente SIN
 # crearlo: su fila, la categoria de ingreso, las fuentes y las reglas que
 # `proyectar` lee, el hogar del mes y si hubo un cierre previo (el saldo que
-# se sugiere). Ninguna crece con las transacciones.
-CONSULTAS_OVERVIEW = 18
+# se sugiere). Ninguna crece con las transacciones. Y 2 de `mes_activo`
+# (2026-11-01): cerrar vencidos y buscar un mes anterior aun abierto.
+CONSULTAS_OVERVIEW = 20
 
 
 @pytest.fixture
