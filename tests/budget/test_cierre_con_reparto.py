@@ -199,3 +199,56 @@ def test_el_summary_ensena_lo_que_paso_al_mes_siguiente(client, octubre):
     html = client.get(reverse("budget:summary", args=["household"])).content.decode()
 
     assert "Carried over" in html and "674.10" in html
+
+
+# --- lo arrastrado se ve en noviembre ----------------------------------------
+
+
+@pytest.fixture
+def noviembre_con_arrastre(octubre):
+    """Octubre cerrado con 674.10 sin repartir, y noviembre con ese saldo
+    inicial aceptado y una linea de gasto de 1,000."""
+    admin, hogar, mes, _meta, otto, diana = octubre
+    services.cerrar_mes(mes, [Asignacion(1, Decimal("500.00")),
+                              Asignacion(2, Decimal("300.00"), otto.pk),
+                              Asignacion(2, Decimal("300.00"), diana.pk)])
+    noviembre = services.obtener_mes(hogar, 2026, 11, date(2026, 11, 1))
+    BudgetLineFactory(household=hogar, budget_month=noviembre, kind="expense",
+                      category=CategoryFactory(household=hogar, slug="casa-n", kind="expense"),
+                      planned_amount=Decimal("1000.00"))
+    noviembre.opening_balance = Decimal("674.10")
+    noviembre.save(update_fields=["opening_balance"])
+    return admin, noviembre
+
+
+def test_this_month_cuenta_lo_arrastrado_en_el_cash_float(client, noviembre_con_arrastre):
+    admin, noviembre = noviembre_con_arrastre
+    client.force_login(admin)
+
+    r = client.get(reverse("budget:mes", args=["household", 2026, 11]))
+
+    assert r.context["totales"]["flotante"] == Decimal("674.10")
+    assert r.context["totales"]["flotante_plan"] == Decimal("-325.90")
+    assert "Includes $674.10 carried from last month." in r.content.decode()
+
+
+def test_el_overview_cuenta_lo_arrastrado_en_real_y_forecast(client, noviembre_con_arrastre):
+    admin, _noviembre = noviembre_con_arrastre
+    client.force_login(admin)
+
+    r = client.get(reverse("budget:overview", args=["household"]))
+
+    assert r.context["primer_dia"] == date(2026, 11, 1)
+    assert r.context["real"]["flotante"] == Decimal("674.10")
+    assert r.context["forecast"]["inicial"] == Decimal("674.10")
+    assert r.context["forecast"]["sobrante"] == Decimal("-325.90")
+    assert "Includes $674.10 carried from last month." in r.content.decode()
+
+
+def test_en_personal_lo_arrastrado_no_cuenta(client, noviembre_con_arrastre):
+    admin, _noviembre = noviembre_con_arrastre
+    client.force_login(admin)
+
+    r = client.get(reverse("budget:mes", args=["personal", 2026, 11]))
+
+    assert r.context["totales"]["inicial"] == Decimal("0.00")

@@ -29,7 +29,7 @@
     <p class="campo__ayuda">{% blocktranslate with importe=cifras.sin_pagar|money:hogar.currency %}Includes {{ importe }} that was planned but not paid.{% endblocktranslate %}</p>
   {% endif %}
 
-  <form method="post"
+  <form method="post" class="formulario"
         x-data="{ disponible: {{ cifras.disponible|stringformat:'s' }}, queda: {{ queda|stringformat:'s' }},
                   recalcular() { let s = 0; this.$root.querySelectorAll('input[data-reparto]').forEach(i => s += parseFloat(i.value || 0) || 0); this.queda = Math.round((this.disponible - s) * 100) / 100; } }"
         @input="recalcular()">

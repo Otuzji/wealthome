@@ -27,8 +27,11 @@
   <div class="cifra">
     <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
     <div class="cifra__linea">
-      <span class="cifra__valor {% if totales.sobrante_real < 0 %}cifra__valor--mal{% endif %}">{{ totales.sobrante_real|money:hogar.currency }}</span>
-      <span class="cifra__plan">{{ totales.sobrante|money:hogar.currency }} {% translate "planned" %}</span>
+      <span class="cifra__valor {% if totales.flotante < 0 %}cifra__valor--mal{% endif %}">{{ totales.flotante|money:hogar.currency }}</span>
+      <span class="cifra__plan">{{ totales.flotante_plan|money:hogar.currency }} {% translate "planned" %}</span>
     </div>
+    {% if totales.inicial %}
+      <p class="campo__ayuda">{% blocktranslate with importe=totales.inicial|money:hogar.currency %}Includes {{ importe }} carried from last month.{% endblocktranslate %}</p>
+    {% endif %}
   </div>
 </div>

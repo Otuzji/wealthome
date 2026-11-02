@@ -351,6 +351,7 @@ def mes(request, hogar, ambito, anio=None, numero=None):
             donas[INCOME]["real"], donas[EXPENSE]["real"],
             Decimal("0.00") if cerrado else donas[INCOME]["pendiente"],
             Decimal("0.00") if cerrado else donas[EXPENSE]["pendiente"],
+            inicial=services_overview.saldo_inicial_del_ambito(resultado, ambito),
         )
         # Cash Float es del hogar: reparte dinero comun entre sus miembros,
         # asi que en el ambito personal no tiene sentido.

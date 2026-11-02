@@ -2733,3 +2733,8 @@ msgstr "Ce que vous ne répartissez pas devient le solde initial du mois suivant
 #, python-format
 msgid "The opening balance of %(importe)s plus what came in minus what went out, so far."
 msgstr "Le solde initial de %(importe)s plus ce qui est entré moins ce qui est sorti, jusqu'ici."
+
+#: templates/budget/_fragmentos/cifras.html templates/budget/overview.html
+#, python-format
+msgid "Includes %(importe)s carried from last month."
+msgstr "Comprend %(importe)s reportés du mois précédent."

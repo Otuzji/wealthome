@@ -72,6 +72,12 @@
           <div class="cifra__valor {% if forecast.sobrante < 0 %}cifra__valor--mal{% endif %}">{{ forecast.sobrante|money:hogar.currency }}</div>
         </div>
         <dl class="flotante__destinos">
+          {% if forecast.inicial %}
+            <div class="flotante__fila">
+              <dt>{% translate "Opening balance" %}</dt>
+              <dd class="numero">{{ forecast.inicial|money:hogar.currency }}</dd>
+            </div>
+          {% endif %}
           <div class="flotante__fila">
             <dt>{% translate "Income" %}</dt>
             <dd class="numero importe--ingreso">{{ forecast.ingresos|money:hogar.currency }}</dd>
@@ -107,7 +113,10 @@
       <h2>{% translate "Real" %}</h2>
       <div class="cifra">
         <div class="cifra__etiqueta">{% translate "Cash Float" %}</div>
-        <div class="cifra__valor {% if real.sobrante_real < 0 %}cifra__valor--mal{% endif %}">{{ real.sobrante_real|money:hogar.currency }}</div>
+        <div class="cifra__valor {% if real.flotante < 0 %}cifra__valor--mal{% endif %}">{{ real.flotante|money:hogar.currency }}</div>
+        {% if real.inicial %}
+          <p class="campo__ayuda">{% blocktranslate with importe=real.inicial|money:hogar.currency %}Includes {{ importe }} carried from last month.{% endblocktranslate %}</p>
+        {% endif %}
       </div>
       <div class="cifra">
         <div class="cifra__etiqueta">{% translate "Income" %}</div>

@@ -23,7 +23,7 @@ CERO = Decimal("0.00")
 
 
 def totales(ingresos, egresos, ingresos_real, egresos_real,
-            ingresos_pendiente=CERO, egresos_pendiente=CERO):
+            ingresos_pendiente=CERO, egresos_pendiente=CERO, inicial=CERO):
     """Las tres cifras de cabecera, planeado y real, las mismas en Overview y
     en This month: una sola funcion para que no diverjan. Lo real sale de los
     registros del mes; el sobrante real es lo que entro menos lo que salio.
@@ -31,8 +31,16 @@ def totales(ingresos, egresos, ingresos_real, egresos_real,
     Lo pendiente llega ya calculado (la suma de lo que le falta a cada linea
     planificada, sin compensar). Esperado = lo real + lo pendiente: donde
     acabara el mes si se paga todo lo que falta. Desvio = esperado - planeado:
-    positivo, mas que lo planeado."""
+    positivo, mas que lo planeado.
+
+    `inicial` es el saldo con que abrio el mes (lo que el cierre anterior no
+    repartio; solo en el hogar). El Cash Float de las tarjetas lo suma
+    (`flotante`, `flotante_plan`): es dinero en mano. `sobrante` y
+    `sobrante_real` siguen siendo solo del mes."""
     return {
+        "inicial": inicial,
+        "flotante": inicial + ingresos_real - egresos_real,
+        "flotante_plan": inicial + ingresos - egresos,
         "ingresos": ingresos, "egresos": egresos, "sobrante": ingresos - egresos,
         "ingresos_real": ingresos_real, "egresos_real": egresos_real,
         "sobrante_real": ingresos_real - egresos_real,
@@ -120,7 +128,16 @@ def totales_del_ambito(mes, ambito, membresia):
         donas[INCOME]["real"], donas[EXPENSE]["real"],
         CERO if cerrado else donas[INCOME]["pendiente"],
         CERO if cerrado else donas[EXPENSE]["pendiente"],
+        inicial=saldo_inicial_del_ambito(mes, ambito),
     )
+
+
+def saldo_inicial_del_ambito(mes, ambito):
+    """El saldo inicial cuenta en el hogar: en Personal el dinero en mano no
+    es de uno."""
+    if ambito != HOUSEHOLD or mes.opening_balance is None:
+        return CERO
+    return mes.opening_balance
 
 
 def forecast_hogar(hogar, totales_dict):
@@ -136,13 +153,16 @@ def forecast_hogar(hogar, totales_dict):
     agota."""
     ingresos = totales_dict["ingresos_esperado"]
     egresos = totales_dict["egresos_esperado"]
-    sobrante = ingresos - egresos
+    # Lo que el mes anterior no repartio tambien se reparte al cerrar este.
+    inicial = totales_dict.get("inicial", CERO)
+    sobrante = inicial + ingresos - egresos
     asignaciones = []
     if sobrante > 0:
         asignaciones = motor_cascade.repartir(sobrante, services._reglas_del_motor(hogar))
     ahorro = sum((a.importe for a in asignaciones if a.miembro_id is None), CERO)
     mesada = sum((a.importe for a in asignaciones if a.miembro_id is not None), CERO)
     return {
+        "inicial": services.centavos(inicial),
         "ingresos": services.centavos(ingresos),
         "egresos": services.centavos(egresos),
         "sobrante": services.centavos(sobrante),
@@ -161,7 +181,9 @@ def forecast_personal(hogar, mes, membresia, totales_dict):
     de la mesada solo se lee: si aun no hay fila, arrastre y ajuste son 0 y NO
     se crea (un GET no escribe)."""
     _, _, del_hogar = totales_del_ambito(mes, HOUSEHOLD, membresia)
-    sobrante_hogar = del_hogar["ingresos_esperado"] - del_hogar["egresos_esperado"]
+    sobrante_hogar = (
+        del_hogar["inicial"] + del_hogar["ingresos_esperado"] - del_hogar["egresos_esperado"]
+    )
     asignaciones = []
     if sobrante_hogar > 0:
         asignaciones = motor_cascade.repartir(
